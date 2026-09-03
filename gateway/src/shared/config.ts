@@ -24,6 +24,8 @@ export interface GatewayConfig {
   corsOrigins: string[];
   /** AES key material for token vault encryption (32-byte hex or passphrase). */
   vaultEncryptionKey?: string;
+  /** HMAC key for signed audit hash chain (defaults to vault key or admin key). */
+  auditSigningKey: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig {
@@ -31,6 +33,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
   const runtimeEnv = (env.GATEWAY_LOCAL_RUNTIME ?? 'auto').toLowerCase();
   const localRuntimeMode: LocalRuntimeMode =
     runtimeEnv === 'stub' || runtimeEnv === 'ollama' ? runtimeEnv : 'auto';
+  const vaultEncryptionKey = env.GATEWAY_VAULT_KEY;
+  const adminApiKey = env.GATEWAY_ADMIN_API_KEY ?? 'n2ai_admin_dev_key';
 
   return {
     host: env.GATEWAY_HOST ?? '127.0.0.1',
@@ -43,9 +47,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
     externalProviderBaseUrl:
       env.GATEWAY_EXTERNAL_PROVIDER_URL ?? 'http://127.0.0.1:9',
     externalProviderApiKey: env.GATEWAY_EXTERNAL_PROVIDER_API_KEY,
-    adminApiKey: env.GATEWAY_ADMIN_API_KEY ?? 'n2ai_admin_dev_key',
+    adminApiKey,
     databaseUrl: env.DATABASE_URL,
     corsOrigins: cors.split(',').map((s) => s.trim()).filter(Boolean),
-    vaultEncryptionKey: env.GATEWAY_VAULT_KEY,
+    vaultEncryptionKey,
+    auditSigningKey:
+      env.GATEWAY_AUDIT_KEY ?? vaultEncryptionKey ?? adminApiKey,
   };
 }

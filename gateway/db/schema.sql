@@ -155,12 +155,30 @@ CREATE TABLE audit_events (
   reason_codes          JSONB,
   errors                JSONB,
   -- Raw sensitive content intentionally omitted by default
-  metadata              JSONB NOT NULL DEFAULT '{}'::jsonb
+  metadata              JSONB NOT NULL DEFAULT '{}'::jsonb,
+  -- Tamper-evident integrity (response body not stored — hash only)
+  response_hash         TEXT,
+  prev_event_hash       TEXT,
+  event_hash            TEXT,
+  integrity_signature   TEXT
 );
 
 CREATE INDEX audit_events_request_id_idx ON audit_events(request_id);
 CREATE INDEX audit_events_correlation_id_idx ON audit_events(correlation_id);
 CREATE INDEX audit_events_timestamp_idx ON audit_events(timestamp DESC);
+
+-- Append-only: block UPDATE/DELETE on audit_events
+CREATE OR REPLACE FUNCTION forbid_audit_mutation()
+RETURNS trigger AS $$
+BEGIN
+  RAISE EXCEPTION 'audit_events is append-only';
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS audit_events_no_update ON audit_events;
+CREATE TRIGGER audit_events_no_update
+  BEFORE UPDATE OR DELETE ON audit_events
+  FOR EACH ROW EXECUTE FUNCTION forbid_audit_mutation();
 
 -- ---------------------------------------------------------------------------
 -- System configuration

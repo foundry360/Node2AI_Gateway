@@ -1,28 +1,12 @@
 import type { PgQueryable } from '../shared/pg.js';
 import type { AuditEvent, AuditService } from './service.js';
 
-export class InMemoryAuditService implements AuditService {
-  private readonly events: AuditEvent[] = [];
-  forceFailure = false;
-
-  async record(event: AuditEvent): Promise<void> {
-    if (this.forceFailure) {
-      throw new Error('Audit write failed');
-    }
-    this.events.push(event);
-  }
-
-  async list(): Promise<AuditEvent[]> {
-    return [...this.events];
-  }
-}
-
 export class PostgresAuditService implements AuditService {
   forceFailure = false;
 
   constructor(private readonly db: PgQueryable) {}
 
-  async record(event: AuditEvent): Promise<void> {
+  async record(event: AuditEvent): Promise<AuditEvent> {
     if (this.forceFailure) {
       throw new Error('Audit write failed');
     }
@@ -32,13 +16,15 @@ export class PostgresAuditService implements AuditService {
          request_id, correlation_id, operation, data_classification, policy_ids,
          policy_decision, model_selected, provider, input_transformation,
          response_transformation, response_decision, latency_ms, usage,
-         reason_codes, errors, metadata
+         reason_codes, errors, metadata,
+         response_hash, prev_event_hash, event_hash, integrity_signature
        ) VALUES (
          $1, $2::timestamptz, $3, $4, $5,
          $6, $7, $8, $9, $10::jsonb,
          $11, $12, $13, $14,
          $15, $16, $17, $18::jsonb,
-         $19::jsonb, $20::jsonb, $21::jsonb
+         $19::jsonb, $20::jsonb, $21::jsonb,
+         $22, $23, $24, $25
        )`,
       [
         event.audit_id,
@@ -62,8 +48,13 @@ export class PostgresAuditService implements AuditService {
         JSON.stringify(event.reason_codes ?? []),
         JSON.stringify(event.errors ?? null),
         JSON.stringify(event.metadata ?? {}),
+        event.response_hash ?? null,
+        event.prev_event_hash ?? null,
+        event.event_hash ?? null,
+        event.integrity_signature ?? null,
       ],
     );
+    return event;
   }
 
   async list(): Promise<AuditEvent[]> {
@@ -72,9 +63,10 @@ export class PostgresAuditService implements AuditService {
               request_id, correlation_id, operation, data_classification, policy_ids,
               policy_decision, model_selected, provider, input_transformation,
               response_transformation, response_decision, latency_ms, usage,
-              reason_codes, errors, metadata
+              reason_codes, errors, metadata,
+              response_hash, prev_event_hash, event_hash, integrity_signature
        FROM audit_events
-       ORDER BY timestamp ASC`,
+       ORDER BY timestamp ASC, audit_id ASC`,
     );
 
     return res.rows.map((row) => ({
@@ -115,6 +107,12 @@ export class PostgresAuditService implements AuditService {
         : undefined,
       errors: row.errors ?? undefined,
       metadata: (row.metadata as Record<string, unknown>) ?? undefined,
+      response_hash: row.response_hash ? String(row.response_hash) : undefined,
+      prev_event_hash: row.prev_event_hash ? String(row.prev_event_hash) : undefined,
+      event_hash: row.event_hash ? String(row.event_hash) : undefined,
+      integrity_signature: row.integrity_signature
+        ? String(row.integrity_signature)
+        : undefined,
     }));
   }
 }

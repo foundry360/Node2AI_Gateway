@@ -35,7 +35,27 @@ docker compose exec -T postgres \
 
 ### Vault key
 
-Back up `GATEWAY_VAULT_KEY` from `.env` alongside the dump. Without it, tokenized values cannot be recovered.
+Back up `GATEWAY_VAULT_KEY` and `GATEWAY_AUDIT_KEY` (if set) from `.env` alongside the dump. Without the vault key, tokenized values cannot be recovered. Without the audit key, integrity signatures cannot be re-verified after a key rotation.
+
+### Audit integrity (tamper-evident)
+
+Each audit event stores `response_hash` (SHA-256 of the released response), `event_hash` (hash-chained), and `integrity_signature` (HMAC). Response plaintext is not stored.
+
+Verify:
+
+```bash
+curl -s -H "Authorization: Bearer $GATEWAY_ADMIN_API_KEY" \
+  http://127.0.0.1:8080/v1/admin/audit/integrity
+```
+
+On existing Postgres volumes, apply:
+
+```bash
+docker compose exec -T postgres \
+  psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < db/migrate-audit-integrity.sql
+```
+
+Postgres triggers reject UPDATE/DELETE on `audit_events` (append-only).
 
 ### Ollama models
 

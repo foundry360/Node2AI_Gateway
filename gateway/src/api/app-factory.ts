@@ -1,6 +1,7 @@
 import { InMemoryAuditService } from '../audit/service.js';
 import type { AuditService } from '../audit/service.js';
 import { PostgresAuditService } from '../audit/pg-service.js';
+import { IntegrityAuditService } from '../audit/integrity-service.js';
 import { IdentityService } from '../identity/service.js';
 import { InMemoryIdentityStore } from '../identity/store.js';
 import type { IdentityStore } from '../identity/store.js';
@@ -172,7 +173,11 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
   const seed = createPhase1Seed();
   const identityStore = options.identityStore ?? new InMemoryIdentityStore(seed);
   const identity = new IdentityService(identityStore);
-  const audit = options.audit ?? new InMemoryAuditService();
+  const rawAudit = options.audit ?? new InMemoryAuditService();
+  const audit =
+    options.audit instanceof IntegrityAuditService
+      ? options.audit
+      : new IntegrityAuditService(rawAudit, config.auditSigningKey);
   const persistence = options.persistence ?? 'memory';
   const policy =
     options.policy ??
@@ -314,7 +319,9 @@ export async function createApplianceGateway(
   const { PostgresIdentityStore } = await import('../identity/store.js');
   const pool = createPgPool(config.databaseUrl);
   const identityStore = new PostgresIdentityStore(pool);
-  const audit = new PostgresAuditService(pool);
+  const rawAudit = new PostgresAuditService(pool);
+  const audit = new IntegrityAuditService(rawAudit, config.auditSigningKey);
+  await audit.bootstrapFromStore();
   const policyStore = new PostgresPolicyStore(pool);
   const dbModels = await loadModelsFromPostgres(pool);
   const registry = new InMemoryModelRegistry(

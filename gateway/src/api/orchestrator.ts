@@ -1,4 +1,4 @@
-import type { AuditService } from '../audit/service.js';
+import type { AuditEvent, AuditService } from '../audit/service.js';
 import type { IdentityService } from '../identity/service.js';
 import type { DataInterrogator } from '../interrogation/types.js';
 import { selectEligibleModel } from '../models/router.js';
@@ -22,6 +22,12 @@ export interface CompletionSuccess {
   model: string;
   response: { message: { role: string; content: string } };
   usage: { input_tokens: number; output_tokens: number };
+  /** Tamper-evident hashes for the released response / audit event. */
+  integrity: {
+    response_hash: string;
+    event_hash: string;
+    prev_event_hash: string;
+  };
 }
 
 export interface CompletionBlocked {
@@ -92,6 +98,10 @@ export class GatewayOrchestrator {
         response_decision: 'BLOCK',
         reason_codes: [reason_code],
         ...extra,
+        metadata: {
+          ...((extra.metadata as Record<string, unknown>) ?? {}),
+          __response_content: '',
+        },
       });
       return {
         httpStatus,
@@ -447,10 +457,11 @@ export class GatewayOrchestrator {
           response_sensitivity: inspection.sensitivity,
           authorize_detokenization: responsePolicy.authorize_detokenization,
           entity_types: classification.entities?.map((e) => e.type) ?? [],
+          __response_content: responseContent,
         },
       });
 
-      if (!audited && this.deps.config.failClosedOnAuditError) {
+      if (!audited.ok && this.deps.config.failClosedOnAuditError) {
         return block(403, 'INTERNAL_ERROR', 'Request blocked by policy.', {
           errors: { audit: 'write_failed' },
         });
@@ -467,6 +478,11 @@ export class GatewayOrchestrator {
             message: { role: 'assistant', content: responseContent },
           },
           usage: execution.usage,
+          integrity: {
+            response_hash: audited.event?.response_hash ?? '',
+            event_hash: audited.event?.event_hash ?? '',
+            prev_event_hash: audited.event?.prev_event_hash ?? '',
+          },
         },
       };
     } catch (err) {
@@ -482,13 +498,13 @@ export class GatewayOrchestrator {
   }
 
   private async writeAudit(
-    event: Parameters<AuditService['record']>[0],
-  ): Promise<boolean> {
+    event: AuditEvent,
+  ): Promise<{ ok: boolean; event?: AuditEvent }> {
     try {
-      await this.deps.audit.record(event);
-      return true;
+      const sealed = await this.deps.audit.record(event);
+      return { ok: true, event: sealed };
     } catch {
-      return false;
+      return { ok: false };
     }
   }
 }

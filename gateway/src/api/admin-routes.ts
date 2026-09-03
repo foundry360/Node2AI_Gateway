@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { AuditService } from '../audit/service.js';
+import type { IntegrityAuditService } from '../audit/integrity-service.js';
 import type { IdentityStore } from '../identity/store.js';
 import type { Application } from '../identity/types.js';
 import {
@@ -434,7 +435,31 @@ export function registerAdminRoutes(
           response_transformation: e.response_transformation,
           reason_codes: e.reason_codes,
           latency_ms: e.latency_ms,
+          response_hash: e.response_hash,
+          event_hash: e.event_hash,
+          prev_event_hash: e.prev_event_hash,
+          integrity_signature: e.integrity_signature
+            ? `${e.integrity_signature.slice(0, 12)}…`
+            : undefined,
         })),
+    };
+  });
+
+  app.get('/v1/admin/audit/integrity', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    const audit = ctx.audit as IntegrityAuditService;
+    if (typeof audit.verifyIntegrity !== 'function') {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Integrity audit service not configured',
+      });
+    }
+    const result = await audit.verifyIntegrity();
+    return {
+      integrity: result,
+      note: 'Hash-chained HMAC-signed audit. Response bodies are not stored — only response_hash.',
     };
   });
 
