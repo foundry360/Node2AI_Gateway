@@ -1,0 +1,57 @@
+name: Gateway CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'gateway/**'
+      - 'docs/**'
+      - '.github/workflows/gateway.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'gateway/**'
+      - 'docs/**'
+      - '.github/workflows/gateway.yml'
+
+jobs:
+  gateway:
+    name: Gateway test + typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gateway
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install gateway deps
+        run: pnpm install
+
+      - name: Typecheck gateway
+        run: pnpm typecheck
+
+      - name: Test gateway
+        env:
+          GATEWAY_LOCAL_RUNTIME: stub
+        run: pnpm test
+
+      - name: Install admin deps
+        working-directory: gateway/admin
+        run: pnpm install
+
+      - name: Typecheck admin
+        working-directory: gateway/admin
+        run: pnpm typecheck
+        env:
+          # Next may not need GATEWAY at typecheck time
+          GATEWAY_URL: http://127.0.0.1:8080
+          GATEWAY_ADMIN_API_KEY: ci_admin_key
