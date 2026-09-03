@@ -1,0 +1,135 @@
+#cloud-config
+# Node2AI Enterprise - Azure VM Cloud-Init Configuration
+# This file configures automatic installation on Azure VM launch
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - docker.io
+  - docker-compose
+  - curl
+  - wget
+  - git
+  - jq
+  - unzip
+
+# Create application directory
+write_files:
+  - path: /opt/node2ai/README.txt
+    permissions: '0644'
+    owner: root:root
+    content: |
+      Node2AI Enterprise Installation
+      ================================
+
+      Installation package mounted or downloaded.
+      Run: /opt/node2ai/install-vpc.sh
+
+  - path: /opt/node2ai/install-vpc.sh
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/bin/bash
+      # Node2AI Enterprise VPC Installation Script
+      set -e
+
+      echo "Node2AI Enterprise VPC Installation"
+      echo "===================================="
+
+      # Get instance metadata
+      INSTANCE_IP=$(curl -s -H Metadata:true "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text" 2>/dev/null || hostname -I | awk '{print $1}')
+
+      # Detect installation method
+      if [ -d "/opt/node2ai/docker" ]; then
+        echo "Installing via Docker..."
+        cd /opt/node2ai/docker
+        
+        # Create .env if needed
+        if [ ! -f ".env" ]; then
+          if [ -f "../config/.env.example" ]; then
+            cp ../config/.env.example .env
+          elif [ -f ".env.example" ]; then
+            cp .env.example .env
+          fi
+          
+          # Generate secrets
+          if [ -f "../scripts/utils/generate-secrets.sh" ]; then
+            chmod +x ../scripts/utils/generate-secrets.sh
+            ../scripts/utils/generate-secrets.sh >> .env
+          fi
+        fi
+        
+        # Load Docker images if they exist
+        if [ -d "../docker/images" ]; then
+          echo "Loading Docker images..."
+          for img in ../docker/images/*.tar.gz; do
+            if [ -f "$img" ]; then
+              echo "Loading $(basename $img)..."
+              docker load < "$img" || true
+            fi
+          done
+        fi
+        
+        # Start services
+        docker-compose up -d
+        
+        echo "✅ Installation complete!"
+        echo "Dashboard: http://${INSTANCE_IP}:3000"
+        echo "API: http://${INSTANCE_IP}:3001"
+        
+      elif [ -d "/opt/node2ai/kubernetes" ]; then
+        echo "Installing via Kubernetes..."
+        kubectl apply -f /opt/node2ai/kubernetes/
+        echo "✅ Installation complete!"
+        echo "Check status: kubectl get pods -n node2ai"
+      else
+        echo "Standalone installation..."
+        cd /opt/node2ai/standalone
+        if [ -f "install.sh" ]; then
+          chmod +x install.sh
+          ./install.sh
+        else
+          echo "❌ Standalone installer not found"
+          exit 1
+        fi
+      fi
+
+# Install Docker
+runcmd:
+  # Install Docker
+  - curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+  - sh /tmp/get-docker.sh
+  - usermod -aG docker azureuser || usermod -aG docker $(whoami) || true
+  - systemctl enable docker
+  - systemctl start docker
+
+  # Install Docker Compose
+  - curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  - chmod +x /usr/local/bin/docker-compose
+
+  # Create application directory
+  - mkdir -p /opt/node2ai
+
+  # If package is in /tmp, copy it
+  - |
+    if [ -d /tmp/node2ai-enterprise* ]; then
+      cp -r /tmp/node2ai-enterprise*/* /opt/node2ai/ 2>/dev/null || true
+    fi
+
+  # Run installer
+  - |
+    if [ -f /opt/node2ai/install-vpc.sh ]; then
+      cd /opt/node2ai
+      chmod +x install-vpc.sh
+      ./install-vpc.sh
+    fi
+
+final_message: |
+  Node2AI Enterprise installation complete!
+
+  Access the dashboard at: http://PUBLIC_IP:3000
+  API endpoint: http://PUBLIC_IP:3001/api/health
+
+  To get your public IP:
+  curl -H Metadata:true "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text"

@@ -1,0 +1,6 @@
+# Vercel deployments disabled for Node2AI Enterprise
+# This project is designed for enterprise on-premises deployment
+# and should not be deployed to Vercel
+
+# Ignore everything
+*

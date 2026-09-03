@@ -1,0 +1,254 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node2ai-postgres
+  namespace: node2ai
+  labels:
+    app: node2ai
+    component: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node2ai
+      component: postgres
+  template:
+    metadata:
+      labels:
+        app: node2ai
+        component: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg15
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              memory: '512Mi'
+              cpu: '250m'
+            limits:
+              memory: '1Gi'
+              cpu: '500m'
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - $(POSTGRES_USER)
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - $(POSTGRES_USER)
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: node2ai-postgres-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node2ai-redis
+  namespace: node2ai
+  labels:
+    app: node2ai
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node2ai
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: node2ai
+        component: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          command:
+            - redis-server
+            - --appendonly
+            - 'yes'
+            - --requirepass
+            - $(REDIS_PASSWORD)
+            - --maxmemory
+            - '512mb'
+            - --maxmemory-policy
+            - 'allkeys-lru'
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: REDIS_PASSWORD
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '100m'
+            limits:
+              memory: '512Mi'
+              cpu: '250m'
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - --raw
+                - incr
+                - ping
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: node2ai-redis-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node2ai-api
+  namespace: node2ai
+  labels:
+    app: node2ai
+    component: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: node2ai
+      component: api
+  template:
+    metadata:
+      labels:
+        app: node2ai
+        component: api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/foundry360/node2-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3001
+          envFrom:
+            - configMapRef:
+                name: node2ai-config
+            - secretRef:
+                name: node2ai-secrets
+          env:
+            - name: DATABASE_URL
+              value: 'postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)'
+            - name: REDIS_URL
+              value: 'redis://:$(REDIS_PASSWORD)@$(REDIS_HOST):$(REDIS_PORT)'
+          resources:
+            requests:
+              memory: '512Mi'
+              cpu: '500m'
+            limits:
+              memory: '1Gi'
+              cpu: '1'
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3001
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+      imagePullSecrets:
+        - name: ghcr-secret
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node2ai-web
+  namespace: node2ai
+  labels:
+    app: node2ai
+    component: web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: node2ai
+      component: web
+  template:
+    metadata:
+      labels:
+        app: node2ai
+        component: web
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/foundry360/node2-web:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: node2ai-config
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '250m'
+            limits:
+              memory: '512Mi'
+              cpu: '500m'
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      imagePullSecrets:
+        - name: ghcr-secret

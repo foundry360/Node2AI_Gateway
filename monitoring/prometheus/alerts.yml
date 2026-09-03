@@ -1,0 +1,103 @@
+groups:
+  - name: node2ai_alerts
+    interval: 30s
+    rules:
+      # API Server Health
+      - alert: Node2AIApiDown
+        expr: up{job="node2ai-api"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Node2AI API server is down'
+          description: 'Node2AI API server has been down for more than 5 minutes.'
+
+      # API High Error Rate
+      - alert: Node2AIApiHighErrorRate
+        expr: rate(http_requests_total{job="node2ai-api",status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'High error rate on Node2AI API'
+          description: 'Error rate is above 5% for the last 5 minutes.'
+
+      # API High Latency
+      - alert: Node2AIApiHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="node2ai-api"}[5m])) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'High latency on Node2AI API'
+          description: '95th percentile latency is above 2 seconds.'
+
+      # Database Connection Issues
+      - alert: PostgreSQLDown
+        expr: up{job="postgres"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'PostgreSQL is down'
+          description: 'PostgreSQL database is not responding.'
+
+      # Database High Connections
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_database_numbackends{datname="node2ai"} > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'High number of database connections'
+          description: 'PostgreSQL has more than 80 active connections.'
+
+      # Redis Down
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Redis is down'
+          description: 'Redis cache is not responding.'
+
+      # Redis High Memory Usage
+      - alert: RedisHighMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Redis memory usage is high'
+          description: 'Redis is using more than 90% of allocated memory.'
+
+      # Disk Space
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Low disk space'
+          description: 'Disk space is below 10%.'
+
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'High CPU usage'
+          description: 'CPU usage is above 80% for more than 10 minutes.'
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'High memory usage'
+          description: 'Memory usage is above 85%.'

@@ -1,0 +1,80 @@
+# Multi-stage build for Node2AI Web Dashboard - Production
+FROM node:18-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat curl
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm@8
+
+# Copy package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/sdk/package.json ./packages/sdk/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile --prod=false
+
+# Rebuild the source code only when needed
+FROM base AS builder
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Install pnpm in builder stage
+RUN npm install -g pnpm@8
+
+# Copy source code
+COPY . .
+
+# Copy node_modules from deps to leverage cache
+COPY --from=deps /app/node_modules ./node_modules
+
+# Reinstall to ensure workspace symlinks are correct
+RUN pnpm install --frozen-lockfile
+
+# Build workspace packages using pnpm workspace filtering
+# Build shared package first (dependency of other packages)
+RUN pnpm --filter @node2/shared build
+
+# Build SDK package
+RUN pnpm --filter @node2/sdk build
+
+# Build Web Dashboard with standalone output
+ENV NEXT_OUTPUT=standalone
+RUN pnpm --filter @node2/web build
+
+# Ensure public directory exists (even if empty)
+RUN mkdir -p /app/apps/web/public
+
+# Production image, copy all the files and run next
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy built application (standalone output includes node_modules and dependencies)
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+  CMD curl -f http://localhost:3000 || exit 1
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Use exec form for proper signal handling
+CMD ["node", "apps/web/server.js"]
+

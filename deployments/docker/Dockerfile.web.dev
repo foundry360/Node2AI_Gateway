@@ -1,0 +1,144 @@
+# Node2AI Web Dashboard Development Dockerfile
+# Multi-stage build optimized for development with hot reload and debugging support
+
+# =============================================================================
+# STAGE 1: Base Image with Node.js and pnpm
+# =============================================================================
+FROM node:20-alpine AS base
+
+# Install system dependencies
+RUN apk add --no-cache \
+    curl \
+    git \
+    openssl \
+    && rm -rf /var/cache/apk/*
+
+# Install pnpm globally
+RUN npm install -g pnpm@latest
+
+# Set working directory
+WORKDIR /app
+
+# =============================================================================
+# STAGE 2: Dependencies Installation
+# =============================================================================
+FROM base AS deps
+
+# Copy package files for dependency installation
+COPY package.json pnpm-lock.yaml ./
+COPY apps/web/package.json ./apps/web/
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/sdk/package.json ./packages/sdk/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# =============================================================================
+# STAGE 3: Development Build
+# =============================================================================
+FROM base AS dev
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=deps /app/packages/sdk/node_modules ./packages/sdk/node_modules
+
+# Copy source code
+COPY . .
+
+# Build shared packages first (required for Web)
+RUN pnpm --filter @node2/shared build
+RUN pnpm --filter @node2/sdk build
+
+# Set environment variables for development
+ENV NODE_ENV=development
+ENV DEPLOYMENT_MODE=self-hosted
+ENV LOG_LEVEL=debug
+ENV DEBUG_MODE=true
+ENV HOT_RELOAD=true
+ENV NEXT_PUBLIC_DEBUG=true
+
+# Expose port
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3001 || exit 1
+
+# Development command with hot reload
+CMD ["pnpm", "--filter", "@node2/web", "dev"]
+
+# =============================================================================
+# STAGE 4: Production Build (for testing production-like behavior)
+# =============================================================================
+FROM base AS prod
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=deps /app/packages/sdk/node_modules ./packages/sdk/node_modules
+
+# Copy source code
+COPY . .
+
+# Build all packages
+RUN pnpm --filter @node2/shared build
+RUN pnpm --filter @node2/sdk build
+
+# Build Web application
+RUN pnpm --filter @node2/web build
+
+# Set environment variables for production
+ENV NODE_ENV=production
+ENV DEPLOYMENT_MODE=self-hosted
+ENV LOG_LEVEL=info
+ENV DEBUG_MODE=false
+ENV HOT_RELOAD=false
+ENV NEXT_PUBLIC_DEBUG=false
+
+# Expose port
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3001 || exit 1
+
+# Production command
+CMD ["pnpm", "--filter", "@node2/web", "start"]
+
+# =============================================================================
+# DEVELOPMENT OPTIMIZATIONS
+# =============================================================================
+# This Dockerfile is optimized for development with the following features:
+#
+# 1. Multi-stage build for faster rebuilds
+# 2. Hot reload support with volume mounts
+# 3. Debug logging enabled
+# 4. Development dependencies included
+# 5. Health checks for service monitoring
+# 6. Both development and production stages
+# 7. Next.js specific optimizations
+#
+# Usage:
+# - Development: docker-compose -f docker-compose.dev.yml up web
+# - Production test: docker-compose -f docker-compose.prod.yml up web
+#
+# Volume mounts for hot reload:
+# - ./apps/web:/app/apps/web
+# - ./packages:/app/packages
+# - ./node_modules:/app/node_modules
+#
+# Environment variables:
+# - NODE_ENV=development
+# - LOG_LEVEL=debug
+# - DEBUG_MODE=true
+# - HOT_RELOAD=true
+# - NEXT_PUBLIC_DEBUG=true
+#
+# Next.js specific features:
+# - Fast refresh enabled
+# - Source maps for debugging
+# - Development optimizations
+# - Hot module replacement

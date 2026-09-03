@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "builds": [],
+  "routes": [],
+  "functions": {},
+  "env": {},
+  "buildCommand": "echo 'Vercel deployments disabled for Node2AI Enterprise'",
+  "devCommand": "echo 'Vercel deployments disabled for Node2AI Enterprise'",
+  "installCommand": "echo 'Vercel deployments disabled for Node2AI Enterprise'",
+  "outputDirectory": "dist",
+  "framework": null,
+  "ignoreCommand": "echo 'Vercel deployments disabled for Node2AI Enterprise'"
+}

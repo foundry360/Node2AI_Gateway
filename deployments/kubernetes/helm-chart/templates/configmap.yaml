@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "node2-enterprise.fullname" . }}-config
+  labels:
+    {{- include "node2-enterprise.labels" . | nindent 4 }}
+data:
+  # Deployment configuration
+  DEPLOYMENT_MODE: {{ .Values.deploymentMode | quote }}
+  
+  # API configuration
+  API_PORT: "3001"
+  API_HOST: "0.0.0.0"
+  
+  # Web configuration
+  WEB_PORT: "3000"
+  WEB_HOST: "0.0.0.0"
+  
+  # CORS configuration
+  CORS_ORIGINS: "http://localhost:3000,http://localhost:3001"
+  
+  # Logging configuration
+  LOG_LEVEL: "info"
+  METRICS_ENABLED: "true"
+  
+  # Health check configuration
+  HEALTH_CHECK_INTERVAL: "30"
+  
+  # Feature flags
+  FEATURE_SANITIZATION: "true"
+  FEATURE_AUDIT_LOGS: "true"
+  FEATURE_COMPLIANCE_REPORTS: "true"
+  {{- if .Values.airgap.enabled }}
+  FEATURE_OFFLINE_MODE: "true"
+  {{- else }}
+  FEATURE_OFFLINE_MODE: "false"
+  {{- end }}
+  
+  # Air-gapped configuration
+  {{- if .Values.airgap.enabled }}
+  AIRGAP_MODE: "true"
+  LOCAL_MODEL_PATH: "/models"
+  OFFLINE_MODELS_PATH: "/models/offline"
+  {{- else }}
+  AIRGAP_MODE: "false"
+  {{- end }}
+  
+  # Database configuration
+  DATABASE_SSL: "false"
+  DATABASE_POOL_SIZE: "10"
+  
+  # Redis configuration
+  REDIS_DB: "0"
+  
+  # Session configuration
+  SESSION_TIMEOUT: "3600"
+  
+  # Data retention
+  DATA_RETENTION_DAYS: "30"
+  
+  # Rate limiting
+  RATE_LIMIT_WINDOW_MS: "900000"
+  RATE_LIMIT_MAX_REQUESTS: "1000"
+  
+  # File limits
+  MAX_UPLOAD_SIZE: "10485760"
+  MAX_MODEL_SIZE: "5368709120"
+  MAX_BACKUP_SIZE: "53687091200"
+  
+  # Backup configuration
+  {{- if .Values.backup.enabled }}
+  BACKUP_ENABLED: "true"
+  BACKUP_SCHEDULE: {{ .Values.backup.schedule | quote }}
+  BACKUP_RETENTION_DAYS: "30"
+  {{- else }}
+  BACKUP_ENABLED: "false"
+  {{- end }}
+  
+  # Monitoring configuration
+  {{- if .Values.monitoring.enabled }}
+  METRICS_ENABLED: "true"
+  {{- else }}
+  METRICS_ENABLED: "false"
+  {{- end }}
+  
+  # Custom configuration
+  {{- with .Values.configMap.data }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}

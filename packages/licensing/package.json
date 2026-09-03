@@ -1,0 +1,46 @@
+{
+  "name": "@node2ai/licensing",
+  "version": "1.0.0",
+  "description": "Node2AI License Management System",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "node2ai-license": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "node2ai",
+    "licensing",
+    "enterprise",
+    "validation"
+  ],
+  "author": "Foundry360",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "inquirer": "^9.2.12",
+    "chalk": "^5.3.0",
+    "ora": "^7.0.1",
+    "date-fns": "^2.30.0",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/inquirer": "^9.0.7",
+    "@types/pg": "^8.10.9",
+    "typescript": "^5.3.0"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

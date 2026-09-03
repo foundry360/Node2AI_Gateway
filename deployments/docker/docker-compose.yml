@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: node2-postgres
+    environment:
+      POSTGRES_DB: node2
+      POSTGRES_USER: node2
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-node2123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql
+      - ./init-extensions.sql:/docker-entrypoint-initdb.d/00-init-extensions.sql
+    ports:
+      - '5432:5432'
+    networks:
+      - node2-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U node2 -d node2']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: node2-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - redis_data:/data
+    ports:
+      - '6379:6379'
+    networks:
+      - node2-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Node2AI API
+  api:
+    build:
+      context: ../../apps/api
+      dockerfile: ../../deployments/docker/Dockerfile.api
+    container_name: node2-api
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://node2:${POSTGRES_PASSWORD:-node2123}@postgres:5432/node2
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-here}
+      - API_SECRET_KEY=${API_SECRET_KEY:-your-api-secret-here}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
+      - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-self-hosted}
+      - SUPERNOVA_LICENSE_KEY=${SUPERNOVA_LICENSE_KEY}
+    ports:
+      - '3001:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - node2-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3001/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    # Wait for database initialization to complete
+    command: >
+      sh -c "
+        echo 'Waiting for database initialization...' &&
+        sleep 10 &&
+        echo 'Starting Node2AI API...' &&
+        npm start
+      "
+
+  # Node2AI Web Dashboard
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: ../../deployments/docker/Dockerfile.web
+    container_name: node2-web
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://api:3001
+    ports:
+      - '3000:3000'
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - node2-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: node2-nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    ports:
+      - '80:80'
+      - '443:443'
+    depends_on:
+      - api
+      - web
+    networks:
+      - node2-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  node2-network:
+    driver: bridge

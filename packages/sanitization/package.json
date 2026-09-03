@@ -1,0 +1,50 @@
+{
+  "name": "@node2/sanitization",
+  "version": "1.0.0",
+  "description": "Proprietary data sanitization engine for Node2AI - handles PII, PHI, financial, and government data",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit",
+    "lint": "echo 'Lint check skipped for sanitization package' || exit 0",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "test": "echo 'No tests configured for @node2/sanitization' && exit 0",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "@node2/shared": "workspace:*",
+    "crypto": "^1.0.1",
+    "regex-parser": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "keywords": [
+    "data-sanitization",
+    "pii",
+    "phi",
+    "compliance",
+    "privacy",
+    "security"
+  ]
+}

@@ -1,0 +1,274 @@
+@startuml Node2AI_Complete_Architecture
+!theme plain
+skinparam componentStyle rectangle
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontSize 10
+skinparam component {
+    BackgroundColor #E8F4F8
+    BorderColor #2C5282
+    FontSize 10
+}
+skinparam database {
+    BackgroundColor #F0F9FF
+    BorderColor #1E40AF
+}
+
+title Node2AI Enterprise Platform - Complete Architecture
+
+package "Client Layer" #FFE4E1 {
+  component [Web Dashboard\nNext.js 14\nPort 3000] as Web #FECACA
+  component [API Clients\nREST/OpenAI Compatible] as Clients #FECACA
+  component [Mobile Apps\nSDK Integration] as Mobile #FECACA
+}
+
+package "DMZ / Edge" #E0E7FF {
+  [External Firewall\nNetwork Perimeter\nPort Filtering] as FW_EXT #C7D2FE
+  [Web Application Firewall\nWAF\nDDoS Protection] as WAF #C7D2FE
+  [Load Balancer\nHAProxy/Nginx] as LB #C7D2FE
+  [SSL/TLS Termination] as SSL #C7D2FE
+}
+
+package "API Gateway Layer" #E0E7FF {
+  [Application Firewall\nInter-zone Protection] as FW_APP #C7D2FE
+  component [API Gateway\nNext.js 14\nPort 3001] as API #C7D2FE
+  component [REST API Routes\n/api/v1/*] as Routes #C7D2FE
+  
+  package "Middleware Stack" #DBEAFE {
+    [Auth Middleware\nJWT/API Key] as AuthMW
+    [Rate Limit\nRedis-backed] as RateMW
+    [Audit Log\nRequest Tracking] as AuditMW
+    [License Check\nFeature Gating] as LicenseMW
+    [CORS\nCross-Origin] as CORS
+  }
+}
+
+package "Core Services Layer" #D1FAE5 {
+  package "Routing Services" #A7F3D0 {
+    [Smart Router\nMulti-criteria Selection] as Router
+    [Context-Aware Router\nPrompt Analysis] as ContextRouter
+    [Budget Router\nCost Optimization] as BudgetRouter
+    [Fallback Router\nProvider Failover] as FallbackRouter
+  }
+  
+  package "Security Services" #FEF3C7 {
+    [Data Sanitizer\nPII/PHI/Financial] as Sanitizer
+    [Encryption Service\nAES-256] as Encryption
+    [Data Classifier\nSensitivity Levels] as Classifier
+    [Token Mapping\nReversible Obfuscation] as TokenMapper
+  }
+  
+  package "Business Services" #DDD6FE {
+    [Audit Service\nCompliance Logging] as Audit
+    [Blockchain Service\nHyperledger Fabric] as Blockchain
+    [Storage Service\nAI Interaction Persistence] as Storage
+    [Analytics Service\nMetrics & Reporting] as Analytics
+    [RAG Service\nDocument Processing] as RAG
+    [Cost Calculator\nUsage Pricing] as CostCalc
+  }
+  
+  package "Auth Services" #FCE7F3 {
+    [Auth Service\nJWT/API Key] as AuthSvc
+    [Organization Service\nMulti-tenancy] as OrgSvc
+    [User Service\nRBAC Management] as UserSvc
+  }
+}
+
+database "Data Layer" #E0F2FE {
+  [Database Firewall\nSQL Injection Protection] as FW_DB #BAE6FD
+  
+  database "PostgreSQL\npgvector extension" as PG {
+    [organizations] as OrgsTbl
+    [users] as UsersTbl
+    [api_keys] as ApiKeysTbl
+    [provider_keys] as ProviderKeysTbl
+    [audit_logs] as AuditLogsTbl
+    [ai_interactions] as AiInterTbl
+    [token_mappings] as TokenMapTbl
+    [conversation_sessions] as ConvSessTbl
+    [pgvector embeddings] as VectorTbl
+  }
+  
+  database "Redis Cache" as Redis {
+    [User Sessions\nJWT Tokens] as Sessions
+    [Rate Limits\nRequest Throttling] as RateLimits
+    [Token Mappings\nIn-Memory] as TokenCache
+  }
+  
+  database "Supabase (Optional)" as Supabase {
+    [Supabase PostgreSQL\nCloud Database] as SupabaseDB
+    [Supabase Auth\nSSO Integration] as SupabaseAuth
+  }
+}
+
+package "Blockchain Layer" #F3E8FF {
+  [Service Firewall\nBlockchain Isolation] as FW_SVC #E9D5FF
+  
+  component [Hyperledger Fabric\nnode2aichannel] as Fabric #E9D5FF
+  
+  package "Fabric Network" #F3E8FF {
+    component [Peer Org1\npeer0.org1.example.com\nPort 7051] as Peer1 #D8B4FE
+    component [Peer Org2\npeer0.org2.example.com\nPort 9051] as Peer2 #D8B4FE
+    component [Orderer\norderer.example.com\nPort 7050] as Orderer #D8B4FE
+    component [CA Org1\nCertificate Authority] as CA1 #D8B4FE
+    component [CA Org2\nCertificate Authority] as CA2 #D8B4FE
+  }
+  
+  component [Chaincode\nnode2ai v1.1\naudit-trail.go] as Chaincode #C084FC
+  
+  component [Hyperledger Explorer\nPort 8090\nWeb UI] as Explorer #C084FC
+  database [Explorer Database\nTransaction Index] as ExplorerDB
+}
+
+cloud "AI Providers" #FEF2F2 {
+  [OpenAI\nGPT-4, GPT-3.5] as OpenAI #FEE2E2
+  [Anthropic\nClaude 3] as Anthropic #FEE2E2
+  [Google AI\nGemini Pro] as Google #FEE2E2
+  [Perplexity\nReal-time Search] as Perplexity #FEE2E2
+  [Local Models\nOllama] as Local #FEE2E2
+}
+
+' Client to API Gateway through Firewalls
+Web --> FW_EXT
+Clients --> FW_EXT
+Mobile --> FW_EXT
+
+FW_EXT --> WAF
+WAF --> LB
+LB --> SSL
+SSL --> API
+
+' Middleware Chain
+API --> AuthMW
+AuthMW --> RateMW
+RateMW --> AuditMW
+AuditMW --> LicenseMW
+LicenseMW --> CORS
+CORS --> Routes
+
+' Routes to Services
+Routes --> Router
+Routes --> Sanitizer
+Routes --> Audit
+Routes --> Blockchain
+Routes --> Storage
+Routes --> Analytics
+Routes --> RAG
+
+' Router Sub-services
+Router --> ContextRouter
+Router --> BudgetRouter
+Router --> FallbackRouter
+
+' Sanitizer Services
+Sanitizer --> Classifier
+Sanitizer --> TokenMapper
+Sanitizer --> Encryption
+
+' Service to Service
+Audit --> Blockchain
+Audit --> Storage
+Storage --> Analytics
+
+' Services to Data Layer through Database Firewall
+Audit --> FW_DB
+Storage --> FW_DB
+RAG --> FW_DB
+Analytics --> FW_DB
+AuthSvc --> FW_DB
+OrgSvc --> FW_DB
+UserSvc --> FW_DB
+
+FW_DB --> PG : Protected Database Access
+
+API --> Redis : Sessions
+RateMW --> Redis : Rate Limits
+TokenMapper --> Redis : Token Cache
+
+PG --> VectorTbl : Embeddings
+Storage --> VectorTbl
+
+' Optional Supabase
+AuthSvc ..> SupabaseAuth : Optional SSO
+Storage ..> SupabaseDB : Optional Cloud
+
+' Blockchain Connections through Service Firewall
+Blockchain --> FW_SVC
+FW_SVC --> Fabric
+Fabric --> Peer1
+Fabric --> Peer2
+Fabric --> Orderer
+Peer1 --> Chaincode
+Peer2 --> Chaincode
+Peer1 --> CA1
+Peer2 --> CA2
+Explorer --> FW_SVC
+FW_SVC --> Fabric
+Explorer --> ExplorerDB
+
+' Router to AI Providers
+Router --> OpenAI
+Router --> Anthropic
+Router --> Google
+Router --> Perplexity
+Router --> Local
+
+note right of FW_EXT
+  **External Firewall:**
+  - Allow: HTTP (80), HTTPS (443)
+  - Deny: All other ports
+  - Rate limiting
+  - Geo-blocking (optional)
+end note
+
+note right of WAF
+  **WAF Protection:**
+  - SQL Injection
+  - XSS Protection
+  - DDoS Mitigation
+  - Bot Detection
+  - API Abuse Prevention
+end note
+
+note right of FW_DB
+  **Database Firewall:**
+  - SQL Injection Protection
+  - Query Filtering
+  - Connection Limits
+  - IP Whitelisting
+end note
+
+note right of FW_SVC
+  **Service Firewall:**
+  - Blockchain Network Isolation
+  - Port Controls (7050, 7051, 9051)
+  - TLS/SSL Enforcement
+end note
+
+note right of Blockchain
+  **Blockchain Operations:**
+  - RecordInteraction
+  - QueryInteraction
+  - QueryInteractionsByOrganization
+  - QueryInteractionsByDateRange
+  - VerifyPHICompliance
+end note
+
+note right of Sanitizer
+  **Sanitization Types:**
+  - PII (SSN, Email, Phone)
+  - PHI (MRN, DOB, Diagnosis)
+  - Financial (Credit Cards)
+  - Government (Passport, SSN)
+end note
+
+note right of Router
+  **Selection Criteria:**
+  - Cost Optimization
+  - Quality Threshold
+  - Latency Requirements
+  - Provider Availability
+  - Model Capabilities
+end note
+
+@enduml
+

@@ -1,0 +1,4 @@
+# Blockchain wallet directory (contains sensitive crypto material)
+wallet/*
+!wallet/.gitkeep
+

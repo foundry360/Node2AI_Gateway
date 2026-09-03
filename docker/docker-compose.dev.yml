@@ -1,0 +1,38 @@
+version: '3.8'
+
+# Node2AI Enterprise - Development Overrides
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+services:
+  api:
+    environment:
+      - LOG_LEVEL=debug
+      - NODE_ENV=development
+      - SKIP_AUTH=true
+    volumes:
+      - ../apps/api:/app/apps/api:ro
+      - ../packages:/app/packages:ro
+    command: >
+      sh -c "pnpm --filter @node2/api dev"
+
+  web:
+    environment:
+      - LOG_LEVEL=debug
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+    volumes:
+      - ../apps/web:/app/apps/web:ro
+      - ../packages:/app/packages:ro
+    command: >
+      sh -c "pnpm --filter @node2/web dev"
+
+  postgres:
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=trust
+
+  redis:
+    ports:
+      - '6379:6379'
+    command: redis-server --appendonly yes

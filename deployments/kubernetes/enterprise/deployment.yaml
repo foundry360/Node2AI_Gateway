@@ -1,0 +1,679 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node2ai-api
+  namespace: node2ai-enterprise
+  labels:
+    app.kubernetes.io/name: node2ai
+    app.kubernetes.io/instance: enterprise
+    app.kubernetes.io/component: api
+    app.kubernetes.io/version: '1.0.0'
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: node2ai
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: node2ai
+        app.kubernetes.io/instance: enterprise
+        app.kubernetes.io/component: api
+        app.kubernetes.io/version: '1.0.0'
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '9090'
+        prometheus.io/path: '/metrics'
+    spec:
+      serviceAccountName: node2ai
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: api
+          image: node2ai/api:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: NODE_ENV
+            - name: APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: APP_NAME
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: LOG_LEVEL
+            - name: ENABLE_REQUEST_LOGGING
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_REQUEST_LOGGING
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: REDIS_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: JWT_SECRET
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: SESSION_SECRET
+            - name: PROVIDER_KEY_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: PROVIDER_KEY_ENCRYPTION_KEY
+            - name: CORS_ORIGINS
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: CORS_ORIGINS
+            - name: LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: LICENSE_KEY
+            - name: ENABLE_SSO
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_SSO
+            - name: ENABLE_MFA
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_MFA
+            - name: ENABLE_RBAC
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_RBAC
+            - name: ENABLE_SANITIZATION
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_SANITIZATION
+            - name: ENABLE_ANALYTICS
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_ANALYTICS
+            - name: ENABLE_AUDIT_LOGS
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_AUDIT_LOGS
+            - name: ENABLE_RATE_LIMITING
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_RATE_LIMITING
+            - name: ENABLE_CACHING
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_CACHING
+            - name: ENABLE_COMPRESSION
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_COMPRESSION
+            - name: DATABASE_POOL_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: DATABASE_POOL_SIZE
+            - name: RATE_LIMIT_WINDOW
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: RATE_LIMIT_WINDOW
+            - name: RATE_LIMIT_MAX
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: RATE_LIMIT_MAX
+            - name: ENABLE_METRICS
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_METRICS
+            - name: METRICS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: METRICS_PORT
+            - name: METRICS_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: METRICS_PATH
+            - name: HEALTH_CHECK_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: HEALTH_CHECK_INTERVAL
+            - name: HEALTH_CHECK_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: HEALTH_CHECK_TIMEOUT
+            - name: HEALTH_CHECK_RETRIES
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: HEALTH_CHECK_RETRIES
+            - name: API_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: API_TIMEOUT
+            - name: API_MAX_REQUEST_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: API_MAX_REQUEST_SIZE
+            - name: API_MAX_FILES
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: API_MAX_FILES
+            - name: API_MAX_FILE_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: API_MAX_FILE_SIZE
+            - name: CACHE_TTL
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: CACHE_TTL
+            - name: CACHE_MAX_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: CACHE_MAX_SIZE
+            - name: CACHE_CHECK_PERIOD
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: CACHE_CHECK_PERIOD
+            - name: AUDIT_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: AUDIT_LOG_LEVEL
+            - name: AUDIT_LOG_RETENTION_DAYS
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: AUDIT_LOG_RETENTION_DAYS
+            - name: AUDIT_LOG_ENCRYPTION
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: AUDIT_LOG_ENCRYPTION
+            - name: AUDIT_LOG_COMPRESSION
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: AUDIT_LOG_COMPRESSION
+            - name: GDPR_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: GDPR_ENABLED
+            - name: GDPR_DATA_RETENTION_DAYS
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: GDPR_DATA_RETENTION_DAYS
+            - name: SOC2_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: SOC2_ENABLED
+            - name: SOC2_AUDIT_LOGGING
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: SOC2_AUDIT_LOGGING
+            - name: SOC2_ACCESS_CONTROLS
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: SOC2_ACCESS_CONTROLS
+            - name: ENABLE_SECURITY_HEADERS
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_SECURITY_HEADERS
+            - name: CSP_POLICY
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: CSP_POLICY
+            - name: HSTS_MAX_AGE
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: HSTS_MAX_AGE
+            - name: HSTS_INCLUDE_SUBDOMAINS
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: HSTS_INCLUDE_SUBDOMAINS
+            - name: HSTS_PRELOAD
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: HSTS_PRELOAD
+            - name: CORS_CREDENTIALS
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: CORS_CREDENTIALS
+            - name: CORS_METHODS
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: CORS_METHODS
+            - name: CORS_ALLOWED_HEADERS
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: CORS_ALLOWED_HEADERS
+            - name: EMAIL_TEMPLATE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: EMAIL_TEMPLATE_PATH
+            - name: EMAIL_DEFAULT_LOCALE
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: EMAIL_DEFAULT_LOCALE
+            - name: WEBHOOK_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: WEBHOOK_TIMEOUT
+            - name: WEBHOOK_RETRY_ATTEMPTS
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: WEBHOOK_RETRY_ATTEMPTS
+            - name: CUSTOM_PROVIDERS_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: CUSTOM_PROVIDERS_ENABLED
+            - name: CUSTOM_PROVIDERS_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: CUSTOM_PROVIDERS_PATH
+            - name: MAINTENANCE_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: MAINTENANCE_MODE
+            - name: MAINTENANCE_MESSAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: MAINTENANCE_MESSAGE
+            - name: MAINTENANCE_ALLOWED_IPS
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: MAINTENANCE_ALLOWED_IPS
+            - name: NODE2AI_VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: NODE2AI_VERSION
+            - name: BUILD_DATE
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: BUILD_DATE
+            # Email configuration
+            - name: SMTP_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: SMTP_HOST
+            - name: SMTP_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: SMTP_PORT
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: SMTP_USER
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: SMTP_PASSWORD
+            - name: SMTP_FROM
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: SMTP_FROM
+            # Monitoring
+            - name: SENTRY_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: SENTRY_DSN
+            - name: NEW_RELIC_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: NEW_RELIC_LICENSE_KEY
+            # Webhook secrets
+            - name: WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: WEBHOOK_SECRET
+            # Notifications
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: SLACK_WEBHOOK_URL
+            - name: SLACK_CHANNEL
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: SLACK_CHANNEL
+            - name: SLACK_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: SLACK_USERNAME
+            - name: DISCORD_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: DISCORD_WEBHOOK_URL
+            # SSO configuration
+            - name: SSO_CERT
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: SSO_CERT
+            - name: SSO_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: SSO_PRIVATE_KEY
+            # MFA configuration
+            - name: MFA_ISSUER
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: MFA_ISSUER
+            # Enterprise secrets
+            - name: ENTERPRISE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: ENTERPRISE_API_KEY
+            - name: ENTERPRISE_WEBHOOK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: ENTERPRISE_WEBHOOK_TOKEN
+          resources:
+            requests:
+              memory: '512Mi'
+              cpu: '250m'
+            limits:
+              memory: '2Gi'
+              cpu: '1000m'
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: app-logs
+              mountPath: /var/log/node2ai
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: app-logs
+          emptyDir: {}
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+        - key: 'node2ai.io/enterprise'
+          operator: 'Equal'
+          value: 'true'
+          effect: 'NoSchedule'
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - node2ai
+                    - key: app.kubernetes.io/component
+                      operator: In
+                      values:
+                        - api
+                topologyKey: kubernetes.io/hostname
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node2ai-web
+  namespace: node2ai-enterprise
+  labels:
+    app.kubernetes.io/name: node2ai
+    app.kubernetes.io/instance: enterprise
+    app.kubernetes.io/component: web
+    app.kubernetes.io/version: '1.0.0'
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: node2ai
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: node2ai
+        app.kubernetes.io/instance: enterprise
+        app.kubernetes.io/component: web
+        app.kubernetes.io/version: '1.0.0'
+    spec:
+      serviceAccountName: node2ai
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: web
+          image: node2ai/web:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: NODE_ENV
+            - name: API_URL
+              value: 'http://node2ai-api:3001'
+            - name: WEB_URL
+              value: 'https://yourdomain.com'
+            - name: NEXT_PUBLIC_API_URL
+              value: 'https://api.yourdomain.com'
+            - name: NEXT_PUBLIC_APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: APP_NAME
+            - name: NEXT_PUBLIC_APP_VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: NODE2AI_VERSION
+            - name: NEXT_PUBLIC_ENABLE_SSO
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_SSO
+            - name: NEXT_PUBLIC_ENABLE_MFA
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_MFA
+            - name: NEXT_PUBLIC_ENABLE_ANALYTICS
+              valueFrom:
+                configMapKeyRef:
+                  name: node2ai-config
+                  key: ENABLE_ANALYTICS
+            - name: SENTRY_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: node2ai-secrets
+                  key: SENTRY_DSN
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '125m'
+            limits:
+              memory: '1Gi'
+              cpu: '500m'
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: app-logs
+              mountPath: /var/log/node2ai
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: app-logs
+          emptyDir: {}
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+        - key: 'node2ai.io/enterprise'
+          operator: 'Equal'
+          value: 'true'
+          effect: 'NoSchedule'
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - node2ai
+                    - key: app.kubernetes.io/component
+                      operator: In
+                      values:
+                        - web
+                topologyKey: kubernetes.io/hostname

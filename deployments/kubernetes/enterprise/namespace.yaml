@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: node2ai-enterprise
+  labels:
+    name: node2ai-enterprise
+    app.kubernetes.io/name: node2ai
+    app.kubernetes.io/instance: enterprise
+    app.kubernetes.io/version: '1.0.0'
+    app.kubernetes.io/component: namespace
+  annotations:
+    description: 'Node2AI Enterprise Edition namespace'
+    contact: 'enterprise@foundry360.com'

@@ -1,0 +1,188 @@
+version: '3.8'
+
+services:
+  # Air-gapped PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: node2-postgres-airgap
+    environment:
+      POSTGRES_DB: node2
+      POSTGRES_USER: node2
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-node2123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - '5432:5432'
+    networks:
+      - node2-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U node2 -d node2']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Air-gapped Redis
+  redis:
+    image: redis:7-alpine
+    container_name: node2-redis-airgap
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - redis_data:/data
+    ports:
+      - '6379:6379'
+    networks:
+      - node2-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Air-gapped API with offline mode
+  api:
+    build:
+      context: ../../apps/api
+      dockerfile: ../../deployments/docker/Dockerfile.api
+    container_name: node2-api-airgap
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://node2:${POSTGRES_PASSWORD:-node2123}@postgres:5432/node2
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-here}
+      - API_SECRET_KEY=${API_SECRET_KEY:-your-api-secret-here}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
+      - DEPLOYMENT_MODE=airgap
+      - AIRGAP_MODE=true
+      - SUPERNOVA_LICENSE_KEY=${SUPERNOVA_LICENSE_KEY}
+      - LOCAL_MODEL_PATH=/models
+      - OFFLINE_MODELS_PATH=/models/offline
+      - FEATURE_OFFLINE_MODE=true
+    volumes:
+      - ../../models:/models:ro
+      - model_cache:/app/models/cache
+    ports:
+      - '3001:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - node2-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3001/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Air-gapped Web Dashboard
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: ../../deployments/docker/Dockerfile.web
+    container_name: node2-web-airgap
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://api:3001
+      - NEXT_PUBLIC_AIRGAP_MODE=true
+    ports:
+      - '3000:3000'
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - node2-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Air-gapped Nginx (no external access)
+  nginx:
+    image: nginx:alpine
+    container_name: node2-nginx-airgap
+    volumes:
+      - ./nginx.airgap.conf:/etc/nginx/nginx.conf
+    ports:
+      - '80:80'
+    depends_on:
+      - api
+      - web
+    networks:
+      - node2-network
+    restart: unless-stopped
+
+  # Local LLM Server (Ollama)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: node2-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+      - ../../models:/models:ro
+    ports:
+      - '11434:11434'
+    networks:
+      - node2-network
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+
+  # Model Management Service
+  model-manager:
+    build:
+      context: ../../apps/api
+      dockerfile: ../../deployments/docker/Dockerfile.model-manager
+    container_name: node2-model-manager
+    environment:
+      - NODE_ENV=production
+      - OLLAMA_HOST=ollama:11434
+      - MODEL_PATH=/models
+      - CACHE_PATH=/cache
+    volumes:
+      - ../../models:/models:ro
+      - model_cache:/cache
+    depends_on:
+      - ollama
+    networks:
+      - node2-network
+    restart: unless-stopped
+
+  # Air-gapped Backup Service
+  backup:
+    image: postgres:15-alpine
+    container_name: node2-backup
+    environment:
+      - PGPASSWORD=${POSTGRES_PASSWORD:-node2123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data:ro
+      - backup_data:/backups
+      - ./backup.sh:/backup.sh
+    command: /bin/sh -c "while true; do sleep 86400; /backup.sh; done"
+    depends_on:
+      - postgres
+    networks:
+      - node2-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  model_cache:
+    driver: local
+  ollama_data:
+    driver: local
+  backup_data:
+    driver: local
+
+networks:
+  node2-network:
+    driver: bridge
+    internal: true # No external network access

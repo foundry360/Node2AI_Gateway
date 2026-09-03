@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: node2ai
+  labels:
+    name: node2ai
+    app: node2ai
+    managed-by: node2ai-operator

@@ -1,0 +1,193 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Kubernetes
+*.kubeconfig
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# License keys and secrets
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+.secrets/
+keys/
+license-*
+
+# Model files (for air-gapped deployment)
+models/*.bin
+models/*.safetensors
+models/*.gguf
+
+# Backup files
+*.backup
+*.bak
+
+# Test artifacts
+test-results/
+playwright-report/
+test-results.xml
+
+# Development/testing files
+*TEST*.md
+*test*.sh
+TEST*.md
+README-AUDIT-LOGS.md
+generate-test-jwt.js
+
+# Migration scripts and SQL files (temporary until reviewed)
+apps/api/scripts/migrate-unified-auth.ts
+apps/api/src/lib/db/migrations/*.sql
+apps/api/src/lib/db/migrations/data/
+apps/api/src/lib/db/seeds/
+
+# Test files and configs
+apps/api/src/lib/middleware/__tests__/
+apps/api/src/lib/services/__tests__/
+apps/api/src/app/api/v1/auth-unified/__tests__/
+apps/api/vitest.config.ts
+
+# Temporary development directories
+apps/api/src/app/api/v1/ai-unified/
+apps/api/src/app/api/v1/audit-unified/
+apps/api/src/app/api/v1/auth-unified/admin/
+apps/api/src/app/api/v1/auth-unified/logout/
+apps/api/src/app/api/v1/auth-unified/user/
+apps/api/src/app/api/v1/analytics/data/
+apps/api/src/app/api/v1/audit-logs/
+apps/api/src/app/api/v1/config/budget/
+apps/api/src/jobs/
+apps/web/src/app/api/
+apps/web/src/app/audit-logs/
+
+# Temporary middleware files
+apps/api/src/lib/middleware/comprehensive-audit-middleware.ts
+apps/api/src/lib/middleware/customer-isolation-middleware.ts
+apps/api/src/lib/middleware/rate-limit-unified.ts
+apps/api/src/lib/middleware/unified-audit-middleware.ts
+apps/api/src/lib/middleware/unified-index.ts
+apps/api/src/lib/middleware/unified-middleware-helpers.ts
+apps/api/src/middleware.ts
+
+# Documentation (temporary until reviewed)
+docs/ENV_UNIFIED_AUTH.example
+docs/UNIFIED_AUTH_*.md
+
+# Blockchain wallet (contains sensitive crypto material)
+blockchain/wallet/*
+!blockchain/wallet/.gitkeep
+apps/api/.env
+
+# Temporarily excluded from push: requires GitHub token workflow scope
+# Re-add after: gh auth refresh -h github.com -s workflow
+.github/workflows/

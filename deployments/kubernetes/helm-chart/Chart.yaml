@@ -1,0 +1,35 @@
+apiVersion: v2
+name: node2-enterprise
+description: Node2AI Enterprise Platform - Self-hosted AI orchestration with data sanitization
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+home: https://node2.ai
+sources:
+  - https://github.com/node2-ai/enterprise
+maintainers:
+  - name: Node2AI Team
+    email: support@node2.ai
+keywords:
+  - ai
+  - orchestration
+  - data-sanitization
+  - compliance
+  - enterprise
+  - self-hosted
+annotations:
+  category: AI/ML
+  licenses: Proprietary
+dependencies:
+  - name: postgresql
+    version: "12.1.2"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgresql.enabled
+  - name: redis
+    version: "17.3.7"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled
+  - name: nginx-ingress
+    version: "4.4.2"
+    repository: "https://kubernetes.github.io/ingress-nginx"
+    condition: ingress.enabled

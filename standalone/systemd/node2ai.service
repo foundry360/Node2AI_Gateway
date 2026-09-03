@@ -1,0 +1,36 @@
+[Unit]
+Description=Node2AI Enterprise Server
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=node2ai
+Group=node2ai
+WorkingDirectory=/opt/node2ai
+Environment=NODE_ENV=production
+Environment=PORT=3001
+EnvironmentFile=/etc/node2ai/.env
+ExecStart=/usr/bin/node apps/api/server.js
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=node2ai
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/node2ai
+ReadOnlyPaths=/etc/node2ai
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target
+

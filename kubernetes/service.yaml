@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: node2ai-postgres
+  namespace: node2ai
+  labels:
+    app: node2ai
+    component: postgres
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      name: postgres
+  selector:
+    app: node2ai
+    component: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node2ai-redis
+  namespace: node2ai
+  labels:
+    app: node2ai
+    component: redis
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+      protocol: TCP
+      name: redis
+  selector:
+    app: node2ai
+    component: redis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node2ai-api
+  namespace: node2ai
+  labels:
+    app: node2ai
+    component: api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3001
+      targetPort: 3001
+      protocol: TCP
+      name: http
+  selector:
+    app: node2ai
+    component: api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node2ai-web
+  namespace: node2ai
+  labels:
+    app: node2ai
+    component: web
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      name: http
+  selector:
+    app: node2ai
+    component: web

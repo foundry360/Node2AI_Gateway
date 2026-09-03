@@ -1,0 +1,191 @@
+# Node2AI Docker Compose Override Template
+# Copy this file to docker-compose.override.yml and customize for your local development needs
+# This file allows you to override settings from docker-compose.dev.yml without modifying the base file
+
+version: '3.8'
+
+# =============================================================================
+# DEVELOPMENT OVERRIDES
+# =============================================================================
+# Uncomment and modify the sections below to customize your development environment
+
+services:
+  # PostgreSQL Development Overrides
+  # postgres:
+  #   ports:
+  #     - "5433:5432"  # Use different port to avoid conflicts
+  #   environment:
+  #     POSTGRES_PASSWORD: mydevpassword
+  #   volumes:
+  #     - ./data/postgres:/var/lib/postgresql/data  # Use local directory instead of volume
+
+  # Redis Development Overrides
+  # redis:
+  #   ports:
+  #     - "6380:6379"  # Use different port to avoid conflicts
+  #   environment:
+  #     REDIS_PASSWORD: mydevpassword
+  #   volumes:
+  #     - ./data/redis:/data  # Use local directory instead of volume
+
+  # API Development Overrides
+  # api:
+  #   ports:
+  #     - "3000:3000"
+  #   volumes:
+  #     # Add additional volume mounts for development
+  #     - ./logs:/app/logs
+  #     - ./uploads:/app/uploads
+  #   environment:
+  #     # Override environment variables for development
+  #     LOG_LEVEL: debug
+  #     DEBUG_MODE: true
+  #     # Add your API keys here
+  #     OPENAI_API_KEY: your-openai-key-here
+  #     ANTHROPIC_API_KEY: your-anthropic-key-here
+
+  # Web Development Overrides
+  # web:
+  #   ports:
+  #     - "3001:3001"
+  #   volumes:
+  #     # Add additional volume mounts for development
+  #     - ./logs:/app/logs
+  #   environment:
+  #     # Override environment variables for development
+  #     NEXT_PUBLIC_DEBUG: true
+  #     NEXT_PUBLIC_API_URL: http://localhost:3000
+
+  # Ollama Development Overrides
+  # ollama:
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ./data/ollama:/root/.ollama  # Use local directory instead of volume
+  #   environment:
+  #     OLLAMA_MODEL: llama2:7b  # Specify default model
+  #   # Uncomment for GPU support (requires NVIDIA Docker runtime)
+  #   # deploy:
+  #   #   resources:
+  #   #     reservations:
+  #   #       devices:
+  #   #         - driver: nvidia
+  #   #           count: 1
+  #   #           capabilities: [gpu]
+
+# =============================================================================
+# ADDITIONAL SERVICES FOR DEVELOPMENT
+# =============================================================================
+# Add custom services for your development needs
+
+  # Database Admin Tool (pgAdmin)
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: node2-pgadmin-dev
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@node2.ai
+  #     PGADMIN_DEFAULT_PASSWORD: admin
+  #   ports:
+  #     - "5050:80"
+  #   volumes:
+  #     - pgadmin_data:/var/lib/pgadmin
+  #   networks:
+  #     - node2-dev
+  #   depends_on:
+  #     - postgres
+
+  # Redis Admin Tool (RedisInsight)
+  # redisinsight:
+  #   image: redislabs/redisinsight:latest
+  #   container_name: node2-redisinsight-dev
+  #   ports:
+  #     - "8001:8001"
+  #   volumes:
+  #     - redisinsight_data:/data
+  #   networks:
+  #     - node2-dev
+  #   depends_on:
+  #     - redis
+
+  # Mailhog for Email Testing
+  # mailhog:
+  #   image: mailhog/mailhog:latest
+  #   container_name: node2-mailhog-dev
+  #   ports:
+  #     - "1025:1025"  # SMTP
+  #     - "8025:8025"  # Web UI
+  #   networks:
+  #     - node2-dev
+
+  # MinIO for S3-compatible Storage Testing
+  # minio:
+  #   image: minio/minio:latest
+  #   container_name: node2-minio-dev
+  #   ports:
+  #     - "9000:9000"   # API
+  #     - "9001:9001"   # Console
+  #   environment:
+  #     MINIO_ROOT_USER: minioadmin
+  #     MINIO_ROOT_PASSWORD: minioadmin
+  #   volumes:
+  #     - minio_data:/data
+  #   networks:
+  #     - node2-dev
+  #   command: server /data --console-address ":9001"
+
+# =============================================================================
+# VOLUME OVERRIDES
+# =============================================================================
+# volumes:
+#   # Use local directories instead of Docker volumes for easier development
+#   postgres_data:
+#     driver: local
+#     driver_opts:
+#       type: none
+#       o: bind
+#       device: ./data/postgres
+#   
+#   redis_data:
+#     driver: local
+#     driver_opts:
+#       type: none
+#       o: bind
+#       device: ./data/redis
+#   
+#   ollama_models:
+#     driver: local
+#     driver_opts:
+#       type: none
+#       o: bind
+#       device: ./data/ollama
+
+# =============================================================================
+# NETWORK OVERRIDES
+# =============================================================================
+# networks:
+#   node2-dev:
+#     driver: bridge
+#     ipam:
+#       config:
+#         - subnet: 172.20.0.0/16
+
+# =============================================================================
+# DEVELOPMENT PROFILES
+# =============================================================================
+# Use profiles to enable/disable services based on your needs
+# 
+# Start with specific profiles:
+# docker-compose --profile llm up -d    # Include Ollama
+# docker-compose --profile proxy up -d  # Include Nginx
+# docker-compose --profile tools up -d  # Include development tools
+#
+# Example profile configuration:
+# services:
+#   ollama:
+#     profiles: ["llm", "ai"]
+#   nginx:
+#     profiles: ["proxy", "production"]
+#   pgadmin:
+#     profiles: ["tools", "database"]
+#   redisinsight:
+#     profiles: ["tools", "cache"]

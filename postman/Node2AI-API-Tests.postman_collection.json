@@ -1,0 +1,800 @@
+{
+  "info": {
+    "name": "Node2AI API Tests",
+    "description": "Comprehensive API testing collection for Node2AI Enterprise",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "api_version",
+      "value": "v1",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "organization_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"SecurePassword123!\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"organizationName\": \"Test Organization\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "auth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login User (Simple)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('auth_token', response.token);",
+                  "    pm.collectionVariables.set('user_id', response.user.id);",
+                  "    pm.collectionVariables.set('organization_id', response.user.organizationId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@node2ai.ai\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/auth/login-simple",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "auth", "login-simple"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "auth", "me"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "auth", "refresh"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "auth", "logout"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Provider Keys Management",
+      "item": [
+        {
+          "name": "List Provider Keys",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/provider-keys",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "provider-keys"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add OpenAI Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"openai\",\n  \"apiKey\": \"sk-test-key-replace-with-real-key\",\n  \"name\": \"OpenAI Production Key\",\n  \"description\": \"Main OpenAI API key for production use\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/provider-keys",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "provider-keys"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Anthropic Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"anthropic\",\n  \"apiKey\": \"sk-ant-test-key-replace-with-real-key\",\n  \"name\": \"Anthropic Claude Key\",\n  \"description\": \"Anthropic Claude API key\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/provider-keys",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "provider-keys"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test Provider Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"openai\",\n  \"apiKey\": \"sk-test-key-replace-with-real-key\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/provider-keys/test",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "provider-keys", "test"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Provider Key",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated OpenAI Key\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/provider-keys/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "provider-keys", ":id"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Provider Key",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/provider-keys/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "provider-keys", ":id"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Chat & AI Processing",
+      "item": [
+        {
+          "name": "Simple Chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Hello, how are you?\",\n  \"provider\": \"openai\",\n  \"model\": \"gpt-3.5-turbo\",\n  \"temperature\": 0.7,\n  \"maxTokens\": 1000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "chat"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Chat with PII Sanitization",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Patient John Smith (DOB: 01/15/1980, SSN: 123-45-6789) has diabetes. Please analyze his condition.\",\n  \"provider\": \"openai\",\n  \"model\": \"gpt-3.5-turbo\",\n  \"sanitizeInput\": true,\n  \"sanitizeOutput\": true,\n  \"temperature\": 0.3,\n  \"maxTokens\": 1000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/chat/sanitized",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "chat", "sanitized"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Smart Protected Chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Analyze this medical record: Patient Sarah Johnson, MRN: 12345, has been diagnosed with hypertension.\",\n  \"provider\": \"anthropic\",\n  \"model\": \"claude-3-sonnet-20240229\",\n  \"protectionLevel\": \"high\",\n  \"complianceMode\": \"hipaa\",\n  \"temperature\": 0.2,\n  \"maxTokens\": 1500\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/chat/smart-protected",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "chat", "smart-protected"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Multi-Provider Chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Compare the treatment options for Type 2 diabetes\",\n  \"providers\": [\"openai\", \"anthropic\"],\n  \"models\": [\"gpt-4\", \"claude-3-sonnet-20240229\"],\n  \"temperature\": 0.5,\n  \"maxTokens\": 2000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/chat/multi-provider",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "chat", "multi-provider"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics & Monitoring",
+      "item": [
+        {
+          "name": "Get Usage Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/analytics/usage?period=7d",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "analytics", "usage"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "7d"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Cost Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/analytics/costs?period=30d",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "analytics", "costs"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "30d"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Performance Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/analytics/performance",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "analytics", "performance"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Audit Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/analytics/audit?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "analytics", "audit"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Organization Management",
+      "item": [
+        {
+          "name": "Get Organization Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/organization",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "organization"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Organization",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Organization Name\",\n  \"settings\": {\n    \"defaultProvider\": \"openai\",\n    \"defaultModel\": \"gpt-4\",\n    \"maxTokens\": 4000,\n    \"temperature\": 0.7\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/organization",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "organization"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Organization Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/organization/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "organization", "users"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Organization User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"firstName\": \"New\",\n  \"lastName\": \"User\",\n  \"role\": \"user\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/organization/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "organization", "users"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin Functions",
+      "item": [
+        {
+          "name": "Get System Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/admin/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "admin", "status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get License Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/admin/license",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "admin", "license"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get System Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/admin/metrics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "admin", "metrics"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Backup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/admin/backup",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "admin", "backup"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Sanitization Testing",
+      "item": [
+        {
+          "name": "Test PII Detection",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Patient John Smith (DOB: 01/15/1980, SSN: 123-45-6789, Email: john.smith@email.com, Phone: (555) 123-4567) has diabetes.\",\n  \"detectOnly\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/sanitize/detect",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "sanitize", "detect"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sanitize Text",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"Patient John Smith (DOB: 01/15/1980, SSN: 123-45-6789, Email: john.smith@email.com, Phone: (555) 123-4567) has diabetes.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/sanitization/sanitize",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sanitization", "sanitize"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sanitize with Custom Rules",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Patient John Smith (DOB: 01/15/1980, SSN: 123-45-6789) has diabetes.\",\n  \"rules\": [\"names\", \"ssn\", \"dates\"],\n  \"replaceWith\": \"[PII]\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/sanitize/custom",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "sanitize", "custom"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-set timestamp for requests",
+          "pm.globals.set('timestamp', new Date().toISOString());"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test for all requests",
+          "pm.test('Response time is less than 5000ms', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "pm.test('Response has valid JSON', function () {",
+          "    if (pm.response.headers.get('Content-Type') && pm.response.headers.get('Content-Type').includes('application/json')) {",
+          "        pm.response.to.be.json;",
+          "    }",
+          "});"
+        ]
+      }
+    }
+  ]
+}

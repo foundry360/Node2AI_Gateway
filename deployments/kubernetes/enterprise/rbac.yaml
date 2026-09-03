@@ -1,0 +1,240 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: node2ai
+  namespace: node2ai-enterprise
+  labels:
+    app.kubernetes.io/name: node2ai
+    app.kubernetes.io/instance: enterprise
+    app.kubernetes.io/component: service-account
+  annotations:
+    description: 'Service account for Node2AI Enterprise Edition'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: node2ai-role
+  namespace: node2ai-enterprise
+  labels:
+    app.kubernetes.io/name: node2ai
+    app.kubernetes.io/instance: enterprise
+    app.kubernetes.io/component: rbac
+rules:
+  # Allow reading configmaps and secrets
+  - apiGroups: ['']
+    resources: ['configmaps', 'secrets']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading pods for health checks
+  - apiGroups: ['']
+    resources: ['pods']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading services for service discovery
+  - apiGroups: ['']
+    resources: ['services']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading endpoints for service discovery
+  - apiGroups: ['']
+    resources: ['endpoints']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading events for debugging
+  - apiGroups: ['']
+    resources: ['events']
+    verbs: ['get', 'list', 'watch']
+  # Allow creating events for status reporting
+  - apiGroups: ['']
+    resources: ['events']
+    verbs: ['create', 'patch']
+  # Allow reading persistent volume claims
+  - apiGroups: ['']
+    resources: ['persistentvolumeclaims']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading persistent volumes
+  - apiGroups: ['']
+    resources: ['persistentvolumes']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading storage classes
+  - apiGroups: ['storage.k8s.io']
+    resources: ['storageclasses']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading nodes for resource monitoring
+  - apiGroups: ['']
+    resources: ['nodes']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading namespaces
+  - apiGroups: ['']
+    resources: ['namespaces']
+    verbs: ['get', 'list', 'watch']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: node2ai-rolebinding
+  namespace: node2ai-enterprise
+  labels:
+    app.kubernetes.io/name: node2ai
+    app.kubernetes.io/instance: enterprise
+    app.kubernetes.io/component: rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: node2ai-role
+subjects:
+  - kind: ServiceAccount
+    name: node2ai
+    namespace: node2ai-enterprise
+---
+# Optional: ClusterRole for cross-namespace operations
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node2ai-cluster-role
+  labels:
+    app.kubernetes.io/name: node2ai
+    app.kubernetes.io/instance: enterprise
+    app.kubernetes.io/component: rbac
+rules:
+  # Allow reading nodes for resource monitoring
+  - apiGroups: ['']
+    resources: ['nodes']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading namespaces
+  - apiGroups: ['']
+    resources: ['namespaces']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading persistent volumes
+  - apiGroups: ['']
+    resources: ['persistentvolumes']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading storage classes
+  - apiGroups: ['storage.k8s.io']
+    resources: ['storageclasses']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading custom resource definitions
+  - apiGroups: ['apiextensions.k8s.io']
+    resources: ['customresourcedefinitions']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading network policies
+  - apiGroups: ['networking.k8s.io']
+    resources: ['networkpolicies']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading ingress
+  - apiGroups: ['networking.k8s.io']
+    resources: ['ingresses']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading services
+  - apiGroups: ['']
+    resources: ['services']
+    verbs: ['get', 'list', 'watch']
+  # Allow reading endpoints
+  - apiGroups: ['']
+    resources: ['endpoints']
+    verbs: ['get', 'list', 'watch']
+---
+# Optional: ClusterRoleBinding for cross-namespace operations
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: node2ai-cluster-rolebinding
+  labels:
+    app.kubernetes.io/name: node2ai
+    app.kubernetes.io/instance: enterprise
+    app.kubernetes.io/component: rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: node2ai-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: node2ai
+    namespace: node2ai-enterprise
+---
+# Network Policy for security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: node2ai-network-policy
+  namespace: node2ai-enterprise
+  labels:
+    app.kubernetes.io/name: node2ai
+    app.kubernetes.io/instance: enterprise
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: node2ai
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow ingress from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 3001
+    # Allow ingress from within the namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: node2ai-enterprise
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 3001
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+    # Allow ingress from monitoring namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    # Allow egress to all pods in the namespace
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: node2ai-enterprise
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 3001
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+    # Allow egress to DNS
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow egress to HTTPS (for external API calls)
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow egress to HTTP (for external API calls)
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 80
+    # Allow egress to monitoring namespace
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090

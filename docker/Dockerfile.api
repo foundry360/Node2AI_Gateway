@@ -1,0 +1,93 @@
+# Multi-stage build for Node2AI API - Production
+FROM node:18-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat curl
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm@8
+
+# Copy package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json ./apps/api/
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/sanitization/package.json ./packages/sanitization/
+COPY packages/licensing/package.json ./packages/licensing/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile --prod=false
+
+# Rebuild the source code only when needed
+FROM base AS builder
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Install pnpm in builder stage
+RUN npm install -g pnpm@8
+
+# Copy source code
+COPY . .
+
+# Copy node_modules from deps to leverage cache
+COPY --from=deps /app/node_modules ./node_modules
+
+# Reinstall to ensure workspace symlinks are correct
+RUN pnpm install --frozen-lockfile
+
+# Build workspace packages using pnpm workspace filtering
+# Build shared package first (dependency of other packages)
+RUN pnpm --filter @node2/shared build
+
+# Build sanitization package
+RUN pnpm --filter @node2/sanitization build
+
+# Build licensing package
+RUN pnpm --filter @node2ai/licensing build
+
+# Build API with standalone output
+ENV NEXT_OUTPUT=standalone
+RUN pnpm --filter @node2/api build
+
+# Ensure public directory exists (even if empty)
+RUN mkdir -p /app/apps/api/public
+
+# Production image, copy all the files and run next
+FROM base AS runner
+
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl openssl-dev
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy built application (standalone output includes node_modules and dependencies)
+COPY --from=builder --chown=nextjs:nodejs /app/apps/api/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/api/.next/static ./apps/api/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/api/public ./apps/api/public
+
+# IMPORTANT: Copy Prisma schema for migrations
+COPY --from=builder --chown=nextjs:nodejs /app/apps/api/src/lib/db/schema.prisma ./apps/api/src/lib/db/schema.prisma
+
+# Create models directory for air-gapped deployment
+RUN mkdir -p /models/offline
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+  CMD curl -f http://localhost:3001/api/health || exit 1
+
+USER nextjs
+
+EXPOSE 3001
+
+ENV PORT=3001
+ENV HOSTNAME="0.0.0.0"
+
+# Use exec form for proper signal handling
+CMD ["node", "apps/api/server.js"]
+
