@@ -25,7 +25,7 @@ OPA/Cedar may later back *condition expressions* only, behind the same contract.
 
 Do not remove `DeterministicPolicyEngine` until migration phases M1–M3 in the migration plan are complete and tests prove parity.
 
-**Next engineering step:** Phase M1 — TypeScript contract types + adapter shell that preserves current behavior (all existing tests green).
+**Next engineering step:** Phase M2 — EPA PostgreSQL tables + Enterprise AI Baseline pack seed + comparison mode mismatches.
 
 ## Related
 

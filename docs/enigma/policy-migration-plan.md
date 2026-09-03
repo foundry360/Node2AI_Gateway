@@ -38,9 +38,12 @@
 
 ### Phase M1 — Contract types + adapter shell (**Prototype**)
 
+**Status:** Complete (code under `gateway/src/policy/enterprise/`).
+
 - Add `gateway/src/policy/enterprise/` types matching the evaluation contract  
 - `EnterprisePolicyAdapter` implements existing `PolicyEngine` by calling a PDP stub that **delegates to** `DeterministicPolicyEngine` (behavior unchanged)  
-- All existing tests green  
+- `GATEWAY_POLICY_ENGINE=legacy|enterprise|compare` (default **enterprise**)  
+- All existing tests green + adapter unit tests  
 
 **Exit:** Adapter in path; zero decision drift.
 

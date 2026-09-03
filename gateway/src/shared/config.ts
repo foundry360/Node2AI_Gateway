@@ -26,6 +26,13 @@ export interface GatewayConfig {
   vaultEncryptionKey?: string;
   /** HMAC key for signed audit hash chain (defaults to vault key or admin key). */
   auditSigningKey: string;
+  /**
+   * Policy engine path (Enigma EPA migration):
+   * - legacy: DeterministicPolicyEngine only
+   * - enterprise: adapter + delegating PDP (M1 default for new installs once wired)
+   * - compare: both; enforce legacy; report mismatches
+   */
+  policyEngineMode: 'legacy' | 'enterprise' | 'compare';
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig {
@@ -35,6 +42,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
     runtimeEnv === 'stub' || runtimeEnv === 'ollama' ? runtimeEnv : 'auto';
   const vaultEncryptionKey = env.GATEWAY_VAULT_KEY;
   const adminApiKey = env.GATEWAY_ADMIN_API_KEY ?? 'n2ai_admin_dev_key';
+  const policyMode = (env.GATEWAY_POLICY_ENGINE ?? 'enterprise').toLowerCase();
+  const policyEngineMode =
+    policyMode === 'legacy' || policyMode === 'compare' ? policyMode : 'enterprise';
 
   return {
     host: env.GATEWAY_HOST ?? '127.0.0.1',
@@ -53,5 +63,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
     vaultEncryptionKey,
     auditSigningKey:
       env.GATEWAY_AUDIT_KEY ?? vaultEncryptionKey ?? adminApiKey,
+    policyEngineMode,
   };
 }
