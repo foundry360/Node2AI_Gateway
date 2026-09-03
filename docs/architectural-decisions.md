@@ -1,6 +1,6 @@
 # Architectural Decisions
 
-**Status:** ADR log for Node2AI Gateway
+**Status:** ADR log for Enigma (AI Governance Gateway)
 
 ## ADR-001: New codebase under `gateway/`, legacy as reference
 
@@ -61,3 +61,11 @@
 **Decision:** Phase 1 uses a local stub that echoes a fixed governed response after policy approval.
 
 **Why:** Proves boundary without cloud dependencies or local GPU requirements.
+
+## ADR-011: Domain-native Enigma Policy Decision Point
+
+**Decision:** Do **not** adopt OPA/Rego or Cedar as Enigma’s policy architecture. Build a domain-native Enterprise Policy Engine (repository + PDP + obligations + packs). OPA/Cedar remain optional future condition backends.
+
+**Why:** Enigma requires first-class obligations, lifecycle, packs, input/output governance, and explainability inside an air-gapped appliance — beyond permit/forbid engines alone.
+
+**Full ADR:** [enigma/ADR-011-policy-engine-selection.md](./enigma/ADR-011-policy-engine-selection.md)

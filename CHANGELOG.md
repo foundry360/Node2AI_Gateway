@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.1-rc.1 — Enigma Enterprise Policy Architecture (design)
+
+### Added
+- Product name **Enigma** for the AI Governance Gateway (`gateway/` appliance preserved)
+- Architecture pack under `docs/enigma/`: ADR-011 (OPA/Cedar vs domain-native PDP), domain model, data model, evaluation contract, lifecycle, migration plan, policy threat model
+
 ## v0.1.1 — pre-release hardening
 
 ### Fixed / hardened

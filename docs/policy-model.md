@@ -1,7 +1,10 @@
 # Policy Model
 
-**Status:** Architectural contract  
-**Authority:** PolicyEngine is the sole authorization decision point.
+**Status:** Legacy contract — migrating to [Enigma Enterprise Policy Architecture](./enigma/README.md)  
+**Authority:** PolicyEngine is the sole authorization decision point (legacy interface preserved during migration).
+
+> **Enigma target:** Subject / Resource / Action / Context / AI Context / Evidence → PDP → Decision + Obligations → PEP.  
+> See [enigma/enterprise-policy-architecture.md](./enigma/enterprise-policy-architecture.md). JSON metadata is **not** the architecture.
 
 ## Decision vocabulary
 
