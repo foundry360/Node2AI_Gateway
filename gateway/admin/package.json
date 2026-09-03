@@ -1,6 +1,6 @@
 {
   "name": "@node2ai/gateway-admin",
-  "version": "0.1.0",
+  "version": "0.1.0-ship",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3080",

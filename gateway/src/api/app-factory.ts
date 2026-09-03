@@ -17,10 +17,16 @@ import {
   LocalModelProvider,
   StubLocalRuntime,
   defaultPhase4Registry,
+  loadModelsFromPostgres,
 } from '../models/index.js';
-import type { ModelGateway, ModelProvider } from '../models/types.js';
+import { ResolvingLocalRuntime } from '../models/runtime/resolving.js';
+import type { LocalModelRuntime, ModelGateway, ModelProvider } from '../models/types.js';
 import { DeterministicPolicyEngine, FailingPolicyEngine } from '../policy/engine.js';
+import { InMemoryPolicyStore, PostgresPolicyStore } from '../policy/store.js';
+import type { PolicyStore } from '../policy/store.js';
 import type { PolicyEngine } from '../policy/types.js';
+import type { PgQueryable } from '../shared/pg.js';
+import type { MutableModelRegistry } from '../models/registry.js';
 import {
   DeterministicResponseInspector,
   FailingResponseInspector,
@@ -151,8 +157,14 @@ export interface CreateGatewayOptions {
   identityStore?: IdentityStore;
   audit?: AuditService;
   persistence?: 'memory' | 'postgres';
+  localRuntime?: LocalModelRuntime;
+  /** Force stub runtime in tests (default true when unset in createPhase1Gateway). */
+  useStubRuntime?: boolean;
   /** Extra registry models (e.g. cloud ids) to prove eligibility blocking. */
   registryModels?: string[];
+  policyStore?: PolicyStore;
+  registry?: MutableModelRegistry;
+  db?: PgQueryable;
 }
 
 export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
@@ -166,7 +178,7 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
     options.policy ??
     new DeterministicPolicyEngine({ defaultLocalModel: 'local-general-v1' });
   const interrogator = options.interrogator ?? new HybridDataInterrogator();
-  const vault = new InMemoryTokenVault();
+  const vault = new InMemoryTokenVault(config.vaultEncryptionKey);
   const transform = options.transform ?? new InputTransformService(vault);
   const detokenizer = new PrivilegedDetokenizationService(vault);
   const responseInspector =
@@ -175,12 +187,26 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
   const registryEntries = defaultPhase4Registry().filter((m) =>
     options.registryModels ? options.registryModels.includes(m.model_id) : true,
   );
-  const registry = new InMemoryModelRegistry(registryEntries);
+  const registry: MutableModelRegistry =
+    options.registry ?? new InMemoryModelRegistry(registryEntries);
+  const policyStore = options.policyStore ?? new InMemoryPolicyStore();
+  const db = options.db;
 
-  const localProvider = new LocalModelProvider(
-    new StubLocalRuntime(['local-general-v1']),
-    ['local-general-v1'],
-  );
+  // Tests default to stub. Appliance bootstrap sets useStubRuntime: false.
+  const localRuntime: LocalModelRuntime =
+    options.localRuntime ??
+    (options.useStubRuntime === false
+      ? new ResolvingLocalRuntime(
+          config.localRuntimeMode,
+          config.deploymentMode === 'airgap',
+          {
+            ollamaBaseUrl: config.ollamaBaseUrl,
+            modelMap: { 'local-general-v1': config.ollamaModelName },
+          },
+        )
+      : new StubLocalRuntime(['local-general-v1']));
+
+  const localProvider = new LocalModelProvider(localRuntime, ['local-general-v1']);
 
   const providers: ModelProvider[] = options.providers ?? [localProvider];
 
@@ -234,6 +260,9 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
     registry,
     audit,
     persistence,
+    localRuntime,
+    policyStore,
+    db,
     orchestrator,
     seed,
     buildServer: () =>
@@ -246,7 +275,21 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
           providers,
           audit,
           persistence,
+          policyStore,
+          db,
           checkDatabase: () => checkDatabase(config.databaseUrl),
+          checkLocalRuntime: async () => {
+            if ('status' in localRuntime && typeof (localRuntime as ResolvingLocalRuntime).status === 'function') {
+              return (localRuntime as ResolvingLocalRuntime).status();
+            }
+            const available = await localRuntime.isAvailable();
+            return {
+              mode: config.localRuntimeMode,
+              active_runtime: localRuntime.runtimeId,
+              available,
+              airgap: config.deploymentMode === 'airgap',
+            };
+          },
         },
       }),
   };
@@ -257,8 +300,14 @@ export async function createApplianceGateway(
   options: CreateGatewayOptions = {},
 ) {
   const config: GatewayConfig = { ...loadConfig(), ...options.config };
+  const base = {
+    ...options,
+    config,
+    useStubRuntime: false as const,
+  };
+
   if (!config.databaseUrl) {
-    return createPhase1Gateway({ ...options, config, persistence: 'memory' });
+    return createPhase1Gateway({ ...base, persistence: 'memory' });
   }
 
   const { createPgPool } = await import('../shared/pg.js');
@@ -266,16 +315,22 @@ export async function createApplianceGateway(
   const pool = createPgPool(config.databaseUrl);
   const identityStore = new PostgresIdentityStore(pool);
   const audit = new PostgresAuditService(pool);
+  const policyStore = new PostgresPolicyStore(pool);
+  const dbModels = await loadModelsFromPostgres(pool);
+  const registry = new InMemoryModelRegistry(
+    dbModels.length > 0 ? dbModels : defaultPhase4Registry(),
+  );
 
-  // Verify connectivity early
   await checkDatabase(config.databaseUrl);
 
   return createPhase1Gateway({
-    ...options,
-    config,
+    ...base,
     identityStore,
     audit,
     persistence: 'postgres',
+    policyStore,
+    registry,
+    db: pool,
   });
 }
 

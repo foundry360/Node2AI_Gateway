@@ -31,7 +31,7 @@ export async function buildServer(opts: BuildServerOptions): Promise<FastifyInst
       if (origin && allowed.has(origin)) {
         reply.header('access-control-allow-origin', origin);
         reply.header('access-control-allow-headers', 'authorization, content-type');
-        reply.header('access-control-allow-methods', 'GET,POST,OPTIONS');
+        reply.header('access-control-allow-methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS');
       }
       if (request.method === 'OPTIONS') {
         return reply.status(204).send();
@@ -39,14 +39,31 @@ export async function buildServer(opts: BuildServerOptions): Promise<FastifyInst
     });
   }
 
-  app.get('/health', async () => {
+  app.get('/health', async (_request, reply) => {
     const db = opts.admin?.checkDatabase
       ? await opts.admin.checkDatabase()
       : undefined;
+    const localRuntime = opts.admin?.checkLocalRuntime
+      ? await opts.admin.checkLocalRuntime()
+      : undefined;
+    const airgap = opts.admin?.config.deploymentMode === 'airgap';
+
+    // Air-gap appliances fail closed when the local runtime is unreachable.
+    if (airgap && localRuntime && !localRuntime.available) {
+      return reply.status(503).send({
+        status: 'unavailable',
+        service: 'node2ai-gateway',
+        reason_code: 'AIRGAP_LOCAL_RUNTIME_UNAVAILABLE',
+        database: db,
+        local_runtime: localRuntime,
+      });
+    }
+
     return {
       status: 'ok',
       service: 'node2ai-gateway',
       database: db,
+      local_runtime: localRuntime,
     };
   });
 

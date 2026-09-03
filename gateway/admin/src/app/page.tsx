@@ -3,7 +3,16 @@ import { adminFetch } from '@/lib/api';
 type Overview = {
   gateway: { status: string; mode: string };
   policy: { status: string; active_policies: number };
-  models: { status: string; active: number };
+  models: {
+    status: string;
+    active: number;
+    local_runtime?: {
+      mode: string;
+      active_runtime: string;
+      available: boolean;
+      airgap: boolean;
+    };
+  };
   database: { ok: boolean; detail: string };
   security_events: number;
   totals: { audit_events: number; applications: number; users: number };
@@ -54,6 +63,18 @@ export default async function OverviewPage() {
             <div className="stat">
               <div className="stat-label">Models</div>
               <div className="stat-value">{data.models.active}</div>
+            </div>
+            <div className="stat">
+              <div className="stat-label">Local runtime</div>
+              <div className="stat-value">
+                <span
+                  className={`badge ${
+                    data.models.local_runtime?.available !== false ? 'badge-ok' : 'badge-bad'
+                  }`}
+                >
+                  {data.models.local_runtime?.active_runtime ?? 'stub'}
+                </span>
+              </div>
             </div>
             <div className="stat">
               <div className="stat-label">Blocked (recent)</div>

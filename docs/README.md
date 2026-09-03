@@ -6,6 +6,9 @@ Legacy Node2AI documentation lives in [`legacy/`](./legacy/) and is **reference 
 
 | Document | Purpose |
 |----------|---------|
+| [INSTALL.md](./INSTALL.md) | Customer appliance install |
+| [OPERATIONS.md](./OPERATIONS.md) | Backup, restore, rotate secrets |
+| [PILOT_ACCEPTANCE.md](./PILOT_ACCEPTANCE.md) | Pilot acceptance checklist (Tests 1–10) |
 | [architecture.md](./architecture.md) | System architecture & invariants |
 | [security-model.md](./security-model.md) | Fail-closed security rules |
 | [policy-model.md](./policy-model.md) | PolicyEngine contract |

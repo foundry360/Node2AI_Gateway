@@ -1,5 +1,7 @@
+import { randomBytes } from 'node:crypto';
 import type { ApiKeyRecord, Application, Organization, User } from './types.js';
 import type { PgQueryable } from '../shared/pg.js';
+import { hashApiKey } from '../shared/ids.js';
 
 export interface IdentityStore {
   getOrganization(organizationId: string): Promise<Organization | null>;
@@ -9,6 +11,30 @@ export interface IdentityStore {
   listOrganizations(): Promise<Organization[]>;
   listApplications(): Promise<Application[]>;
   listUsers(): Promise<User[]>;
+  listApiKeys(applicationId?: string): Promise<ApiKeyRecord[]>;
+  createApplication(app: Application): Promise<Application>;
+  updateApplication(
+    applicationId: string,
+    patch: Partial<
+      Pick<
+        Application,
+        | 'name'
+        | 'type'
+        | 'environment'
+        | 'status'
+        | 'trust_level'
+        | 'allowed_models'
+        | 'allowed_datasets'
+        | 'allowed_operations'
+      >
+    >,
+  ): Promise<Application>;
+  issueApiKey(input: {
+    organization_id: string;
+    application_id: string;
+    raw_key?: string;
+  }): Promise<{ record: ApiKeyRecord; secret: string }>;
+  revokeApiKey(apiKeyId: string): Promise<ApiKeyRecord>;
 }
 
 function asStringArray(value: unknown): string[] {
@@ -61,6 +87,10 @@ function mapKey(row: Record<string, unknown>): ApiKeyRecord {
   };
 }
 
+function generateApiKeySecret(): string {
+  return `n2ai_${randomBytes(24).toString('hex')}`;
+}
+
 /** In-memory store for tests and local dev without DATABASE_URL. */
 export class InMemoryIdentityStore implements IdentityStore {
   constructor(
@@ -98,6 +128,67 @@ export class InMemoryIdentityStore implements IdentityStore {
 
   async listUsers(): Promise<User[]> {
     return [...this.data.users];
+  }
+
+  async listApiKeys(applicationId?: string): Promise<ApiKeyRecord[]> {
+    return this.data.apiKeys.filter((k) =>
+      applicationId ? k.application_id === applicationId : true,
+    );
+  }
+
+  async createApplication(app: Application): Promise<Application> {
+    if (this.data.applications.some((a) => a.application_id === app.application_id)) {
+      throw new Error(`Application already exists: ${app.application_id}`);
+    }
+    this.data.applications.push({ ...app });
+    return app;
+  }
+
+  async updateApplication(
+    applicationId: string,
+    patch: Partial<
+      Pick<
+        Application,
+        | 'name'
+        | 'type'
+        | 'environment'
+        | 'status'
+        | 'trust_level'
+        | 'allowed_models'
+        | 'allowed_datasets'
+        | 'allowed_operations'
+      >
+    >,
+  ): Promise<Application> {
+    const app = await this.getApplication(applicationId);
+    if (!app) throw new Error(`Application not found: ${applicationId}`);
+    Object.assign(app, patch);
+    return app;
+  }
+
+  async issueApiKey(input: {
+    organization_id: string;
+    application_id: string;
+    raw_key?: string;
+  }): Promise<{ record: ApiKeyRecord; secret: string }> {
+    const secret = input.raw_key ?? generateApiKeySecret();
+    const record: ApiKeyRecord = {
+      api_key_id: `key_${randomBytes(6).toString('hex')}`,
+      organization_id: input.organization_id,
+      application_id: input.application_id,
+      key_prefix: secret.slice(0, 12),
+      key_hash: hashApiKey(secret),
+      status: 'active',
+    };
+    this.data.apiKeys.push(record);
+    return { record, secret };
+  }
+
+  async revokeApiKey(apiKeyId: string): Promise<ApiKeyRecord> {
+    const key = this.data.apiKeys.find((k) => k.api_key_id === apiKeyId);
+    if (!key) throw new Error(`API key not found: ${apiKeyId}`);
+    key.status = 'revoked';
+    return key;
   }
 }
 
@@ -162,5 +253,121 @@ export class PostgresIdentityStore implements IdentityStore {
       `SELECT user_id, organization_id, roles, permissions, status FROM users ORDER BY user_id`,
     );
     return res.rows.map(mapUser);
+  }
+
+  async listApiKeys(applicationId?: string): Promise<ApiKeyRecord[]> {
+    if (applicationId) {
+      const res = await this.db.query(
+        `SELECT api_key_id, organization_id, application_id, key_prefix, key_hash, status
+         FROM api_keys WHERE application_id = $1 ORDER BY created_at DESC`,
+        [applicationId],
+      );
+      return res.rows.map(mapKey);
+    }
+    const res = await this.db.query(
+      `SELECT api_key_id, organization_id, application_id, key_prefix, key_hash, status
+       FROM api_keys ORDER BY created_at DESC`,
+    );
+    return res.rows.map(mapKey);
+  }
+
+  async createApplication(app: Application): Promise<Application> {
+    await this.db.query(
+      `INSERT INTO applications (
+         application_id, organization_id, name, type, environment, status, trust_level,
+         allowed_models, allowed_datasets, allowed_operations
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb)`,
+      [
+        app.application_id,
+        app.organization_id,
+        app.name,
+        app.type,
+        app.environment,
+        app.status,
+        app.trust_level,
+        JSON.stringify(app.allowed_models),
+        JSON.stringify(app.allowed_datasets),
+        JSON.stringify(app.allowed_operations),
+      ],
+    );
+    return app;
+  }
+
+  async updateApplication(
+    applicationId: string,
+    patch: Partial<
+      Pick<
+        Application,
+        | 'name'
+        | 'type'
+        | 'environment'
+        | 'status'
+        | 'trust_level'
+        | 'allowed_models'
+        | 'allowed_datasets'
+        | 'allowed_operations'
+      >
+    >,
+  ): Promise<Application> {
+    const current = await this.getApplication(applicationId);
+    if (!current) throw new Error(`Application not found: ${applicationId}`);
+    const next = { ...current, ...patch };
+    await this.db.query(
+      `UPDATE applications SET
+         name = $2, type = $3, environment = $4, status = $5, trust_level = $6,
+         allowed_models = $7::jsonb, allowed_datasets = $8::jsonb, allowed_operations = $9::jsonb,
+         updated_at = now()
+       WHERE application_id = $1`,
+      [
+        applicationId,
+        next.name,
+        next.type,
+        next.environment,
+        next.status,
+        next.trust_level,
+        JSON.stringify(next.allowed_models),
+        JSON.stringify(next.allowed_datasets),
+        JSON.stringify(next.allowed_operations),
+      ],
+    );
+    return next;
+  }
+
+  async issueApiKey(input: {
+    organization_id: string;
+    application_id: string;
+    raw_key?: string;
+  }): Promise<{ record: ApiKeyRecord; secret: string }> {
+    const secret = input.raw_key ?? generateApiKeySecret();
+    const api_key_id = `key_${randomBytes(6).toString('hex')}`;
+    const key_prefix = secret.slice(0, 12);
+    const key_hash = hashApiKey(secret);
+    await this.db.query(
+      `INSERT INTO api_keys (api_key_id, organization_id, application_id, key_prefix, key_hash, status)
+       VALUES ($1,$2,$3,$4,$5,'active')`,
+      [api_key_id, input.organization_id, input.application_id, key_prefix, key_hash],
+    );
+    return {
+      record: {
+        api_key_id,
+        organization_id: input.organization_id,
+        application_id: input.application_id,
+        key_prefix,
+        key_hash,
+        status: 'active',
+      },
+      secret,
+    };
+  }
+
+  async revokeApiKey(apiKeyId: string): Promise<ApiKeyRecord> {
+    const res = await this.db.query(
+      `UPDATE api_keys SET status = 'revoked', revoked_at = now()
+       WHERE api_key_id = $1
+       RETURNING api_key_id, organization_id, application_id, key_prefix, key_hash, status`,
+      [apiKeyId],
+    );
+    if (!res.rows[0]) throw new Error(`API key not found: ${apiKeyId}`);
+    return mapKey(res.rows[0]);
   }
 }

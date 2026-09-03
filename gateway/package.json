@@ -1,6 +1,6 @@
 {
   "name": "@node2ai/gateway",
-  "version": "0.1.0",
+  "version": "0.1.0-ship",
   "private": true,
   "description": "Node2AI AI Governance Gateway — policy enforcement layer",
   "type": "module",

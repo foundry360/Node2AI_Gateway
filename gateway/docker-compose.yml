@@ -1,24 +1,57 @@
 # Node2AI Gateway Appliance
-# Bring up with: docker compose up --build
+# Bring up with: ./install.sh   or   docker compose up --build -d
 
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: node2ai
-      POSTGRES_PASSWORD: node2ai
-      POSTGRES_DB: node2ai_gateway
+      POSTGRES_USER: ${POSTGRES_USER:-node2ai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-node2ai_gateway}
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - gateway_pg_data:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./db/seed-policies.sql:/docker-entrypoint-initdb.d/03-seed-policies.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U node2ai -d node2ai_gateway"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-node2ai} -d ${POSTGRES_DB:-node2ai_gateway}"]
       interval: 5s
       timeout: 5s
       retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - gateway_ollama_data:/root/.ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+
+  # Optional online pull: docker compose --profile model-pull up -d
+  ollama-init:
+    profiles: ["model-pull"]
+    image: curlimages/curl:8.5.0
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_URL: http://ollama:11434
+      GATEWAY_OLLAMA_MODEL: ${GATEWAY_OLLAMA_MODEL:-llama3.2}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        echo "Pulling model $$GATEWAY_OLLAMA_MODEL via Ollama API..."
+        curl -sf "$$OLLAMA_URL/api/pull" -d "{\"name\":\"$$GATEWAY_OLLAMA_MODEL\"}"
+        echo "Model ready."
+    restart: "no"
 
   gateway:
     build:
@@ -27,14 +60,22 @@ services:
     environment:
       GATEWAY_HOST: 0.0.0.0
       GATEWAY_PORT: "8080"
-      GATEWAY_DEPLOYMENT_MODE: connected
-      GATEWAY_ADMIN_API_KEY: n2ai_admin_dev_key
-      GATEWAY_CORS_ORIGINS: http://localhost:3080,http://127.0.0.1:3080
-      DATABASE_URL: postgres://node2ai:node2ai@postgres:5432/node2ai_gateway
+      GATEWAY_DEPLOYMENT_MODE: ${GATEWAY_DEPLOYMENT_MODE:-connected}
+      GATEWAY_ADMIN_API_KEY: ${GATEWAY_ADMIN_API_KEY:?Set GATEWAY_ADMIN_API_KEY in .env}
+      GATEWAY_CORS_ORIGINS: ${GATEWAY_CORS_ORIGINS:-http://localhost:3080,http://127.0.0.1:3080}
+      GATEWAY_LOCAL_RUNTIME: ${GATEWAY_LOCAL_RUNTIME:-ollama}
+      GATEWAY_OLLAMA_URL: http://ollama:11434
+      GATEWAY_OLLAMA_MODEL: ${GATEWAY_OLLAMA_MODEL:-llama3.2}
+      GATEWAY_VAULT_KEY: ${GATEWAY_VAULT_KEY:-}
+      GATEWAY_EXTERNAL_PROVIDER_URL: ${GATEWAY_EXTERNAL_PROVIDER_URL:-}
+      GATEWAY_EXTERNAL_PROVIDER_API_KEY: ${GATEWAY_EXTERNAL_PROVIDER_API_KEY:-}
+      DATABASE_URL: postgres://${POSTGRES_USER:-node2ai}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-node2ai_gateway}
     ports:
-      - "8080:8080"
+      - "${GATEWAY_PORT:-8080}:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      ollama:
         condition: service_healthy
     healthcheck:
       test:
@@ -54,15 +95,16 @@ services:
       dockerfile: Dockerfile
       args:
         GATEWAY_URL: http://gateway:8080
-        GATEWAY_ADMIN_API_KEY: n2ai_admin_dev_key
+        GATEWAY_ADMIN_API_KEY: ${GATEWAY_ADMIN_API_KEY}
     environment:
       GATEWAY_URL: http://gateway:8080
-      GATEWAY_ADMIN_API_KEY: n2ai_admin_dev_key
+      GATEWAY_ADMIN_API_KEY: ${GATEWAY_ADMIN_API_KEY}
     ports:
-      - "3080:3080"
+      - "${ADMIN_PORT:-3080}:3080"
     depends_on:
       gateway:
         condition: service_healthy
 
 volumes:
   gateway_pg_data:
+  gateway_ollama_data:

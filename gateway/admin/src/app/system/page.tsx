@@ -6,7 +6,20 @@ type SystemResponse = {
   port: number;
   persistence?: string;
   ollama_base_url: string;
+  ollama_model?: string;
+  local_runtime?: {
+    mode: string;
+    active_runtime: string;
+    available: boolean;
+    airgap: boolean;
+  };
   external_provider_base_url: string;
+  airgap?: {
+    enabled: boolean;
+    external_providers: string;
+    local_models_only: boolean;
+    require_ollama: boolean;
+  };
   database: { ok: boolean; detail: string };
   cors_origins: string[];
   organizations: Array<{ organization_id: string; name: string; status: string }>;
@@ -26,7 +39,7 @@ export default async function SystemPage() {
     <div>
       <h1 className="page-title">System</h1>
       <p className="page-lede">
-        Appliance configuration, network endpoints, and organization status.
+        Appliance configuration, local inference runtime, and organization status.
       </p>
       {error ? <div className="error">{error}</div> : null}
       {data ? (
@@ -58,12 +71,34 @@ export default async function SystemPage() {
                   </td>
                 </tr>
                 <tr>
+                  <th>Local runtime</th>
+                  <td>
+                    <span
+                      className={`badge ${
+                        data.local_runtime?.available !== false ? 'badge-ok' : 'badge-bad'
+                      }`}
+                    >
+                      {data.local_runtime
+                        ? `${data.local_runtime.active_runtime} (${data.local_runtime.mode})`
+                        : 'unknown'}
+                    </span>
+                  </td>
+                </tr>
+                <tr>
                   <th>Ollama URL</th>
                   <td className="mono">{data.ollama_base_url}</td>
                 </tr>
                 <tr>
+                  <th>Ollama model</th>
+                  <td className="mono">{data.ollama_model ?? 'llama3.2'}</td>
+                </tr>
+                <tr>
                   <th>External provider URL</th>
                   <td className="mono">{data.external_provider_base_url}</td>
+                </tr>
+                <tr>
+                  <th>Air-gap require Ollama</th>
+                  <td className="mono">{data.airgap?.require_ollama ? 'yes' : 'no'}</td>
                 </tr>
                 <tr>
                   <th>CORS origins</th>

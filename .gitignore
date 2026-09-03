@@ -190,4 +190,6 @@ apps/api/.env
 
 # Temporarily excluded from push: requires GitHub token workflow scope
 # Re-add after: gh auth refresh -h github.com -s workflow
-.github/workflows/
+# Ship CI for the gateway appliance is intentionally tracked:
+.github/workflows/*
+!.github/workflows/gateway.yml

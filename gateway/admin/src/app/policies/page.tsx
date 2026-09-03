@@ -1,4 +1,5 @@
 import { adminFetch } from '@/lib/api';
+import { PolicyActions } from '@/components/AdminForms';
 
 type PoliciesResponse = {
   policies: Array<{
@@ -7,6 +8,7 @@ type PoliciesResponse = {
     status: string;
     version: number;
     summary: string;
+    rules: Record<string, unknown>;
   }>;
 };
 
@@ -23,37 +25,34 @@ export default async function PoliciesPage() {
     <div>
       <h1 className="page-title">Policies</h1>
       <p className="page-lede">
-        Active governance policies. PolicyEngine remains the sole authorization authority.
+        Enable/disable policies and edit rule JSON (new version). PolicyEngine remains the
+        authorization authority for execution.
       </p>
       {error ? <div className="error">{error}</div> : null}
       {data ? (
-        <div className="panel">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>ID</th>
-                <th>Version</th>
-                <th>Status</th>
-                <th>Summary</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.policies.map((p) => (
-                <tr key={p.policy_id}>
-                  <td>
-                    <strong>{p.name}</strong>
-                  </td>
-                  <td className="mono">{p.policy_id}</td>
-                  <td>{p.version}</td>
-                  <td>
-                    <span className="badge badge-ok">{p.status}</span>
-                  </td>
-                  <td className="muted">{p.summary}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="stack">
+          {data.policies.map((p) => (
+            <div className="panel" key={p.policy_id}>
+              <div className="panel-header">
+                {p.name}{' '}
+                <span className="muted">
+                  v{p.version} · {p.policy_id}
+                </span>
+              </div>
+              <p className="muted">{p.summary}</p>
+              <p>
+                Status:{' '}
+                <span className={`badge ${p.status === 'active' ? 'badge-ok' : 'badge-bad'}`}>
+                  {p.status}
+                </span>
+              </p>
+              <PolicyActions
+                policyId={p.policy_id}
+                status={p.status}
+                rulesJson={JSON.stringify(p.rules, null, 2)}
+              />
+            </div>
+          ))}
         </div>
       ) : null}
     </div>
