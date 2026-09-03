@@ -18,28 +18,28 @@ jobs:
   gateway:
     name: Gateway test + typecheck
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: gateway
 
     steps:
       - uses: actions/checkout@v4
 
+      # Match root package.json "packageManager" (do not also set a different version).
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
 
       - name: Install gateway deps
+        working-directory: gateway
         run: pnpm install
 
       - name: Typecheck gateway
+        working-directory: gateway
         run: pnpm typecheck
 
       - name: Test gateway
+        working-directory: gateway
         env:
           GATEWAY_LOCAL_RUNTIME: stub
         run: pnpm test
@@ -50,8 +50,7 @@ jobs:
 
       - name: Typecheck admin
         working-directory: gateway/admin
-        run: pnpm typecheck
         env:
-          # Next may not need GATEWAY at typecheck time
           GATEWAY_URL: http://127.0.0.1:8080
           GATEWAY_ADMIN_API_KEY: ci_admin_key
+        run: pnpm typecheck
