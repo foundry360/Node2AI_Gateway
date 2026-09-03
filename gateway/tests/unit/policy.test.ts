@@ -110,4 +110,28 @@ describe('DeterministicPolicyEngine', () => {
     expect(result.decision).toBe('BLOCK');
     expect(result.reason_codes).toContain('PHI_PUBLIC_CLOUD_BLOCKED');
   });
+
+  it('BLOCK when core policy is disabled in store', async () => {
+    const engine = new DeterministicPolicyEngine({
+      defaultLocalModel: 'local-general-v1',
+      isPolicyActive: async () => false,
+    });
+    const result = await engine.evaluateRequest({
+      user: clinician,
+      application: clinicalApp,
+      operation: 'summarize',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'Internal',
+        confidence: 1,
+        risk: 'low',
+        reason_codes: [],
+      },
+      deploymentMode: 'connected',
+    });
+
+    expect(result.decision).toBe('BLOCK');
+    expect(result.reason_codes).toContain('POLICY_DISABLED');
+  });
 });

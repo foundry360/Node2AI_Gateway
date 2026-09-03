@@ -1,4 +1,6 @@
--- Seed versioned policies for admin CRUD (execution engine remains deterministic).
+-- Seed versioned policies for admin CRUD.
+-- Enable/disable is enforced by PolicyEngine (status=disabled → POLICY_DISABLED).
+-- Rule JSON is descriptive metadata in v1; execution logic remains in DeterministicPolicyEngine.
 
 INSERT INTO policies (policy_id, organization_id, name, status, version, rules, created_by)
 VALUES

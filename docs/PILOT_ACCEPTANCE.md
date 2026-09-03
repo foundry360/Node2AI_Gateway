@@ -157,7 +157,7 @@ cd gateway
 
 Repeat Test 1 with local model only. Attempt cloud model id → BLOCK.
 
-**Pass:** Completions use Ollama/local only; `/v1/admin/system` shows `deployment_mode: airgap`, `require_ollama: true`. Stop Ollama → `/health` 503.
+**Pass:** Completions use Ollama/local only; `/v1/admin/system` shows `deployment_mode: airgap`, `require_ollama: true`. Stop Ollama → `/health` 503. Before the model is pulled, completions should return `LOCAL_MODEL_NOT_READY` (not a generic internal error).
 
 ---
 

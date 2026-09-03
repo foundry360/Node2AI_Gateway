@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.1 — pre-release hardening
+
+### Fixed / hardened
+- Clear local-runtime reason codes: `LOCAL_RUNTIME_UNAVAILABLE`, `LOCAL_MODEL_NOT_READY`, `AIRGAP_LOCAL_RUNTIME_UNAVAILABLE` (no opaque Ollama `INTERNAL_ERROR`)
+- Policy enable/disable enforced (`POLICY_DISABLED`); rule JSON remains metadata in v1
+- Durable encrypted token vault in Postgres (`token_vault` + `GATEWAY_VAULT_KEY`)
+- INSTALL/OPERATIONS: Docker-only guidance and port-conflict checks
+
 ## v0.1.0-ship — 2026-09-03
 
 First **pilot-shippable** Node2AI Gateway appliance release.

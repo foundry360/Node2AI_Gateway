@@ -42,8 +42,9 @@ import {
   InputTransformService,
   InMemoryTokenVault,
   PrivilegedDetokenizationService,
+  PostgresTokenVault,
 } from '../transform/index.js';
-import type { TransformService } from '../transform/types.js';
+import type { TokenVault, TransformService } from '../transform/types.js';
 import { GatewayOrchestrator } from './orchestrator.js';
 import { buildServer } from './server.js';
 
@@ -166,6 +167,7 @@ export interface CreateGatewayOptions {
   policyStore?: PolicyStore;
   registry?: MutableModelRegistry;
   db?: PgQueryable;
+  vault?: TokenVault;
 }
 
 export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
@@ -179,11 +181,23 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
       ? options.audit
       : new IntegrityAuditService(rawAudit, config.auditSigningKey);
   const persistence = options.persistence ?? 'memory';
+  const policyStore = options.policyStore ?? new InMemoryPolicyStore();
   const policy =
     options.policy ??
-    new DeterministicPolicyEngine({ defaultLocalModel: 'local-general-v1' });
+    new DeterministicPolicyEngine({
+      defaultLocalModel: 'local-general-v1',
+      isPolicyActive: async (policyId) => {
+        const latest = await policyStore.listLatest();
+        const match = latest.find((p) => p.policy_id === policyId);
+        // Empty/unseeded store: keep built-in engine behavior (active).
+        if (!match) return true;
+        return match.status === 'active';
+      },
+    });
   const interrogator = options.interrogator ?? new HybridDataInterrogator();
-  const vault = new InMemoryTokenVault(config.vaultEncryptionKey);
+  const vault =
+    options.vault ??
+    new InMemoryTokenVault(config.vaultEncryptionKey ?? config.auditSigningKey);
   const transform = options.transform ?? new InputTransformService(vault);
   const detokenizer = new PrivilegedDetokenizationService(vault);
   const responseInspector =
@@ -194,7 +208,6 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
   );
   const registry: MutableModelRegistry =
     options.registry ?? new InMemoryModelRegistry(registryEntries);
-  const policyStore = options.policyStore ?? new InMemoryPolicyStore();
   const db = options.db;
 
   // Tests default to stub. Appliance bootstrap sets useStubRuntime: false.
@@ -323,6 +336,8 @@ export async function createApplianceGateway(
   const audit = new IntegrityAuditService(rawAudit, config.auditSigningKey);
   await audit.bootstrapFromStore();
   const policyStore = new PostgresPolicyStore(pool);
+  const vaultKey = config.vaultEncryptionKey ?? config.auditSigningKey;
+  const vault = new PostgresTokenVault(pool, vaultKey);
   const dbModels = await loadModelsFromPostgres(pool);
   const registry = new InMemoryModelRegistry(
     dbModels.length > 0 ? dbModels : defaultPhase4Registry(),
@@ -338,6 +353,7 @@ export async function createApplianceGateway(
     policyStore,
     registry,
     db: pool,
+    vault,
   });
 }
 

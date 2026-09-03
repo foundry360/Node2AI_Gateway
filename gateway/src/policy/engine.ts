@@ -19,6 +19,11 @@ export class DeterministicPolicyEngine implements PolicyEngine {
       defaultLocalModel: string;
       /** Test/admin override: allow privileged detokenization when tokens present. */
       allowDetokenization?: boolean;
+      /**
+       * Optional store lookup: when a core policy id is disabled in the DB,
+       * evaluation fails closed. Rule JSON remains engine-owned in v1.
+       */
+      isPolicyActive?: (policyId: string) => Promise<boolean>;
     } = { defaultLocalModel: 'local-general-v1' },
   ) {}
 
@@ -27,12 +32,33 @@ export class DeterministicPolicyEngine implements PolicyEngine {
       throw new Error('PolicyEngine forced failure');
     }
 
+    if (this.options.isPolicyActive) {
+      const active = await this.options.isPolicyActive('pol_phase2_core');
+      if (!active) {
+        return blocked(['POLICY_DISABLED'], ['pol_phase2_core'], 2);
+      }
+    }
+
     return this.evaluate(context);
   }
 
   async evaluateResponse(context: PolicyResponseContext): Promise<PolicyResponseResult> {
     if (this.options.forceFailure || this.options.forceResponseFailure) {
       throw new Error('PolicyEngine response evaluation forced failure');
+    }
+
+    if (this.options.isPolicyActive) {
+      const active = await this.options.isPolicyActive('pol_phase5_response');
+      if (!active) {
+        return {
+          decision: 'BLOCK',
+          reason_codes: ['POLICY_DISABLED'],
+          policy_ids: ['pol_phase5_response'],
+          policy_version: 5,
+          transforms: [],
+          authorize_detokenization: false,
+        };
+      }
     }
 
     const policyIds = ['pol_phase5_response'];

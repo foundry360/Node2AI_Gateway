@@ -96,9 +96,10 @@ risk { level, reason_codes }
 
 ## Storage & administration
 
-- Policies are versioned records in PostgreSQL (not hard-coded long-term).
-- Phase 1 may ship a seeded in-memory/DB rule set; interfaces must allow admin CRUD later.
-- Policy tampering is an audited privileged operation.
+- Policies are versioned records in PostgreSQL.
+- **Enable/disable is enforced:** if `pol_phase2_core` or `pol_phase5_response` is `disabled` in the store, evaluation returns `BLOCK` with `POLICY_DISABLED`.
+- **Rule JSON is metadata in v1:** the admin-editable `rules` document describes intent for operators; binding decisions still come from `DeterministicPolicyEngine` code. Editing JSON does not change runtime predicates until a later release wires rule compilation.
+- Policy status/version changes are privileged admin operations (audited separately from completion audit).
 
 ## AI usage boundary
 

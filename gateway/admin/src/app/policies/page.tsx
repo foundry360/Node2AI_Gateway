@@ -25,8 +25,8 @@ export default async function PoliciesPage() {
     <div>
       <h1 className="page-title">Policies</h1>
       <p className="page-lede">
-        Enable/disable policies and edit rule JSON (new version). PolicyEngine remains the
-        authorization authority for execution.
+        Enable/disable is enforced at evaluation time. Rule JSON is operator metadata in v1 —
+        binding decisions still come from the deterministic PolicyEngine.
       </p>
       {error ? <div className="error">{error}</div> : null}
       {data ? (

@@ -1,4 +1,5 @@
 import type { LocalModelRuntime, ModelMessage } from '../types.js';
+import { GatewayError } from '../../shared/errors.js';
 import { OllamaLocalRuntime } from './ollama.js';
 import { StubLocalRuntime } from './stub.js';
 
@@ -91,13 +92,21 @@ export class ResolvingLocalRuntime implements LocalModelRuntime {
     if (this.airgap && runtime.runtimeId === 'ollama') {
       const ok = await this.ollama.isAvailable();
       if (!ok) {
-        throw new Error('AIRGAP_LOCAL_RUNTIME_UNAVAILABLE: Ollama is required in air-gap mode');
+        throw new GatewayError(
+          'AIRGAP_LOCAL_RUNTIME_UNAVAILABLE',
+          'AIRGAP_LOCAL_RUNTIME_UNAVAILABLE: Ollama is required in air-gap mode.',
+          503,
+        );
       }
     }
     if (this.mode === 'ollama') {
       const ok = await this.ollama.isAvailable();
       if (!ok) {
-        throw new Error('LOCAL_RUNTIME_UNAVAILABLE: Ollama is not reachable');
+        throw new GatewayError(
+          'LOCAL_RUNTIME_UNAVAILABLE',
+          'LOCAL_RUNTIME_UNAVAILABLE: Ollama is not reachable.',
+          503,
+        );
       }
     }
     return runtime.generate(input);

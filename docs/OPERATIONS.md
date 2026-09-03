@@ -13,6 +13,21 @@ Air-gap: if Ollama is down, `/health` returns **503** and completions fail close
 
 Admin overview: http://localhost:3080 (System page shows DB + local runtime).
 
+### Port conflicts / wrong process
+
+If health or completions look wrong while Compose is “Up”, check that **Docker** owns `:8080` / `:3080` — not a local `pnpm dev`. See [INSTALL.md](./INSTALL.md#docker-only-runtime-important).
+
+### Local runtime errors
+
+Completions return distinct reason codes (not opaque `INTERNAL_ERROR`) when:
+
+| Code | Meaning |
+|------|---------|
+| `LOCAL_RUNTIME_UNAVAILABLE` | Ollama unreachable or request failed |
+| `LOCAL_MODEL_NOT_READY` | Model not pulled yet (pull `llama3.2` / `GATEWAY_OLLAMA_MODEL`) |
+| `AIRGAP_LOCAL_RUNTIME_UNAVAILABLE` | Air-gap mode requires Ollama |
+| `POLICY_DISABLED` | Core request/response policy disabled in admin |
+
 ## Logs
 
 ```bash

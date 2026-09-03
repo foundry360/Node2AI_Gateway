@@ -1,3 +1,4 @@
+import { GatewayError } from '../../shared/errors.js';
 import type { LocalModelRuntime, ModelMessage } from '../types.js';
 
 export interface OllamaLocalRuntimeOptions {
@@ -34,27 +35,89 @@ export class OllamaLocalRuntime implements LocalModelRuntime {
     }
   }
 
+  /** True if the mapped Ollama model name (or tag prefix) appears in /api/tags. */
+  async hasModel(gatewayModelId: string): Promise<boolean> {
+    const ollamaModel = this.modelMap[gatewayModelId] ?? gatewayModelId;
+    try {
+      const res = await this.fetchImpl(`${this.baseUrl}/api/tags`, { method: 'GET' });
+      if (!res.ok) return false;
+      const data = (await res.json()) as {
+        models?: Array<{ name?: string; model?: string }>;
+      };
+      const names = (data.models ?? []).map((m) => m.name ?? m.model ?? '');
+      return names.some(
+        (n) => n === ollamaModel || n.startsWith(`${ollamaModel}:`) || n.startsWith(ollamaModel),
+      );
+    } catch {
+      return false;
+    }
+  }
+
   async generate(input: {
     model: string;
     messages: ModelMessage[];
     request_id: string;
   }): Promise<{ content: string; usage: { input_tokens: number; output_tokens: number } }> {
     const ollamaModel = this.modelMap[input.model] ?? input.model;
-    const res = await this.fetchImpl(`${this.baseUrl}/api/chat`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-request-id': input.request_id,
-      },
-      body: JSON.stringify({
-        model: ollamaModel,
-        messages: input.messages,
-        stream: false,
-      }),
-    });
+
+    let reachable = false;
+    try {
+      reachable = await this.isAvailable();
+    } catch {
+      reachable = false;
+    }
+    if (!reachable) {
+      throw new GatewayError(
+        'LOCAL_RUNTIME_UNAVAILABLE',
+        'LOCAL_RUNTIME_UNAVAILABLE: Ollama is not reachable.',
+        503,
+      );
+    }
+
+    if (!(await this.hasModel(input.model))) {
+      throw new GatewayError(
+        'LOCAL_MODEL_NOT_READY',
+        `LOCAL_MODEL_NOT_READY: Ollama model "${ollamaModel}" is not pulled yet. Run: docker compose --profile model-pull up ollama-init`,
+        503,
+      );
+    }
+
+    let res: Response;
+    try {
+      res = await this.fetchImpl(`${this.baseUrl}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-request-id': input.request_id,
+        },
+        body: JSON.stringify({
+          model: ollamaModel,
+          messages: input.messages,
+          stream: false,
+        }),
+      });
+    } catch {
+      throw new GatewayError(
+        'LOCAL_RUNTIME_UNAVAILABLE',
+        'LOCAL_RUNTIME_UNAVAILABLE: Ollama request failed.',
+        503,
+      );
+    }
+
+    if (res.status === 404) {
+      throw new GatewayError(
+        'LOCAL_MODEL_NOT_READY',
+        `LOCAL_MODEL_NOT_READY: Ollama model "${ollamaModel}" returned 404 (not pulled).`,
+        503,
+      );
+    }
 
     if (!res.ok) {
-      throw new Error(`Ollama runtime error: HTTP ${res.status}`);
+      throw new GatewayError(
+        'LOCAL_RUNTIME_UNAVAILABLE',
+        `LOCAL_RUNTIME_UNAVAILABLE: Ollama runtime error HTTP ${res.status}`,
+        503,
+      );
     }
 
     const data = (await res.json()) as {

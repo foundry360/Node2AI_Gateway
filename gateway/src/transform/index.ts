@@ -6,6 +6,7 @@ export type {
   TransformService,
 } from './types.js';
 export { InMemoryTokenVault, newTokenValue } from './vault.js';
+export { PostgresTokenVault } from './pg-vault.js';
 export {
   FailingTransformService,
   InputTransformService,

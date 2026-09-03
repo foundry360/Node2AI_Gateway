@@ -51,6 +51,28 @@ docker compose -f docker-compose.yml -f docker-compose.airgap.yml up --build -d
 
 Admin console authenticates to the gateway with `GATEWAY_ADMIN_API_KEY` (printed by `install.sh` on first run).
 
+## Docker-only runtime (important)
+
+The appliance is meant to run **only** via Docker Compose on the install host.
+
+Do **not** also run `pnpm dev` (or another local Node process) for the gateway or admin on the same machine while Compose is up. A local listener on `:8080` or `:3080` can win IPv4 bind order and make `curl`/browsers hit the wrong process — opaque failures that look like “Compose is broken.”
+
+Before install or when debugging:
+
+```bash
+# Confirm nothing else owns the appliance ports
+lsof -nP -iTCP:8080 -sTCP:LISTEN
+lsof -nP -iTCP:3080 -sTCP:LISTEN
+lsof -nP -iTCP:11434 -sTCP:LISTEN
+# Stop conflicting local Node/pnpm processes, then:
+cd gateway && docker compose ps
+curl -s http://127.0.0.1:8080/health
+```
+
+If `/health` looks wrong after Compose is healthy, check which PID owns the port — it is often a leftover `pnpm dev`, not the container.
+
+`install.sh` adds common Docker Desktop CLI paths (`~/.docker/bin`, Docker.app) when `docker` is not on `PATH`.
+
 ## Recommended local model
 
 Default: **`llama3.2`** (`GATEWAY_OLLAMA_MODEL`).

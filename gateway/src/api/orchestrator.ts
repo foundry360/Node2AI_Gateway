@@ -6,7 +6,7 @@ import type { ModelGateway, ModelMessage } from '../models/types.js';
 import type { PolicyEngine } from '../policy/types.js';
 import type { ResponseInspector } from '../response/inspector.js';
 import type { GatewayConfig } from '../shared/config.js';
-import { isGatewayError } from '../shared/errors.js';
+import { isGatewayError, gatewayErrorFromUnknown } from '../shared/errors.js';
 import { newAuditId, newCorrelationId, newRequestId } from '../shared/ids.js';
 import type { DetokenizationService, TransformService } from '../transform/types.js';
 import {
@@ -273,14 +273,30 @@ export class GatewayOrchestrator {
         requestedModel: body.model,
       });
 
-      const execution = await this.deps.models.executeApproved({
-        request_id: requestId,
-        correlation_id: correlationId,
-        model_id: selectedModel,
-        messages: messagesForModel,
-        operation: body.operation,
-        eligible_models: policyResult.eligible_models,
-      });
+      let execution;
+      try {
+        execution = await this.deps.models.executeApproved({
+          request_id: requestId,
+          correlation_id: correlationId,
+          model_id: selectedModel,
+          messages: messagesForModel,
+          operation: body.operation,
+          eligible_models: policyResult.eligible_models,
+        });
+      } catch (err) {
+        const ge = gatewayErrorFromUnknown(err) ?? (isGatewayError(err) ? err : null);
+        if (ge) {
+          return block(ge.httpStatus, ge.reasonCode, 'Request blocked by policy.', {
+            policy_ids: policyResult.policy_ids,
+            policy_decision: policyResult.decision,
+            data_classification: classification.sensitivity,
+            model_selected: selectedModel,
+            reason_codes: [ge.reasonCode],
+            errors: { message: ge.message },
+          });
+        }
+        throw err;
+      }
 
       // MODEL → INSPECT → POLICY → TRANSFORM → AUTHORIZED DETOKENIZATION → RELEASE
       let inspection;
@@ -486,6 +502,13 @@ export class GatewayOrchestrator {
         },
       };
     } catch (err) {
+      const mapped = gatewayErrorFromUnknown(err);
+      if (mapped) {
+        return block(mapped.httpStatus, mapped.reasonCode, 'Request blocked by policy.', {
+          errors: { message: mapped.message },
+          reason_codes: [mapped.reasonCode],
+        });
+      }
       if (isGatewayError(err)) {
         return block(err.httpStatus, err.reasonCode, 'Request blocked by policy.', {
           errors: { message: err.message },
