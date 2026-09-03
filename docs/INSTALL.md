@@ -104,3 +104,10 @@ Then run [PILOT_ACCEPTANCE.md](./PILOT_ACCEPTANCE.md).
 - Never commit `.env`
 - Rotate `GATEWAY_ADMIN_API_KEY` and DB password for production pilots
 - `GATEWAY_VAULT_KEY` encrypts token vault payloads at rest — back it up with Postgres dumps
+- `GATEWAY_AUDIT_KEY` (optional; defaults to vault/admin key) HMAC-signs the audit hash chain — back it up with dumps
+
+## Audit immutability (v1)
+
+Released model responses are **SHA-256 hashed**. Audit events are **hash-chained**, **HMAC-signed**, and **append-only** in Postgres. Response plaintext is not stored in the audit table.
+
+This is **tamper-evident cryptographic immutability**, not a multi-party blockchain. See [security-model.md](./security-model.md#audit-immutability-v1).

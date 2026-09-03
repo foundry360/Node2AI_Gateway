@@ -39,11 +39,12 @@ cp .env.local.example .env.local
 pnpm install && pnpm dev
 ```
 
-## Persistence & inference
+## Persistence, inference & audit integrity
 
 - `DATABASE_URL` set → Postgres identity, audit, policies, models
 - `GATEWAY_LOCAL_RUNTIME=ollama` (appliance default) → real local inference
 - `GATEWAY_LOCAL_RUNTIME=stub` → CI / unit tests
 - `GATEWAY_VAULT_KEY` → encrypts token vault plaintext at rest
+- Released responses are SHA-256 hashed; audit events are hash-chained, HMAC-signed, and append-only (tamper-evident immutability — not blockchain). See [security-model.md](../docs/security-model.md#audit-immutability-v1).
 
 Demo API keys in seed data are for pilot scripts only — rotate admin key via `.env` for any customer install.

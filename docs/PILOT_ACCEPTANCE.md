@@ -31,7 +31,18 @@ curl -sS -X POST "$GW/v1/ai/completions" \
   }'
 ```
 
-**Pass:** HTTP 200, response released, `model` / provider reflects local runtime (stub in CI, Ollama on appliance).
+**Pass:** HTTP 200, `status: approved`, response released, `model` / provider reflects local runtime (stub in CI, Ollama on appliance). Response also includes `integrity.response_hash` and `integrity.event_hash`.
+
+---
+
+## Test 1b — Audit integrity chain is valid
+
+```bash
+curl -sS -H "Authorization: Bearer $ADMIN_KEY" \
+  "$GW/v1/admin/audit/integrity"
+```
+
+**Pass:** `"integrity": { "ok": true, ... }`. Admin → Audit shows response hashes and chain status.
 
 ---
 
@@ -166,6 +177,7 @@ Repeat Test 1 with local model only. Attempt cloud model id → BLOCK.
 | # | Result | Tester | Date |
 |---|--------|--------|------|
 | 1 | ☐ | | |
+| 1b | ☐ | | |
 | 2 | ☐ | | |
 | 3 | ☐ | | |
 | 4 | ☐ (auto OK) | | |
