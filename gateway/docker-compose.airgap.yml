@@ -1,0 +1,16 @@
+# Air-gap appliance profile
+# Usage: docker compose -f docker-compose.yml -f docker-compose.airgap.yml up --build
+
+services:
+  gateway:
+    environment:
+      GATEWAY_DEPLOYMENT_MODE: airgap
+      # External AI endpoints are intentionally unset / unreachable
+      GATEWAY_EXTERNAL_PROVIDER_URL: http://127.0.0.1:9
+      GATEWAY_EXTERNAL_PROVIDER_API_KEY: ""
+    # Optional: uncomment for stricter host egress isolation where supported
+    # network_mode: bridge
+
+  admin:
+    environment:
+      GATEWAY_URL: http://gateway:8080

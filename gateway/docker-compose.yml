@@ -1,0 +1,68 @@
+# Node2AI Gateway Appliance
+# Bring up with: docker compose up --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: node2ai
+      POSTGRES_PASSWORD: node2ai
+      POSTGRES_DB: node2ai_gateway
+    ports:
+      - "5433:5432"
+    volumes:
+      - gateway_pg_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U node2ai -d node2ai_gateway"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: "8080"
+      GATEWAY_DEPLOYMENT_MODE: connected
+      GATEWAY_ADMIN_API_KEY: n2ai_admin_dev_key
+      GATEWAY_CORS_ORIGINS: http://localhost:3080,http://127.0.0.1:3080
+      DATABASE_URL: postgres://node2ai:node2ai@postgres:5432/node2ai_gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+      args:
+        GATEWAY_URL: http://gateway:8080
+        GATEWAY_ADMIN_API_KEY: n2ai_admin_dev_key
+    environment:
+      GATEWAY_URL: http://gateway:8080
+      GATEWAY_ADMIN_API_KEY: n2ai_admin_dev_key
+    ports:
+      - "3080:3080"
+    depends_on:
+      gateway:
+        condition: service_healthy
+
+volumes:
+  gateway_pg_data:

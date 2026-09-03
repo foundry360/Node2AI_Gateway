@@ -2,3 +2,5 @@ packages:
   - 'apps/*'
   - 'packages/*'
   - 'desktop-admin'
+  - 'gateway'
+  - 'gateway/admin'
