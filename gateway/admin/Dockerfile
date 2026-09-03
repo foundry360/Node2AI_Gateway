@@ -8,6 +8,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json next.config.js tsconfig.json ./
 COPY src ./src
+COPY public ./public
 ARG GATEWAY_URL=http://gateway:8080
 ARG GATEWAY_ADMIN_API_KEY=n2ai_admin_dev_key
 ENV GATEWAY_URL=$GATEWAY_URL

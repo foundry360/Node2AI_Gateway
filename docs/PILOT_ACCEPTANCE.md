@@ -23,6 +23,8 @@ curl -sS -X POST "$GW/v1/ai/completions" \
   -H "Authorization: Bearer $APP_KEY" \
   -H "Content-Type: application/json" \
   -d '{
+    "application_id": "app_clinical",
+    "user": {"id": "user_clinician"},
     "operation": "summarize",
     "model": "local-general-v1",
     "messages": [{"role":"user","content":"Summarize: quarterly readiness looks good."}]
@@ -40,6 +42,8 @@ curl -sS -X POST "$GW/v1/ai/completions" \
   -H "Authorization: Bearer $APP_KEY" \
   -H "Content-Type: application/json" \
   -d '{
+    "application_id": "app_clinical",
+    "user": {"id": "user_clinician"},
     "operation": "summarize",
     "model": "not-allowed-model",
     "messages": [{"role":"user","content":"Hello"}]
@@ -57,6 +61,8 @@ curl -sS -X POST "$GW/v1/ai/completions" \
   -H "Authorization: Bearer $APP_KEY" \
   -H "Content-Type: application/json" \
   -d '{
+    "application_id": "app_clinical",
+    "user": {"id": "user_clinician"},
     "operation": "summarize",
     "model": "local-general-v1",
     "messages": [{"role":"user","content":"Contact Jane Doe at jane.doe@example.com about follow-up."}]
@@ -109,6 +115,8 @@ curl -sS -X POST "$GW/v1/ai/completions" \
   -H "Authorization: Bearer $APP_KEY" \
   -H "Content-Type: application/json" \
   -d '{
+    "application_id": "app_clinical",
+    "user": {"id": "user_clinician"},
     "operation": "summarize",
     "model": "local-general-v1",
     "messages": [{"role":"user","content":"hi"}],
@@ -116,7 +124,6 @@ curl -sS -X POST "$GW/v1/ai/completions" \
     "skip_inspection": true
   }'
 ```
-
 **Pass:** Overrides ignored or request blocked; policy still enforced.
 
 ---

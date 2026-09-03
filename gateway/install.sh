@@ -8,8 +8,18 @@ cd "$ROOT"
 MODE="${1:-connected}" # connected | airgap
 PULL_MODEL="${PULL_MODEL:-1}"
 
+# Docker Desktop on macOS often installs the CLI outside default PATH.
+export PATH="${HOME}/.docker/bin:/Applications/Docker.app/Contents/Resources/bin:${PATH}"
+
 if ! command -v docker >/dev/null 2>&1; then
   echo "ERROR: Docker is required. Install Docker Desktop or Docker Engine, then retry."
+  echo "If Docker Desktop is installed, open it once and ensure the CLI is available"
+  echo "(Settings → General → “Enable default Docker CLI”)."
+  exit 1
+fi
+
+if ! docker info >/dev/null 2>&1; then
+  echo "ERROR: Docker CLI found but the engine is not running. Start Docker Desktop and retry."
   exit 1
 fi
 

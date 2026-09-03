@@ -26,9 +26,10 @@ export function CreateApplicationForm() {
       className="form-grid"
       onSubmit={async (e) => {
         e.preventDefault();
+        const form = e.currentTarget;
         setBusy(true);
         setError(null);
-        const fd = new FormData(e.currentTarget);
+        const fd = new FormData(form);
         try {
           await proxyJson('applications', 'POST', {
             name: fd.get('name'),
@@ -38,7 +39,7 @@ export function CreateApplicationForm() {
             allowed_operations: fd.get('allowed_operations'),
             allowed_datasets: fd.get('allowed_datasets'),
           });
-          e.currentTarget.reset();
+          form.reset();
           router.refresh();
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed');
@@ -248,9 +249,10 @@ export function RegisterModelForm() {
       className="form-grid"
       onSubmit={async (e) => {
         e.preventDefault();
+        const form = e.currentTarget;
         setBusy(true);
         setError(null);
-        const fd = new FormData(e.currentTarget);
+        const fd = new FormData(form);
         try {
           await proxyJson('models', 'POST', {
             model_id: fd.get('model_id'),
@@ -258,7 +260,7 @@ export function RegisterModelForm() {
             provider_id: fd.get('provider_id'),
             kind: fd.get('kind'),
           });
-          e.currentTarget.reset();
+          form.reset();
           router.refresh();
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed');
