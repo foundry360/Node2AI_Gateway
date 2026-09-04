@@ -74,6 +74,19 @@ docker compose exec -T postgres \
   psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < db/migrate-audit-integrity.sql
 ```
 
+### Enigma EPA tables (M2)
+
+New installs load `schema-epa.sql` / `seed-epa.sql` via Compose init. On existing volumes:
+
+```bash
+docker compose exec -T postgres \
+  psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < db/schema-epa.sql
+docker compose exec -T postgres \
+  psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < db/seed-epa.sql
+```
+
+Runtime evaluation uses the in-memory Baseline pack interpreters in M2; Postgres tables support administration and future repository loading.
+
 Postgres triggers reject UPDATE/DELETE on `audit_events` (append-only).
 
 Back up `GATEWAY_AUDIT_KEY` with the database; rotation invalidates re-verification of old signatures unless dual-key migration is performed.
