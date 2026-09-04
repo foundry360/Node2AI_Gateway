@@ -35,6 +35,13 @@ export interface PackPolicyMeta {
     | 'financial_overlay_v1'
     | 'legal_overlay_v1'
     | 'framework_stub';
+  /** Admin / catalog enrichment (optional). */
+  description?: string;
+  owner?: string;
+  priority?: number;
+  scope_tier?: string;
+  domain?: string;
+  content_hash?: string;
 }
 
 export interface PackSnapshot {

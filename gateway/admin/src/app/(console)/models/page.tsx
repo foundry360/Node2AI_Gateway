@@ -1,5 +1,9 @@
 import { adminFetch } from '@/lib/api';
-import { ModelActions, RegisterModelForm } from '@/components/AdminForms';
+import { ModelActions } from '@/components/AdminForms';
+import { EmptyState } from '@/components/EmptyState';
+import { ModelRegisterDrawer } from '@/components/ModelRegisterDrawer';
+import { PageHeader } from '@/components/PageHeader';
+import { StatusBadge } from '@/components/StatusBadge';
 
 type ModelsResponse = {
   models: Array<{
@@ -23,19 +27,27 @@ export default async function ModelsPage() {
 
   return (
     <div>
-      <h1 className="page-title">Models</h1>
-      <p className="page-lede">
-        Register local/cloud models and enable or disable them. Policy decides eligibility.
-      </p>
+      <PageHeader
+        title="Models"
+        lede="Register local and cloud models. Policy decides eligibility at request time."
+        actions={<ModelRegisterDrawer />}
+      />
       {error ? <div className="error">{error}</div> : null}
-      <div className="stack">
-        <div className="panel">
-          <RegisterModelForm />
-        </div>
-        {data ? (
-          <>
-            <div className="panel">
-              <div className="panel-header">Registered models</div>
+      <div className="settings-sections">
+        <section className="settings-section">
+          <div className="settings-section-aside">
+            <h2 className="settings-section-title">Registered models</h2>
+            <p className="settings-section-explainer">
+              Models available for policy evaluation and routing at request time.
+            </p>
+          </div>
+          <div className="settings-section-data">
+            {!data || data.models.length === 0 ? (
+              <EmptyState
+                title="No models registered"
+                description="Register a model to make it available for policy evaluation."
+              />
+            ) : (
               <table>
                 <thead>
                   <tr>
@@ -57,11 +69,7 @@ export default async function ModelsPage() {
                       <td className="mono">{m.provider_id}</td>
                       <td>{m.kind}</td>
                       <td>
-                        <span
-                          className={`badge ${m.status === 'active' ? 'badge-ok' : 'badge-bad'}`}
-                        >
-                          {m.status}
-                        </span>
+                        <StatusBadge status={m.status} />
                       </td>
                       <td>
                         <ModelActions modelId={m.model_id} status={m.status} />
@@ -70,9 +78,20 @@ export default async function ModelsPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
-            <div className="panel">
-              <div className="panel-header">Providers</div>
+            )}
+          </div>
+        </section>
+        <section className="settings-section">
+          <div className="settings-section-aside">
+            <h2 className="settings-section-title">Providers</h2>
+            <p className="settings-section-explainer">
+              Inference providers registered with this gateway appliance.
+            </p>
+          </div>
+          <div className="settings-section-data">
+            {!data || data.providers.length === 0 ? (
+              <EmptyState title="No providers" />
+            ) : (
               <table>
                 <thead>
                   <tr>
@@ -89,9 +108,9 @@ export default async function ModelsPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
-          </>
-        ) : null}
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );

@@ -20,8 +20,23 @@ import {
   validatePolicyVersion,
   type PolicyTestFixture,
 } from '../policy/enterprise/lifecycle.js';
+import { getPolicyDefinition } from '../policy/enterprise/packs/definitions.js';
 import type { GatewayConfig } from '../shared/config.js';
+import type { DatabaseHealth } from '../shared/db-health.js';
 import type { PgQueryable } from '../shared/pg.js';
+
+function enrichPolicyMeta<T extends { policy_id: string; interpreter: string }>(meta: T) {
+  const def = getPolicyDefinition(meta.policy_id, meta.interpreter);
+  if (!def) return meta;
+  return {
+    ...meta,
+    description: def.description,
+    owner: def.owner,
+    priority: def.priority,
+    scope_tier: def.scope_tier,
+    domain: def.domain,
+  };
+}
 
 export interface AdminContext {
   config: GatewayConfig;
@@ -36,7 +51,7 @@ export interface AdminContext {
   /** Pack-backed PDP for simulate/validate (M3+). */
   packPdp?: PackBackedEnterprisePdp;
   db?: PgQueryable;
-  checkDatabase?: () => Promise<{ ok: boolean; detail: string }>;
+  checkDatabase?: () => Promise<DatabaseHealth>;
   checkLocalRuntime?: () => Promise<{
     mode: string;
     active_runtime: string;
@@ -322,6 +337,97 @@ export function registerAdminRoutes(
     };
   });
 
+  app.get('/v1/admin/policies/:policyId/evaluations', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    const { policyId } = request.params as { policyId: string };
+    const events = await ctx.audit.list();
+    const evaluations = events
+      .filter((e) => (e.policy_ids ?? []).includes(policyId))
+      .reverse()
+      .slice(0, 50)
+      .map((e) => ({
+        audit_id: e.audit_id,
+        timestamp: e.timestamp,
+        request_id: e.request_id,
+        application_id: e.application_id,
+        operation: e.operation,
+        policy_decision: e.policy_decision,
+        response_decision: e.response_decision,
+        reason_codes: e.reason_codes,
+        data_classification: e.data_classification,
+      }));
+    return { policy_id: policyId, evaluations };
+  });
+
+  app.get('/v1/admin/policies/:policyId', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    if (!ctx.policyRepository) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'EPA policy repository unavailable',
+      });
+    }
+    const { policyId } = request.params as { policyId: string };
+    const meta = ctx.policyRepository.getPolicy(policyId);
+    if (!meta) {
+      return reply.status(404).send({ status: 'error', message: 'policy not found in EPA' });
+    }
+    const snap = ctx.policyRepository.getSnapshot();
+    const pack = snap.packs.find((p) => p.pack_id === meta.pack_id) ?? null;
+    const definition = getPolicyDefinition(meta.policy_id, meta.interpreter);
+    const store = await ctx.policyStore.get(policyId);
+    const allStore = await ctx.policyStore.list();
+    const versions: Array<{
+      policy_id: string;
+      version: number;
+      status: string;
+      created_at: string | null;
+      created_by: string | null;
+      source: 'legacy_store' | 'epa';
+    }> = allStore
+      .filter((p) => p.policy_id === policyId || p.name === meta.name)
+      .map((p) => ({
+        policy_id: p.policy_id,
+        version: p.version,
+        status: p.status as string,
+        created_at: p.created_at ?? null,
+        created_by: p.created_by ?? null,
+        source: 'legacy_store' as const,
+      }));
+    if (!versions.some((v) => v.version === meta.version)) {
+      versions.unshift({
+        policy_id: meta.policy_id,
+        version: meta.version,
+        status: meta.status,
+        created_at: null,
+        created_by: null,
+        source: 'epa',
+      });
+    }
+    return {
+      policy: enrichPolicyMeta(meta),
+      pack,
+      definition,
+      store: store
+        ? {
+            policy_id: store.policy_id,
+            organization_id: store.organization_id,
+            name: store.name,
+            status: store.status,
+            version: store.version,
+            summary: typeof store.rules.summary === 'string' ? store.rules.summary : '',
+            rules: store.rules,
+          }
+        : null,
+      versions: versions.sort((a, b) => b.version - a.version),
+      engine_mode: ctx.config.policyEngineMode,
+    };
+  });
+
   app.patch('/v1/admin/policies/:policyId', async (request, reply) => {
     if (!(await requireAdmin(request.headers.authorization))) {
       return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
@@ -376,7 +482,10 @@ export function registerAdminRoutes(
     const snap = ctx.policyRepository.getSnapshot();
     return {
       packs: snap.packs,
-      policies: snap.policies,
+      policies: snap.policies.map((p) => ({
+        ...enrichPolicyMeta(p),
+        definition: getPolicyDefinition(p.policy_id, p.interpreter),
+      })),
       engine_mode: ctx.config.policyEngineMode,
     };
   });
@@ -557,7 +666,7 @@ export function registerAdminRoutes(
       return reply.status(503).send({ status: 'error', message: 'EPA repository unavailable' });
     }
     const { policyId } = request.params as { policyId: string };
-    const meta = ctx.policyRepository.setPolicyStatus(policyId, 'suspended');
+    const meta = await ctx.policyRepository.setPolicyStatus(policyId, 'suspended');
     if (!meta) {
       return reply.status(404).send({ status: 'error', message: 'policy not found in EPA' });
     }
@@ -566,7 +675,66 @@ export function registerAdminRoutes(
     } catch {
       // ignore missing legacy row
     }
-    return { status: 'suspended', policy: meta };
+    await ctx.audit.record({
+      audit_id: `aud_pol_sus_${randomBytes(6).toString('hex')}`,
+      timestamp: new Date().toISOString(),
+      user_id: 'admin',
+      request_id: `req_pol_sus_${randomBytes(4).toString('hex')}`,
+      correlation_id: `cor_pol_sus_${randomBytes(4).toString('hex')}`,
+      operation: 'policy_suspend',
+      data_classification: 'Internal',
+      policy_decision: 'ALLOW',
+      policy_ids: [policyId],
+      response_decision: 'RELEASE',
+      reason_codes: ['POLICY_SUSPENDED'],
+      metadata: { version: meta.version, pack_id: meta.pack_id },
+    });
+    return { status: 'suspended', policy: enrichPolicyMeta(meta) };
+  });
+
+  app.post('/v1/admin/policies/:policyId/retire', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    if (!ctx.policyRepository) {
+      return reply.status(503).send({ status: 'error', message: 'EPA repository unavailable' });
+    }
+    const { policyId } = request.params as { policyId: string };
+    const current = ctx.policyRepository.getPolicy(policyId);
+    if (!current) {
+      return reply.status(404).send({ status: 'error', message: 'policy not found in EPA' });
+    }
+    if (current.status === 'active') {
+      return reply.status(400).send({
+        status: 'error',
+        message: 'Suspend the policy before retiring it',
+        current_status: current.status,
+      });
+    }
+    const meta = await ctx.policyRepository.setPolicyStatus(policyId, 'retired');
+    if (!meta) {
+      return reply.status(404).send({ status: 'error', message: 'policy not found in EPA' });
+    }
+    try {
+      await ctx.policyStore.setStatus(policyId, 'disabled');
+    } catch {
+      // ignore missing legacy row
+    }
+    await ctx.audit.record({
+      audit_id: `aud_pol_ret_${randomBytes(6).toString('hex')}`,
+      timestamp: new Date().toISOString(),
+      user_id: 'admin',
+      request_id: `req_pol_ret_${randomBytes(4).toString('hex')}`,
+      correlation_id: `cor_pol_ret_${randomBytes(4).toString('hex')}`,
+      operation: 'policy_retire',
+      data_classification: 'Internal',
+      policy_decision: 'ALLOW',
+      policy_ids: [policyId],
+      response_decision: 'RELEASE',
+      reason_codes: ['POLICY_RETIRED'],
+      metadata: { version: meta.version, pack_id: meta.pack_id },
+    });
+    return { status: 'retired', policy: enrichPolicyMeta(meta) };
   });
 
   app.get('/v1/admin/models', async (request, reply) => {
@@ -736,7 +904,6 @@ export function registerAdminRoutes(
         name: o.name,
         status: o.status,
       })),
-      note: 'AI execution remains solely via POST /v1/ai/completions',
     };
   });
 }

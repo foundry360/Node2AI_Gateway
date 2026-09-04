@@ -86,6 +86,49 @@ describe('Enigma EPA M3 admin lifecycle', () => {
       headers: auth,
     });
     expect(reactivate.statusCode).toBe(200);
+
+    const detail = await server.inject({
+      method: 'GET',
+      url: '/v1/admin/policies/pol_phase2_core',
+      headers: auth,
+    });
+    expect(detail.statusCode).toBe(200);
+    expect(detail.json().policy.policy_id).toBe('pol_phase2_core');
+    expect(detail.json().definition?.subjects?.length).toBeGreaterThan(0);
+    expect(detail.json().definition?.conditions?.length).toBeGreaterThan(0);
+
+    const packsWithDef = await server.inject({
+      method: 'GET',
+      url: '/v1/admin/policy-packs',
+      headers: auth,
+    });
+    const core = packsWithDef
+      .json()
+      .policies.find((p: { policy_id: string }) => p.policy_id === 'pol_phase2_core');
+    expect(core?.definition?.obligations?.length).toBeGreaterThan(0);
+
+    const suspendAgain = await server.inject({
+      method: 'POST',
+      url: '/v1/admin/policies/pol_phase2_core/suspend',
+      headers: auth,
+    });
+    expect(suspendAgain.statusCode).toBe(200);
+
+    const retire = await server.inject({
+      method: 'POST',
+      url: '/v1/admin/policies/pol_phase2_core/retire',
+      headers: auth,
+    });
+    expect(retire.statusCode).toBe(200);
+    expect(retire.json().status).toBe('retired');
+
+    const evaluations = await server.inject({
+      method: 'GET',
+      url: '/v1/admin/policies/pol_phase2_core/evaluations',
+      headers: auth,
+    });
+    expect(evaluations.statusCode).toBe(200);
+    expect(Array.isArray(evaluations.json().evaluations)).toBe(true);
   });
 
   it('fail-closes when pack PDP throws', async () => {

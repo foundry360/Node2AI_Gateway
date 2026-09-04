@@ -2,21 +2,19 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { proxyJson } from '@/lib/client-api';
+import { StatusBadge } from '@/components/StatusBadge';
 
-async function proxyJson(path: string, method: string, body?: unknown) {
-  const res = await fetch(`/api/proxy/${path}`, {
-    method,
-    headers: { 'content-type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(
-      (data as { message?: string }).message ?? `Request failed (${res.status})`,
-    );
-  }
-  return data;
-}
+type Decision = {
+  decision?: string;
+  reason?: string;
+  reason_codes?: string[];
+  obligations?: Array<{ code: string; parameters?: Record<string, unknown> }>;
+  explanation?: string;
+  evidence?: unknown;
+  applicable_policies?: string[];
+  eligible_models?: string[];
+};
 
 export function PolicyLifecycleActions({
   policyId,
@@ -31,8 +29,16 @@ export function PolicyLifecycleActions({
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [simClass, setSimClass] = useState('PHI');
-  const [simModel, setSimModel] = useState('cloud-public-gpt');
+  const [validateResult, setValidateResult] = useState<Record<string, unknown> | null>(
+    null,
+  );
+
+  const canApprove = ['draft', 'review', 'suspended', 'active', 'approved'].includes(
+    status,
+  );
+  const canActivate = status === 'approved' || status === 'active';
+  const canSuspend = status === 'active' || status === 'approved';
+  const canRetire = status === 'suspended' || status === 'disabled' || status === 'draft';
 
   async function run(label: string, fn: () => Promise<unknown>) {
     setBusy(true);
@@ -40,10 +46,12 @@ export function PolicyLifecycleActions({
     setInfo(null);
     try {
       const result = await fn();
-      setInfo(`${label}: ${JSON.stringify(result).slice(0, 280)}`);
+      setInfo(`${label} succeeded`);
       router.refresh();
+      return result;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed');
+      return null;
     } finally {
       setBusy(false);
     }
@@ -56,18 +64,19 @@ export function PolicyLifecycleActions({
           type="button"
           className="btn btn-secondary"
           disabled={busy}
-          onClick={() =>
-            run('Validate', () =>
+          onClick={async () => {
+            const result = (await run('Validate', () =>
               proxyJson(`policies/${policyId}/validate`, 'POST', {}),
-            )
-          }
+            )) as Record<string, unknown> | null;
+            if (result) setValidateResult(result);
+          }}
         >
           Validate
         </button>
         <button
           type="button"
           className="btn btn-secondary"
-          disabled={busy}
+          disabled={busy || !canApprove || status === 'retired'}
           onClick={() =>
             run('Approve', () =>
               proxyJson(`policies/${policyId}/approve`, 'POST', {}),
@@ -79,7 +88,7 @@ export function PolicyLifecycleActions({
         <button
           type="button"
           className="btn"
-          disabled={busy}
+          disabled={busy || !canActivate}
           onClick={() =>
             run('Activate', () =>
               proxyJson(`policies/${policyId}/activate`, 'POST', {}),
@@ -91,7 +100,7 @@ export function PolicyLifecycleActions({
         <button
           type="button"
           className="btn btn-secondary"
-          disabled={busy || status === 'suspended' || status === 'disabled'}
+          disabled={busy || !canSuspend}
           onClick={() =>
             run('Suspend', () =>
               proxyJson(`policies/${policyId}/suspend`, 'POST', {}),
@@ -100,10 +109,51 @@ export function PolicyLifecycleActions({
         >
           Suspend
         </button>
+        <button
+          type="button"
+          className="btn btn-danger"
+          disabled={busy || !canRetire}
+          onClick={() =>
+            run('Retire', () =>
+              proxyJson(`policies/${policyId}/retire`, 'POST', {}),
+            )
+          }
+        >
+          Retire
+        </button>
       </div>
+      {validateResult ? (
+        <div className="info-banner">
+          Validate: {validateResult.ok ? 'ok' : 'failed'}
+          {Array.isArray(validateResult.errors) && validateResult.errors.length
+            ? ` — ${(validateResult.errors as string[]).join('; ')}`
+            : ''}
+        </div>
+      ) : null}
+      {interpreter ? (
+        <p className="muted">
+          Interpreter: <code className="mono">{interpreter}</code>
+        </p>
+      ) : null}
+      {info ? <div className="info-banner">{info}</div> : null}
+      {error ? <div className="error">{error}</div> : null}
+    </div>
+  );
+}
 
-      <div className="form-grid">
-        <div className="panel-header">Simulate (no model execution)</div>
+export function PolicySimulatePanel({ policyId }: { policyId: string }) {
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [simClass, setSimClass] = useState('PHI');
+  const [simModel, setSimModel] = useState('cloud-public-gpt');
+  const [simResult, setSimResult] = useState<Decision | null>(null);
+
+  return (
+    <div className="stack-tight">
+      <p className="muted">
+        What-if evaluation against the pack-backed PDP. No model is executed.
+      </p>
+      <div className="form-grid" style={{ padding: 0 }}>
         <label>
           Classification
           <select value={simClass} onChange={(e) => setSimClass(e.target.value)}>
@@ -126,27 +176,63 @@ export function PolicyLifecycleActions({
           type="button"
           className="btn"
           disabled={busy}
-          onClick={() =>
-            run('Simulate', () =>
-              proxyJson(`policies/${policyId}/simulate`, 'POST', {
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
+            try {
+              const result = (await proxyJson(`policies/${policyId}/simulate`, 'POST', {
                 classification: simClass,
                 requested_model: simModel,
                 application_type: 'clinical',
                 roles: ['clinician'],
-              }),
-            )
-          }
+              })) as { decision?: Decision };
+              setSimResult(result.decision ?? null);
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Failed');
+            } finally {
+              setBusy(false);
+            }
+          }}
         >
           Run simulation
         </button>
       </div>
-
-      {interpreter ? (
-        <p className="muted">
-          Interpreter: <code>{interpreter}</code>
-        </p>
+      {simResult ? (
+        <div className="decision-card">
+          <div className="decision-row">
+            <strong>Decision</strong>
+            <StatusBadge status={simResult.decision ?? '—'} />
+          </div>
+          {simResult.reason ? <p className="muted">{simResult.reason}</p> : null}
+          <div>
+            <div className="muted" style={{ marginBottom: '0.35rem' }}>
+              Reason codes
+            </div>
+            <div className="mono">
+              {(simResult.reason_codes ?? []).join(', ') || '—'}
+            </div>
+          </div>
+          <div>
+            <div className="muted" style={{ marginBottom: '0.35rem' }}>
+              Obligations
+            </div>
+            {(simResult.obligations ?? []).length === 0 ? (
+              <span className="muted">None</span>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: '1.1rem' }}>
+                {(simResult.obligations ?? []).map((o, i) => (
+                  <li key={`${o.code}-${i}`} className="mono">
+                    {o.code}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          {simResult.explanation ? (
+            <p className="muted">{simResult.explanation}</p>
+          ) : null}
+        </div>
       ) : null}
-      {info ? <pre className="mono sim-result">{info}</pre> : null}
       {error ? <div className="error">{error}</div> : null}
     </div>
   );

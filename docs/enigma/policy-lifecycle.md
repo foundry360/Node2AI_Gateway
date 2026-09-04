@@ -115,3 +115,12 @@ Actions: View · Edit · Clone · Submit · Activate · Suspend · Retire · Sim
 Overview · Scope · Subjects · Resources · Actions · AI Context · Conditions · Decisions · Obligations · Versions · Evidence
 
 Replace the v1 “edit opaque rules JSON” primary UX. JSON may remain an advanced export/import only.
+
+### Implemented (Enigma Admin console)
+
+- Dense console shell (active nav, page headers, filters, empty states) across Overview / Applications / Policies / Models / Audit / System.
+- Policies **list**: filterable table by pack/status/search; row opens detail. Lifecycle and legacy JSON are **not** on the list.
+- Policies **detail**: tabbed EPA sections + lifecycle (Validate / Approve / Activate / Suspend / Retire) + structured Simulate + Evidence (policy-linked audit) + Versions.
+- Definition sections (Subjects, Resources, Conditions, …) are populated from **pack definition manifests** co-located with interpreters (`gateway/src/policy/enterprise/packs/definitions.ts`). Manifests are the admin source of truth until relational `policy_subjects` / `policy_conditions` tables are authored and edited in-console.
+- APIs: `GET /v1/admin/policies/:id`, `GET .../evaluations`, `POST .../retire`; `GET /v1/admin/policy-packs` includes `definition` per policy.
+- Not in this pass: Clone, Submit-for-review, visual CRUD that writes relational subject/resource rows.
