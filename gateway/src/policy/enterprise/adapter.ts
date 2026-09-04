@@ -11,11 +11,11 @@ import {
   toLegacyResponseResult,
   toOutputEvaluationRequest,
 } from './map.js';
-import type { DelegatingEnterprisePdp } from './pdp.js';
+import type { BridgedEnterprisePdp } from './pack-pdp.js';
 import type { PolicyDecision, PolicyEngineMode } from './types.js';
 
 export interface EnterprisePolicyAdapterOptions {
-  /** When compare: evaluate both paths; enforce legacy; attach mismatch metadata on decision. */
+  /** When compare: evaluate both paths; enforce legacy; report mismatches. */
   mode?: PolicyEngineMode;
   onMismatch?: (info: {
     phase: 'input' | 'output';
@@ -26,11 +26,11 @@ export interface EnterprisePolicyAdapterOptions {
 
 /**
  * Adapter: existing PolicyEngine API ↔ Enigma PDP contract.
- * Production wiring for M1: delegates to legacy engine via DelegatingEnterprisePdp (zero behavior drift).
+ * M2: pack-backed PDP by default; compare mode keeps legacy authoritative.
  */
 export class EnterprisePolicyAdapter implements PolicyEngine {
   constructor(
-    private readonly pdp: DelegatingEnterprisePdp,
+    private readonly pdp: BridgedEnterprisePdp,
     private readonly legacy: PolicyEngine,
     private readonly options: EnterprisePolicyAdapterOptions = {},
   ) {}
@@ -42,7 +42,6 @@ export class EnterprisePolicyAdapter implements PolicyEngine {
       return this.legacy.evaluateRequest(context);
     }
 
-    // Exercise EPA request mapping (side-effect free construction).
     toInputEvaluationRequest(context);
 
     const enterprise = await this.pdp.evaluateLegacyRequest(context);

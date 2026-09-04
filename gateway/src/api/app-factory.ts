@@ -24,8 +24,9 @@ import { ResolvingLocalRuntime } from '../models/runtime/resolving.js';
 import type { LocalModelRuntime, ModelGateway, ModelProvider } from '../models/types.js';
 import { DeterministicPolicyEngine, FailingPolicyEngine } from '../policy/engine.js';
 import {
-  DelegatingEnterprisePdp,
   EnterprisePolicyAdapter,
+  InMemoryPolicyRepository,
+  PackBackedEnterprisePdp,
 } from '../policy/enterprise/index.js';
 import { InMemoryPolicyStore, PostgresPolicyStore } from '../policy/store.js';
 import type { PolicyStore } from '../policy/store.js';
@@ -186,27 +187,27 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
       : new IntegrityAuditService(rawAudit, config.auditSigningKey);
   const persistence = options.persistence ?? 'memory';
   const policyStore = options.policyStore ?? new InMemoryPolicyStore();
+  const isPolicyActive = async (policyId: string) => {
+    const latest = await policyStore.listLatest();
+    const match = latest.find((p) => p.policy_id === policyId);
+    if (!match) return true;
+    return match.status === 'active';
+  };
   const legacyPolicy =
     options.policy ??
     new DeterministicPolicyEngine({
       defaultLocalModel: 'local-general-v1',
-      isPolicyActive: async (policyId) => {
-        const latest = await policyStore.listLatest();
-        const match = latest.find((p) => p.policy_id === policyId);
-        // Empty/unseeded store: keep built-in engine behavior (active).
-        if (!match) return true;
-        return match.status === 'active';
-      },
+      isPolicyActive,
     });
+  const packRepo = new InMemoryPolicyRepository();
+  const packPdp = new PackBackedEnterprisePdp(packRepo, { isPolicyActive });
   const policy: PolicyEngine =
     options.policy ??
     (config.policyEngineMode === 'legacy'
       ? legacyPolicy
-      : new EnterprisePolicyAdapter(
-          new DelegatingEnterprisePdp(legacyPolicy),
-          legacyPolicy,
-          { mode: config.policyEngineMode },
-        ));
+      : new EnterprisePolicyAdapter(packPdp, legacyPolicy, {
+          mode: config.policyEngineMode,
+        }));
   const interrogator = options.interrogator ?? new HybridDataInterrogator();
   const vault =
     options.vault ??

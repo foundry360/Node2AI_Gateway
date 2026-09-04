@@ -15,6 +15,8 @@ services:
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
       - ./db/seed-policies.sql:/docker-entrypoint-initdb.d/03-seed-policies.sql:ro
+      - ./db/schema-epa.sql:/docker-entrypoint-initdb.d/04-schema-epa.sql:ro
+      - ./db/seed-epa.sql:/docker-entrypoint-initdb.d/05-seed-epa.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-node2ai} -d ${POSTGRES_DB:-node2ai_gateway}"]
       interval: 5s

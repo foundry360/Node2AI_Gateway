@@ -58,6 +58,12 @@ export function toInputEvaluationRequest(
     resource: {
       type: 'document',
       classification: classification as PolicyEvaluationRequest['resource']['classification'],
+      attributes: {
+        application_status: context.application.status,
+        application_type: context.application.type,
+        allowed_operations: context.application.allowed_operations,
+        allowed_models: context.application.allowed_models,
+      },
     },
     action: mapOperationToAction(context.operation),
     context: {
@@ -109,6 +115,12 @@ export function toOutputEvaluationRequest(
     resource: {
       type: 'model_output',
       classification: classification as PolicyEvaluationRequest['resource']['classification'],
+      attributes: {
+        application_status: context.application.status,
+        application_type: context.application.type,
+        allowed_operations: context.application.allowed_operations,
+        allowed_models: context.application.allowed_models,
+      },
     },
     action: mapOperationToAction(context.operation),
     context: {

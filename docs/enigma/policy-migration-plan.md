@@ -49,12 +49,15 @@
 
 ### Phase M2 — Repository + Baseline pack seed (**Prototype → Production**)
 
-- Create EPA tables  
-- Seed Enterprise AI Baseline + response governance from current engine semantics  
-- PDP evaluates pack data for overlapping cases  
-- **Comparison mode:** run legacy + EPA; log mismatches; legacy still authoritative  
+**Status:** Complete.
 
-**Exit:** Mismatch rate understood; fixtures for TEST 001–005 green on EPA.
+- EPA tables: `gateway/db/schema-epa.sql` + `seed-epa.sql` (Compose init 04/05)
+- In-memory `InMemoryPolicyRepository` + Baseline / Response pack snapshot
+- `PackBackedEnterprisePdp` interpreters `baseline_input_v2` / `baseline_output_v5`
+- Default `GATEWAY_POLICY_ENGINE=enterprise` uses pack PDP; `compare` enforces legacy and records mismatches
+- TEST 001–005 unit coverage  
+
+**Exit:** Pack vs legacy comparison green on baseline fixtures; existing gateway suite green.
 
 ### Phase M3 — EPA authoritative (**Production**)
 
