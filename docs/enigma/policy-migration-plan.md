@@ -61,12 +61,16 @@
 
 ### Phase M3 — EPA authoritative (**Production**)
 
-- Flip adapter: EPA PDP is source of truth  
-- Legacy engine comparison optional / shadow  
-- Fail closed on PDP errors  
-- Admin APIs for validate / simulate / activate (minimum viable)  
+**Status:** Complete.
 
-**Exit:** Pilot acceptance equivalent tests pass on EPA-only.
+- EPA pack PDP is source of truth for `enterprise` and `shadow` modes  
+- `shadow`: EPA authoritative + legacy dual-run mismatch reporting  
+- `compare`: legacy authoritative (rollback)  
+- Fail closed on PDP throw / `fail_closed` decisions  
+- Admin MVP: `/v1/admin/policy-packs`, `.../validate`, `.../simulate`, `.../activate`, `.../suspend`  
+- Activation gated on Baseline TEST 001–005  
+
+**Exit:** Gateway suite green on EPA-only default; admin lifecycle tests green.
 
 ### Phase M4 — Admin UX + packs + retire legacy
 

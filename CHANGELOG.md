@@ -7,6 +7,7 @@
 - Architecture pack under `docs/enigma/`: ADR-011 (OPA/Cedar vs domain-native PDP), domain model, data model, evaluation contract, lifecycle, migration plan, policy threat model
 - **M1 (Prototype):** `gateway/src/policy/enterprise/` contract types, `EnterprisePolicyAdapter`, `DelegatingEnterprisePdp`; `GATEWAY_POLICY_ENGINE=legacy|enterprise|compare` (default enterprise)
 - **M2:** EPA schema/seed (`schema-epa.sql`, `seed-epa.sql`), `PackBackedEnterprisePdp` + Baseline/Response packs, TEST 001–005, compare-mode parity
+- **M3:** EPA authoritative (`enterprise`/`shadow`), fail-closed PDP errors, admin validate/simulate/activate/suspend APIs
 
 ## v0.1.1 — pre-release hardening
 

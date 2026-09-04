@@ -26,6 +26,13 @@ export {
 } from './pack-pdp.js';
 export { InMemoryPolicyRepository } from './repository.js';
 export {
+  BASELINE_POLICY_TESTS,
+  fixtureToRequestContext,
+  runPolicyTests,
+  simulatePolicy,
+  validatePolicyVersion,
+} from './lifecycle.js';
+export {
   defaultPackSnapshot,
   interpretBaselineInput,
   interpretBaselineOutput,

@@ -29,10 +29,11 @@ export interface GatewayConfig {
   /**
    * Policy engine path (Enigma EPA migration):
    * - legacy: DeterministicPolicyEngine only
-   * - enterprise: adapter + delegating PDP (M1 default for new installs once wired)
-   * - compare: both; enforce legacy; report mismatches
+   * - enterprise: pack PDP authoritative (M3 default)
+   * - shadow: EPA authoritative; also run legacy and report mismatches
+   * - compare: both; enforce legacy (rollback)
    */
-  policyEngineMode: 'legacy' | 'enterprise' | 'compare';
+  policyEngineMode: 'legacy' | 'enterprise' | 'compare' | 'shadow';
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig {
@@ -44,7 +45,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
   const adminApiKey = env.GATEWAY_ADMIN_API_KEY ?? 'n2ai_admin_dev_key';
   const policyMode = (env.GATEWAY_POLICY_ENGINE ?? 'enterprise').toLowerCase();
   const policyEngineMode =
-    policyMode === 'legacy' || policyMode === 'compare' ? policyMode : 'enterprise';
+    policyMode === 'legacy' ||
+    policyMode === 'compare' ||
+    policyMode === 'shadow'
+      ? policyMode
+      : 'enterprise';
 
   return {
     host: env.GATEWAY_HOST ?? '127.0.0.1',

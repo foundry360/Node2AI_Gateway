@@ -294,6 +294,8 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
     persistence,
     localRuntime,
     policyStore,
+    packRepo,
+    packPdp,
     db,
     orchestrator,
     seed,
@@ -308,6 +310,8 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
           audit,
           persistence,
           policyStore,
+          policyRepository: packRepo,
+          packPdp,
           db,
           checkDatabase: () => checkDatabase(config.databaseUrl),
           checkLocalRuntime: async () => {

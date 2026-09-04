@@ -11,6 +11,15 @@ import {
 } from '../models/registry.js';
 import type { ModelProvider, RegisteredModel } from '../models/types.js';
 import type { PolicyStore } from '../policy/store.js';
+import type { InMemoryPolicyRepository } from '../policy/enterprise/repository.js';
+import type { PackBackedEnterprisePdp } from '../policy/enterprise/pack-pdp.js';
+import {
+  BASELINE_POLICY_TESTS,
+  runPolicyTests,
+  simulatePolicy,
+  validatePolicyVersion,
+  type PolicyTestFixture,
+} from '../policy/enterprise/lifecycle.js';
 import type { GatewayConfig } from '../shared/config.js';
 import type { PgQueryable } from '../shared/pg.js';
 
@@ -22,6 +31,10 @@ export interface AdminContext {
   audit: AuditService;
   persistence: 'memory' | 'postgres';
   policyStore: PolicyStore;
+  /** Enigma EPA repository (M3). */
+  policyRepository?: InMemoryPolicyRepository;
+  /** Pack-backed PDP for simulate/validate (M3). */
+  packPdp?: PackBackedEnterprisePdp;
   db?: PgQueryable;
   checkDatabase?: () => Promise<{ ok: boolean; detail: string }>;
   checkLocalRuntime?: () => Promise<{
@@ -308,6 +321,12 @@ export function registerAdminRoutes(
     try {
       if (body.status === 'active' || body.status === 'disabled') {
         const updated = await ctx.policyStore.setStatus(policyId, body.status);
+        if (ctx.policyRepository) {
+          ctx.policyRepository.setPolicyStatus(
+            policyId,
+            body.status === 'disabled' ? 'suspended' : 'active',
+          );
+        }
         return { policy: updated };
       }
       if (body.rules && typeof body.rules === 'object') {
@@ -332,6 +351,160 @@ export function registerAdminRoutes(
         message: err instanceof Error ? err.message : 'update failed',
       });
     }
+  });
+
+  app.get('/v1/admin/policy-packs', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    if (!ctx.policyRepository) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'EPA policy repository unavailable',
+      });
+    }
+    const snap = ctx.policyRepository.getSnapshot();
+    return {
+      packs: snap.packs,
+      policies: snap.policies,
+      engine_mode: ctx.config.policyEngineMode,
+    };
+  });
+
+  app.post('/v1/admin/policies/:policyId/validate', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    if (!ctx.policyRepository) {
+      return reply.status(503).send({ status: 'error', message: 'EPA repository unavailable' });
+    }
+    const { policyId } = request.params as { policyId: string };
+    const meta = ctx.policyRepository.getPolicy(policyId);
+    const validation = validatePolicyVersion(meta);
+    return {
+      policy_id: policyId,
+      ...validation,
+      meta: meta ?? null,
+    };
+  });
+
+  app.post('/v1/admin/policies/:policyId/simulate', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    if (!ctx.packPdp) {
+      return reply.status(503).send({ status: 'error', message: 'EPA PDP unavailable' });
+    }
+    const body = (request.body ?? {}) as PolicyTestFixture;
+    const decision = await simulatePolicy(ctx.packPdp, body);
+    return {
+      simulation: true,
+      model_executed: false,
+      decision,
+    };
+  });
+
+  app.post('/v1/admin/policy/simulate', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    if (!ctx.packPdp) {
+      return reply.status(503).send({ status: 'error', message: 'EPA PDP unavailable' });
+    }
+    const body = (request.body ?? {}) as PolicyTestFixture;
+    const decision = await simulatePolicy(ctx.packPdp, body);
+    return {
+      simulation: true,
+      model_executed: false,
+      decision,
+    };
+  });
+
+  app.post('/v1/admin/policies/:policyId/activate', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    if (!ctx.policyRepository || !ctx.packPdp) {
+      return reply.status(503).send({ status: 'error', message: 'EPA unavailable' });
+    }
+    const { policyId } = request.params as { policyId: string };
+    const meta = ctx.policyRepository.getPolicy(policyId);
+    const validation = validatePolicyVersion(meta);
+    if (!validation.ok) {
+      return reply.status(400).send({
+        status: 'error',
+        message: 'Validation failed',
+        errors: validation.errors,
+      });
+    }
+
+    // Required tests must pass before activation (Baseline input pack).
+    if (meta?.interpreter === 'baseline_input_v2') {
+      const tests = await runPolicyTests(ctx.packPdp, BASELINE_POLICY_TESTS);
+      if (!tests.ok) {
+        return reply.status(400).send({
+          status: 'error',
+          message: 'Required policy tests failed; activation blocked',
+          tests,
+        });
+      }
+    }
+
+    ctx.policyRepository.setPolicyStatus(policyId, 'active');
+    let storePolicy = null;
+    try {
+      storePolicy = await ctx.policyStore.setStatus(policyId, 'active');
+    } catch {
+      // EPA activate can succeed even if legacy store row missing.
+    }
+
+    await ctx.audit.record({
+      audit_id: `aud_pol_act_${randomBytes(6).toString('hex')}`,
+      timestamp: new Date().toISOString(),
+      organization_id: storePolicy?.organization_id ?? undefined,
+      user_id: 'admin',
+      request_id: `req_pol_act_${randomBytes(4).toString('hex')}`,
+      correlation_id: `cor_pol_act_${randomBytes(4).toString('hex')}`,
+      operation: 'policy_activate',
+      data_classification: 'Internal',
+      policy_decision: 'ALLOW',
+      policy_ids: [policyId],
+      response_decision: 'RELEASE',
+      reason_codes: ['POLICY_ACTIVATED'],
+      metadata: {
+        pack_id: meta?.pack_id,
+        version: meta?.version,
+        engine_mode: ctx.config.policyEngineMode,
+      },
+    });
+
+    return {
+      status: 'activated',
+      policy_id: policyId,
+      version: meta?.version,
+      pack_id: meta?.pack_id,
+      store: storePolicy,
+    };
+  });
+
+  app.post('/v1/admin/policies/:policyId/suspend', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    if (!ctx.policyRepository) {
+      return reply.status(503).send({ status: 'error', message: 'EPA repository unavailable' });
+    }
+    const { policyId } = request.params as { policyId: string };
+    const meta = ctx.policyRepository.setPolicyStatus(policyId, 'suspended');
+    if (!meta) {
+      return reply.status(404).send({ status: 'error', message: 'policy not found in EPA' });
+    }
+    try {
+      await ctx.policyStore.setStatus(policyId, 'disabled');
+    } catch {
+      // ignore missing legacy row
+    }
+    return { status: 'suspended', policy: meta };
   });
 
   app.get('/v1/admin/models', async (request, reply) => {

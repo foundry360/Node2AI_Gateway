@@ -194,4 +194,4 @@ export interface EnterprisePolicyDecisionPoint {
   evaluate(request: PolicyEvaluationRequest): Promise<PolicyDecision>;
 }
 
-export type PolicyEngineMode = 'legacy' | 'enterprise' | 'compare';
+export type PolicyEngineMode = 'legacy' | 'enterprise' | 'compare' | 'shadow';
