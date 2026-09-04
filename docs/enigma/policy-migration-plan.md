@@ -84,6 +84,16 @@
 
 **Exit:** Suite green; admin typecheck green; regulatory overlay tests green.
 
+### Post-M4 soak (complete)
+
+- Live pilot checks (completion, integrity, EPA simulate/validate) + automated `epa-soak` test + PILOT Test 11  
+- `PostgresPolicyRepository` loads EPA tables on appliance bootstrap  
+- Approve ≠ activate (`GATEWAY_POLICY_APPROVER_KEY` / `GATEWAY_POLICY_ACTIVATOR_KEY`)  
+- Appliance requires `GATEWAY_VAULT_KEY` (no admin-key fallback); vault upsert on conflict  
+- Client runtime errors sanitized to reason codes  
+- Expanded Financial WRITE / Legal EXPORT overlays; policy detail UI; [ai-egress.md](./ai-egress.md)  
+- `legacy`/`compare` modes require `GATEWAY_ALLOW_LEGACY_ENGINE=true` (`DeterministicPolicyEngine` retained only for explicit rollback)
+
 ---
 
 ## Adapter shape

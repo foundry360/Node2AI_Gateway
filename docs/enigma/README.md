@@ -15,6 +15,7 @@ This folder holds the **foundational architecture deliverables** required before
 | 5 | Policy lifecycle | [policy-lifecycle.md](./policy-lifecycle.md) |
 | 6 | Migration plan | [policy-migration-plan.md](./policy-migration-plan.md) |
 | 7 | Policy threat model | [policy-threat-model.md](./policy-threat-model.md) |
+| — | AI egress placeholder | [ai-egress.md](./ai-egress.md) |
 
 ## Decision summary
 
@@ -25,7 +26,7 @@ OPA/Cedar may later back *condition expressions* only, behind the same contract.
 
 Do not remove `DeterministicPolicyEngine` until migration phases M1–M3 in the migration plan are complete and tests prove parity.
 
-**Next engineering step:** Soak EPA in pilot; expand regulatory pack rules; remove `DeterministicPolicyEngine` after rollback window closes.
+**Next engineering step:** Customer pilot sign-off → tag `v0.1.1`; expand pack rule coverage; implement AI egress tooling when network partners are ready.
 
 ## Related
 

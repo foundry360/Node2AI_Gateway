@@ -27,7 +27,7 @@ export interface PackPolicyMeta {
   pack_id: string;
   name: string;
   phase: 'input' | 'output';
-  status: 'active' | 'suspended' | 'retired' | 'disabled';
+  status: 'active' | 'suspended' | 'retired' | 'disabled' | 'approved' | 'draft';
   interpreter:
     | 'baseline_input_v2'
     | 'baseline_output_v5'

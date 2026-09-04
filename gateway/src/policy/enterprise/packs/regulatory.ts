@@ -105,11 +105,30 @@ function applyHipaa(
 
 function applyFinancial(
   current: InterpretedResult,
-  _facts: BaselineFacts,
+  facts: BaselineFacts,
   meta: PackPolicyMeta,
 ): InterpretedResult {
   if (current.decision === 'DENY') {
     return { ...current, matched: [...current.matched, 'financial_overlay_skip_denied'] };
+  }
+
+  // Expand: block WRITE/EXPORT/SHARE of financial data without approval obligation.
+  if (['write', 'export', 'share', 'transmit'].includes(facts.operation)) {
+    return {
+      ...current,
+      decision: 'DENY',
+      reason_codes: ['FINANCIAL_WRITE_REQUIRES_APPROVAL', ...current.reason_codes],
+      eligible_models: [],
+      transforms: [],
+      obligations: [
+        { code: 'REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION' },
+        { code: 'LOG_GOVERNANCE_EVENT' },
+      ],
+      policy_id: meta.policy_id,
+      policy_version: meta.version,
+      pack_id: meta.pack_id,
+      matched: [...current.matched, 'financial_write_blocked'],
+    };
   }
 
   const obligations: Obligation[] = [...current.obligations];
@@ -141,6 +160,30 @@ function applyLegal(
   meta: PackPolicyMeta,
 ): InterpretedResult {
   const matched = [...current.matched, 'legal_overlay'];
+
+  if (current.decision === 'DENY') {
+    return { ...current, matched: [...matched, 'legal_reinforces_deny'] };
+  }
+
+  // Expand: EXPORT/SHARE of legal data always denied.
+  if (['export', 'share', 'transmit'].includes(facts.operation)) {
+    return {
+      ...current,
+      decision: 'DENY',
+      reason_codes: ['LEGAL_EXPORT_BLOCKED', ...current.reason_codes],
+      eligible_models: [],
+      transforms: [],
+      obligations: [
+        { code: 'NO_EXTERNAL_TRANSMISSION' },
+        { code: 'LOG_GOVERNANCE_EVENT' },
+      ],
+      policy_id: meta.policy_id,
+      policy_version: meta.version,
+      pack_id: meta.pack_id,
+      matched: [...matched, 'legal_export_blocked'],
+    };
+  }
+
   const cloudRequested =
     !!facts.requested_model && isCloudModel(facts.requested_model);
   const eligibleCloud = current.eligible_models.some((m) => isCloudModel(m));

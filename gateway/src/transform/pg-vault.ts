@@ -25,7 +25,10 @@ export class PostgresTokenVault implements TokenVault {
     await this.db.query(
       `INSERT INTO token_vault (token_id, organization_id, token_value, ciphertext, entity_type)
        VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (token_value) DO NOTHING`,
+       ON CONFLICT (token_value) DO UPDATE SET
+         ciphertext = EXCLUDED.ciphertext,
+         entity_type = EXCLUDED.entity_type,
+         organization_id = EXCLUDED.organization_id`,
       [
         tokenId,
         record.organization_id,

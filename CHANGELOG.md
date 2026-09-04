@@ -9,6 +9,7 @@
 - **M2:** EPA schema/seed (`schema-epa.sql`, `seed-epa.sql`), `PackBackedEnterprisePdp` + Baseline/Response packs, TEST 001–005, compare-mode parity
 - **M3:** EPA authoritative (`enterprise`/`shadow`), fail-closed PDP errors, admin validate/simulate/activate/suspend APIs
 - **M4:** Admin pack lifecycle UX (Enigma branding), HIPAA/Financial/Legal pack frameworks, deprecate legacy rules JSON + `DeterministicPolicyEngine` (rollback retained)
+- **Post-M4 soak:** Postgres EPA repository, approve≠activate keys, vault key required in appliance, sanitized runtime errors, expanded regulatory overlays, policy detail UI, AI egress placeholder, pilot Test 11
 
 ## v0.1.1 — pre-release hardening
 

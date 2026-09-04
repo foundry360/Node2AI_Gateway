@@ -24,21 +24,9 @@ export {
   PackBackedEnterprisePdp,
   type BridgedEnterprisePdp,
 } from './pack-pdp.js';
-export { InMemoryPolicyRepository } from './repository.js';
-export {
-  BASELINE_POLICY_TESTS,
-  fixtureToRequestContext,
-  runPolicyTests,
-  simulatePolicy,
-  validatePolicyVersion,
-} from './lifecycle.js';
-export {
-  defaultPackSnapshot,
-  interpretBaselineInput,
-  interpretBaselineOutput,
-} from './packs/baseline.js';
+export { InMemoryPolicyRepository, mergeDefaultSnapshot } from './repository.js';
 export { applyRegulatoryOverlays, regulatoryPackExtras } from './packs/regulatory.js';
-export { mergeDefaultSnapshot } from './repository.js';
+export { PostgresPolicyRepository, type PolicyRepository } from './pg-repository.js';
 export {
   fromLegacyRequestResult,
   fromLegacyResponseResult,

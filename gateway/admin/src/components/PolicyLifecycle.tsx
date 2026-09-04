@@ -66,6 +66,18 @@ export function PolicyLifecycleActions({
         </button>
         <button
           type="button"
+          className="btn btn-secondary"
+          disabled={busy}
+          onClick={() =>
+            run('Approve', () =>
+              proxyJson(`policies/${policyId}/approve`, 'POST', {}),
+            )
+          }
+        >
+          Approve
+        </button>
+        <button
+          type="button"
           className="btn"
           disabled={busy}
           onClick={() =>

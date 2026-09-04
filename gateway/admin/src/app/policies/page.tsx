@@ -89,7 +89,7 @@ export default async function PoliciesPage() {
                     return (
                       <div className="panel nested-panel" key={p.policy_id}>
                         <div className="panel-header">
-                          {p.name}{' '}
+                          <a href={`/policies/${p.policy_id}`}>{p.name}</a>{' '}
                           <span className="muted">
                             v{p.version} · {p.phase} · {p.policy_id}
                           </span>

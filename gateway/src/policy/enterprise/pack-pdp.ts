@@ -11,7 +11,7 @@ import {
   type InterpretedResult,
 } from './packs/baseline.js';
 import { applyRegulatoryOverlays } from './packs/regulatory.js';
-import type { InMemoryPolicyRepository } from './repository.js';
+import type { PolicyRepository } from './pg-repository.js';
 import type {
   EnterprisePolicyDecisionPoint,
   PolicyDecision,
@@ -110,7 +110,7 @@ function toEpaDecision(
  */
 export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
   constructor(
-    private readonly repository: InMemoryPolicyRepository,
+    private readonly repository: PolicyRepository,
     private readonly options: {
       allowDetokenization?: boolean;
       isPolicyActive?: (policyId: string) => Promise<boolean>;

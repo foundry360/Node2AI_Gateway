@@ -292,7 +292,7 @@ export class GatewayOrchestrator {
             data_classification: classification.sensitivity,
             model_selected: selectedModel,
             reason_codes: [ge.reasonCode],
-            errors: { message: ge.message },
+            errors: { reason_code: ge.reasonCode },
           });
         }
         throw err;
@@ -505,17 +505,17 @@ export class GatewayOrchestrator {
       const mapped = gatewayErrorFromUnknown(err);
       if (mapped) {
         return block(mapped.httpStatus, mapped.reasonCode, 'Request blocked by policy.', {
-          errors: { message: mapped.message },
+          errors: { reason_code: mapped.reasonCode },
           reason_codes: [mapped.reasonCode],
         });
       }
       if (isGatewayError(err)) {
         return block(err.httpStatus, err.reasonCode, 'Request blocked by policy.', {
-          errors: { message: err.message },
+          errors: { reason_code: err.reasonCode },
         });
       }
       return block(403, 'INTERNAL_ERROR', 'Request blocked by policy.', {
-        errors: { message: err instanceof Error ? err.message : 'unknown' },
+        errors: { reason_code: 'INTERNAL_ERROR' },
       });
     }
   }

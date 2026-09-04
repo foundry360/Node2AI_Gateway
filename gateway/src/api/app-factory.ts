@@ -173,10 +173,18 @@ export interface CreateGatewayOptions {
   registry?: MutableModelRegistry;
   db?: PgQueryable;
   vault?: TokenVault;
+  policyRepository?: import('../policy/enterprise/pg-repository.js').PolicyRepository;
 }
 
 export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
   const config: GatewayConfig = { ...loadConfig(), ...options.config };
+  // Keep approve/activate keys aligned with admin key when tests override adminApiKey only.
+  if (options.config?.adminApiKey) {
+    config.policyApproverKey =
+      options.config.policyApproverKey ?? options.config.adminApiKey;
+    config.policyActivatorKey =
+      options.config.policyActivatorKey ?? options.config.adminApiKey;
+  }
   const seed = createPhase1Seed();
   const identityStore = options.identityStore ?? new InMemoryIdentityStore(seed);
   const identity = new IdentityService(identityStore);
@@ -199,7 +207,7 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
       defaultLocalModel: 'local-general-v1',
       isPolicyActive,
     });
-  const packRepo = new InMemoryPolicyRepository();
+  const packRepo = options.policyRepository ?? new InMemoryPolicyRepository();
   const packPdp = new PackBackedEnterprisePdp(packRepo, { isPolicyActive });
   const policy: PolicyEngine =
     options.policy ??
@@ -209,9 +217,15 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
           mode: config.policyEngineMode,
         }));
   const interrogator = options.interrogator ?? new HybridDataInterrogator();
+  if (config.requireVaultKey && !config.vaultEncryptionKey) {
+    throw new Error('GATEWAY_VAULT_KEY is required (GATEWAY_REQUIRE_VAULT_KEY=true)');
+  }
   const vault =
     options.vault ??
-    new InMemoryTokenVault(config.vaultEncryptionKey ?? config.auditSigningKey);
+    new InMemoryTokenVault(
+      config.vaultEncryptionKey ??
+        (config.requireVaultKey ? undefined : config.auditSigningKey),
+    );
   const transform = options.transform ?? new InputTransformService(vault);
   const detokenizer = new PrivilegedDetokenizationService(vault);
   const responseInspector =
@@ -343,19 +357,30 @@ export async function createApplianceGateway(
   };
 
   if (!config.databaseUrl) {
-    return createPhase1Gateway({ ...base, persistence: 'memory' });
+    return createPhase1Gateway({
+      ...base,
+      persistence: 'memory',
+      config: { ...config, requireVaultKey: config.requireVaultKey },
+    });
+  }
+
+  if (!config.vaultEncryptionKey) {
+    throw new Error(
+      'GATEWAY_VAULT_KEY is required for appliance (Postgres) mode — refuse admin-key fallback',
+    );
   }
 
   const { createPgPool } = await import('../shared/pg.js');
   const { PostgresIdentityStore } = await import('../identity/store.js');
+  const { PostgresPolicyRepository } = await import('../policy/enterprise/pg-repository.js');
   const pool = createPgPool(config.databaseUrl);
   const identityStore = new PostgresIdentityStore(pool);
   const rawAudit = new PostgresAuditService(pool);
   const audit = new IntegrityAuditService(rawAudit, config.auditSigningKey);
   await audit.bootstrapFromStore();
   const policyStore = new PostgresPolicyStore(pool);
-  const vaultKey = config.vaultEncryptionKey ?? config.auditSigningKey;
-  const vault = new PostgresTokenVault(pool, vaultKey);
+  const policyRepository = await PostgresPolicyRepository.create(pool);
+  const vault = new PostgresTokenVault(pool, config.vaultEncryptionKey);
   const dbModels = await loadModelsFromPostgres(pool);
   const registry = new InMemoryModelRegistry(
     dbModels.length > 0 ? dbModels : defaultPhase4Registry(),
@@ -369,9 +394,11 @@ export async function createApplianceGateway(
     audit,
     persistence: 'postgres',
     policyStore,
+    policyRepository,
     registry,
     db: pool,
     vault,
+    config: { ...config, requireVaultKey: true },
   });
 }
 

@@ -27,13 +27,22 @@ export interface GatewayConfig {
   /** HMAC key for signed audit hash chain (defaults to vault key or admin key). */
   auditSigningKey: string;
   /**
-   * Policy engine path (Enigma EPA migration):
-   * - legacy: DeterministicPolicyEngine only
-   * - enterprise: pack PDP authoritative (M3 default)
-   * - shadow: EPA authoritative; also run legacy and report mismatches
-   * - compare: both; enforce legacy (rollback)
+   * Policy engine path (Enigma EPA):
+   * - enterprise: pack PDP authoritative (default)
+   * - shadow: EPA authoritative + legacy dual-run mismatch reporting
+   * - compare / legacy: rollback only (requires GATEWAY_ALLOW_LEGACY_ENGINE=true)
    */
   policyEngineMode: 'legacy' | 'enterprise' | 'compare' | 'shadow';
+  /** Separate keys for policy approve vs activate (default to admin key). */
+  policyApproverKey: string;
+  policyActivatorKey: string;
+  /** Allow legacy/compare engine modes (default false after M4 soak). */
+  allowLegacyEngine: boolean;
+  /**
+   * When true (appliance), refuse to start without GATEWAY_VAULT_KEY
+   * (no silent fallback to admin key).
+   */
+  requireVaultKey: boolean;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig {
@@ -43,13 +52,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
     runtimeEnv === 'stub' || runtimeEnv === 'ollama' ? runtimeEnv : 'auto';
   const vaultEncryptionKey = env.GATEWAY_VAULT_KEY;
   const adminApiKey = env.GATEWAY_ADMIN_API_KEY ?? 'n2ai_admin_dev_key';
+  const allowLegacyEngine = env.GATEWAY_ALLOW_LEGACY_ENGINE === 'true';
   const policyMode = (env.GATEWAY_POLICY_ENGINE ?? 'enterprise').toLowerCase();
-  const policyEngineMode =
-    policyMode === 'legacy' ||
-    policyMode === 'compare' ||
-    policyMode === 'shadow'
-      ? policyMode
-      : 'enterprise';
+  let policyEngineMode: GatewayConfig['policyEngineMode'] = 'enterprise';
+  if (policyMode === 'shadow') {
+    policyEngineMode = 'shadow';
+  } else if (
+    (policyMode === 'legacy' || policyMode === 'compare') &&
+    allowLegacyEngine
+  ) {
+    policyEngineMode = policyMode;
+  } else if (policyMode === 'legacy' || policyMode === 'compare') {
+    // Soak retirement: ignore legacy modes unless explicitly allowed.
+    policyEngineMode = 'enterprise';
+  }
+
+  const requireVaultKey = env.GATEWAY_REQUIRE_VAULT_KEY === 'true';
 
   return {
     host: env.GATEWAY_HOST ?? '127.0.0.1',
@@ -69,5 +87,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
     auditSigningKey:
       env.GATEWAY_AUDIT_KEY ?? vaultEncryptionKey ?? adminApiKey,
     policyEngineMode,
+    policyApproverKey: env.GATEWAY_POLICY_APPROVER_KEY ?? adminApiKey,
+    policyActivatorKey: env.GATEWAY_POLICY_ACTIVATOR_KEY ?? adminApiKey,
+    allowLegacyEngine,
+    requireVaultKey,
   };
 }

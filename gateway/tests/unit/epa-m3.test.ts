@@ -64,12 +64,28 @@ describe('Enigma EPA M3 admin lifecycle', () => {
     expect(suspend.statusCode).toBe(200);
     expect(suspend.json().status).toBe('suspended');
 
-    // Reactivate for other tests sharing process (fresh gw each test anyway).
-    await server.inject({
+    const activateBlocked = await server.inject({
       method: 'POST',
       url: '/v1/admin/policies/pol_phase2_core/activate',
       headers: auth,
     });
+    expect(activateBlocked.statusCode).toBe(400);
+
+    const approve = await server.inject({
+      method: 'POST',
+      url: '/v1/admin/policies/pol_phase2_core/approve',
+      headers: auth,
+    });
+    expect(approve.statusCode).toBe(200);
+    expect(approve.json().status).toBe('approved');
+
+    // Reactivate after approve.
+    const reactivate = await server.inject({
+      method: 'POST',
+      url: '/v1/admin/policies/pol_phase2_core/activate',
+      headers: auth,
+    });
+    expect(reactivate.statusCode).toBe(200);
   });
 
   it('fail-closes when pack PDP throws', async () => {

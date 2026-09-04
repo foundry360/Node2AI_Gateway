@@ -87,6 +87,31 @@ describe('Enigma EPA M4 regulatory overlays', () => {
     expect(decision.reason_codes).toContain('FINANCIAL_REQUIRES_TOKENIZE');
   });
 
+  it('financial overlay blocks WRITE of FINANCIAL data', async () => {
+    const repo = new InMemoryPolicyRepository();
+    repo.setPolicyStatus('pol_financial_tokenize', 'active');
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: {
+        ...clinicalApp,
+        allowed_operations: ['summarize', 'write'],
+      },
+      operation: 'write',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'FINANCIAL',
+        confidence: 0.95,
+        risk: 'high',
+        reason_codes: [],
+      },
+      deploymentMode: 'connected',
+    });
+    expect(decision.decision).toBe('DENY');
+    expect(decision.reason_codes).toContain('FINANCIAL_WRITE_REQUIRES_APPROVAL');
+  });
+
   it('activating legal overlay blocks external models for LEGAL data', async () => {
     const repo = new InMemoryPolicyRepository();
     repo.setPolicyStatus('pol_legal_no_external', 'active');

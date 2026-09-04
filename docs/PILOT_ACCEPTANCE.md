@@ -161,6 +161,32 @@ Repeat Test 1 with local model only. Attempt cloud model id → BLOCK.
 
 ---
 
+## Test 11 — Enigma EPA policy packs (simulate / validate / lifecycle)
+
+```bash
+curl -sS -H "Authorization: Bearer $ADMIN_KEY" \
+  "$GW/v1/admin/policy-packs"
+
+curl -sS -X POST -H "Authorization: Bearer $ADMIN_KEY" \
+  -H "Content-Type: application/json" \
+  "$GW/v1/admin/policy/simulate" \
+  -d '{
+    "classification": "PHI",
+    "requested_model": "cloud-public-gpt",
+    "application_type": "clinical",
+    "roles": ["clinician"]
+  }'
+
+curl -sS -X POST -H "Authorization: Bearer $ADMIN_KEY" \
+  "$GW/v1/admin/policies/pol_phase2_core/validate"
+```
+
+**Pass:** Packs include Enterprise Baseline + HIPAA (+ draft Financial/Legal). Simulate PHI→cloud returns `DENY` / `PHI_PUBLIC_CLOUD_BLOCKED` without model execution (`model_executed: false`). Validate returns `ok: true`.
+
+Lifecycle (optional): Admin → Policies → Approve → Activate (separate keys if `GATEWAY_POLICY_APPROVER_KEY` / `GATEWAY_POLICY_ACTIVATOR_KEY` set). Suspended policies cannot activate until approved.
+
+---
+
 ## Operator onboarding (no code changes)
 
 1. Open http://localhost:3080 → Applications  
@@ -187,6 +213,7 @@ Repeat Test 1 with local model only. Attempt cloud model id → BLOCK.
 | 8 | ☐ | | |
 | 9 | ☐ (auto OK) | | |
 | 10 | ☐ | | |
+| 11 | ☐ | | |
 | Onboard | ☐ | | |
 
-Release tag: **`v0.1.0-ship`**
+Release tag: **`v0.1.1-rc.1`** / post-EPA soak toward **`v0.1.1`**
