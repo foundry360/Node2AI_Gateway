@@ -74,13 +74,15 @@
 
 ### Phase M4 — Admin UX + packs + retire legacy
 
-- Policy list/detail lifecycle UI  
-- HIPAA / Financial / Legal packs as **framework** (subset rules OK)  
-- Remove hard-coded regulatory branches from services  
-- Deprecate `rules` JSON as architecture; keep export if needed  
-- Delete `DeterministicPolicyEngine` only after soak  
+**Status:** Complete (legacy engine retained for rollback soak).
 
-**Exit:** Acceptance criteria in product brief §37 satisfied.
+- Admin Policies UI: pack-grouped lifecycle (validate / simulate / activate / suspend); Enigma branding  
+- Rules JSON moved to deprecated metadata editor  
+- Regulatory pack frameworks: HIPAA (active overlay), Financial + Legal (draft/suspended until activated)  
+- `DeterministicPolicyEngine` marked `@deprecated`; still available via `GATEWAY_POLICY_ENGINE=legacy|compare`  
+- No hard-coded regulatory branches in orchestrator services — overlays live in pack layer  
+
+**Exit:** Suite green; admin typecheck green; regulatory overlay tests green.
 
 ---
 

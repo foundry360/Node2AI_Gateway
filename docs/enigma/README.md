@@ -25,7 +25,7 @@ OPA/Cedar may later back *condition expressions* only, behind the same contract.
 
 Do not remove `DeterministicPolicyEngine` until migration phases M1–M3 in the migration plan are complete and tests prove parity.
 
-**Next engineering step:** Phase M4 — Admin UX for lifecycle, regulatory pack frameworks, retire legacy engine after soak.
+**Next engineering step:** Soak EPA in pilot; expand regulatory pack rules; remove `DeterministicPolicyEngine` after rollback window closes.
 
 ## Related
 

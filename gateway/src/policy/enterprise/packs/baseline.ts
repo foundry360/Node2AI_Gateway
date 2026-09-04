@@ -28,7 +28,13 @@ export interface PackPolicyMeta {
   name: string;
   phase: 'input' | 'output';
   status: 'active' | 'suspended' | 'retired' | 'disabled';
-  interpreter: 'baseline_input_v2' | 'baseline_output_v5';
+  interpreter:
+    | 'baseline_input_v2'
+    | 'baseline_output_v5'
+    | 'hipaa_overlay_v1'
+    | 'financial_overlay_v1'
+    | 'legal_overlay_v1'
+    | 'framework_stub';
 }
 
 export interface PackSnapshot {
@@ -335,6 +341,7 @@ export function interpretBaselineOutput(
 }
 
 export function defaultPackSnapshot(): PackSnapshot {
+  // Regulatory extras merged in repository constructor / mergeDefaultSnapshot.
   return {
     packs: [
       {

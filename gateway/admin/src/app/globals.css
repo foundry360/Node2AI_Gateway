@@ -305,3 +305,19 @@ tr:last-child td {
     padding: 1.25rem;
   }
 }
+
+.nested-panel {
+  margin-top: 0.75rem;
+  background: var(--bg);
+}
+
+.sim-result {
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 12rem;
+  overflow: auto;
+  padding: 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}

@@ -142,3 +142,115 @@ VALUES
   true
 )
 ON CONFLICT (test_id) DO NOTHING;
+
+-- M4 regulatory pack frameworks (subset overlays)
+INSERT INTO policy_packs (pack_id, name, domain, description, status)
+VALUES
+(
+  'pack_hipaa',
+  'HIPAA',
+  'hipaa',
+  'Healthcare PHI overlay — reinforces local-only / no external transmission.',
+  'active'
+),
+(
+  'pack_financial',
+  'Financial Services',
+  'financial',
+  'Financial data tokenize framework (activate overlay to enforce).',
+  'draft'
+),
+(
+  'pack_legal',
+  'Legal',
+  'legal',
+  'Legal privilege — no external models framework (activate overlay to enforce).',
+  'draft'
+)
+ON CONFLICT (pack_id) DO NOTHING;
+
+INSERT INTO epa_policies (policy_id, pack_id, organization_id, name, description, owner, domain, created_by)
+VALUES
+(
+  'pol_hipaa_phi_local',
+  'pack_hipaa',
+  NULL,
+  'PHI local-only (HIPAA overlay)',
+  'M4 subset overlay.',
+  'enigma',
+  'hipaa',
+  'seed'
+),
+(
+  'pol_financial_tokenize',
+  'pack_financial',
+  NULL,
+  'Financial tokenize (framework)',
+  'M4 framework — suspended until activated.',
+  'enigma',
+  'financial',
+  'seed'
+),
+(
+  'pol_legal_no_external',
+  'pack_legal',
+  NULL,
+  'Legal no external models (framework)',
+  'M4 framework — suspended until activated.',
+  'enigma',
+  'legal',
+  'seed'
+)
+ON CONFLICT (policy_id) DO NOTHING;
+
+INSERT INTO policy_versions (
+  policy_version_id, policy_id, version, status, priority, scope_tier, phase,
+  activated_at, activated_by, changelog, content_hash, rules, created_by
+)
+VALUES
+(
+  'pv_pol_hipaa_phi_local_v1',
+  'pol_hipaa_phi_local',
+  1,
+  'active',
+  200,
+  'regulatory',
+  'input',
+  now(),
+  'seed',
+  'M4 HIPAA overlay',
+  'sha256:hipaa_overlay_v1',
+  '[{"interpreter":"hipaa_overlay_v1"}]'::jsonb,
+  'seed'
+),
+(
+  'pv_pol_financial_tokenize_v1',
+  'pol_financial_tokenize',
+  1,
+  'suspended',
+  200,
+  'regulatory',
+  'input',
+  NULL,
+  NULL,
+  'M4 financial framework',
+  'sha256:financial_overlay_v1',
+  '[{"interpreter":"financial_overlay_v1"}]'::jsonb,
+  'seed'
+),
+(
+  'pv_pol_legal_no_external_v1',
+  'pol_legal_no_external',
+  1,
+  'suspended',
+  200,
+  'regulatory',
+  'input',
+  NULL,
+  NULL,
+  'M4 legal framework',
+  'sha256:legal_overlay_v1',
+  '[{"interpreter":"legal_overlay_v1"}]'::jsonb,
+  'seed'
+)
+ON CONFLICT (policy_id, version) DO NOTHING;

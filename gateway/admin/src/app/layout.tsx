@@ -15,8 +15,8 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata = {
-  title: 'Node2AI Gateway Admin',
-  description: 'Governance console for the Node2AI AI Governance Gateway',
+  title: 'Enigma Admin',
+  description: 'Governance console for the Enigma AI Governance Gateway',
 };
 
 const nav = [
@@ -39,8 +39,8 @@ export default function RootLayout({
         <div className="shell">
           <aside className="sidebar">
             <div className="brand">
-              <div className="brand-name">Node2AI</div>
-              <div className="brand-sub">Gateway Admin</div>
+              <div className="brand-name">Enigma</div>
+              <div className="brand-sub">AI Governance Gateway</div>
             </div>
             <nav className="nav">
               {nav.map((item) => (

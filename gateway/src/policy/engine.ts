@@ -7,8 +7,9 @@ import type {
 } from './types.js';
 
 /**
- * Deterministic PolicyEngine.
- * AI/interrogation/inspection components supply evidence only — this module authorizes.
+ * @deprecated Legacy hard-coded PolicyEngine. Prefer Enigma pack-backed PDP
+ * (`PackBackedEnterprisePdp`) via `GATEWAY_POLICY_ENGINE=enterprise`.
+ * Retained for `legacy` / `compare` rollback modes until soak retirement (M4+).
  */
 export class DeterministicPolicyEngine implements PolicyEngine {
   constructor(

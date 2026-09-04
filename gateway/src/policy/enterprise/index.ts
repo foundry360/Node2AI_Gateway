@@ -37,6 +37,8 @@ export {
   interpretBaselineInput,
   interpretBaselineOutput,
 } from './packs/baseline.js';
+export { applyRegulatoryOverlays, regulatoryPackExtras } from './packs/regulatory.js';
+export { mergeDefaultSnapshot } from './repository.js';
 export {
   fromLegacyRequestResult,
   fromLegacyResponseResult,

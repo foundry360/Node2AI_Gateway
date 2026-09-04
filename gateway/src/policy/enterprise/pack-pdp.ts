@@ -10,6 +10,7 @@ import {
   type BaselineFacts,
   type InterpretedResult,
 } from './packs/baseline.js';
+import { applyRegulatoryOverlays } from './packs/regulatory.js';
 import type { InMemoryPolicyRepository } from './repository.js';
 import type {
   EnterprisePolicyDecisionPoint,
@@ -226,7 +227,9 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
       return failClosed('No active baseline input policy', evidence);
     }
     const result = interpretBaselineInput(facts, meta);
-    return toEpaDecision(result, evidence);
+    const overlays = this.repository.listActiveOverlays('input');
+    const withOverlays = applyRegulatoryOverlays(result, facts, overlays);
+    return toEpaDecision(withOverlays, evidence);
   }
 
   private async evaluateOutputFacts(
