@@ -1,0 +1,87 @@
+{
+  "version": "1.0.0",
+  "obligations": [
+    {
+      "id": "PART2-OBL-CONFIDENTIALITY",
+      "obligation_id": "PART2-OBL-CONFIDENTIALITY",
+      "name": "Confidentiality restrictions",
+      "description": "Restrict use and disclosure of Part 2 records that would identify a patient as having or having had a substance use disorder, except as Part 2 permits.",
+      "authority": "42 CFR Part 2",
+      "authority_tier": 1,
+      "citations": ["42 CFR § 2.13"],
+      "sources": ["src_42cfr2"],
+      "source_ids": ["src_42cfr2"],
+      "related_rules": ["PART2-R-INPUT-NO-CONSENT-DENY", "PART2-R-INPUT-CONTROLS-SATISFIED"],
+      "enforcement_options": ["DENY", "NO_EXTERNAL_TRANSMISSION", "LOCAL_MODEL_ONLY", "LOG_GOVERNANCE_EVENT"],
+      "requirement_type": "REGULATORY_REQUIREMENT",
+      "interpretation_status": "scoped_ai_governance"
+    },
+    {
+      "id": "PART2-OBL-APPLICABILITY",
+      "obligation_id": "PART2-OBL-APPLICABILITY",
+      "name": "Part 2 applicability",
+      "description": "Determine whether Part 2 protections attach to the records/context before applying Part 2 use/disclosure rules.",
+      "authority": "42 CFR Part 2",
+      "authority_tier": 1,
+      "citations": ["42 CFR § 2.12", "42 CFR § 2.11"],
+      "sources": ["src_42cfr2", "src_hhs_part2_overview"],
+      "source_ids": ["src_42cfr2", "src_hhs_part2_overview"],
+      "related_rules": ["PART2-R-INPUT-CONTROLS-SATISFIED"],
+      "enforcement_options": ["LOG_GOVERNANCE_EVENT", "REVIEW"],
+      "requirement_type": "REGULATORY_REQUIREMENT",
+      "interpretation_status": "scoped_ai_governance"
+    },
+    {
+      "id": "PART2-OBL-CONSENT",
+      "obligation_id": "PART2-OBL-CONSENT",
+      "name": "Written consent for use/disclosure",
+      "description": "Obtain and honor required written patient consent elements before most uses/disclosures of Part 2 records, including TPO consent pathways under the 2024 amendments.",
+      "authority": "42 CFR Part 2",
+      "authority_tier": 1,
+      "citations": ["42 CFR § 2.31", "42 CFR § 2.33"],
+      "sources": ["src_42cfr2"],
+      "source_ids": ["src_42cfr2"],
+      "related_rules": [
+        "PART2-R-INPUT-NO-CONSENT-DENY",
+        "PART2-R-INPUT-USE-WITHOUT-CONSENT-DENY",
+        "PART2-R-INPUT-INSUFFICIENT-CONSENT",
+        "PART2-R-INPUT-CONTROLS-SATISFIED",
+        "PART2-R-INPUT-WRITE-DENY"
+      ],
+      "enforcement_options": ["DENY", "REVIEW", "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION", "LOG_GOVERNANCE_EVENT"],
+      "requirement_type": "REGULATORY_REQUIREMENT",
+      "interpretation_status": "scoped_ai_governance"
+    },
+    {
+      "id": "PART2-OBL-REDISCLOSURE-NOTICE",
+      "obligation_id": "PART2-OBL-REDISCLOSURE-NOTICE",
+      "name": "Redisclosure notice with disclosure",
+      "description": "Accompanying notice/consent documentation requirements when disclosing Part 2 records pursuant to consent.",
+      "authority": "42 CFR Part 2",
+      "authority_tier": 1,
+      "citations": ["42 CFR § 2.32"],
+      "sources": ["src_42cfr2"],
+      "source_ids": ["src_42cfr2"],
+      "related_rules": ["PART2-R-OUT-REDISCLOSURE-BLOCK", "PART2-R-OUT-RELEASE-EVAL"],
+      "enforcement_options": ["BLOCK_OUTPUT", "LOG_GOVERNANCE_EVENT", "AUTHORIZE_DETOKENIZATION"],
+      "requirement_type": "REGULATORY_REQUIREMENT",
+      "interpretation_status": "scoped_ai_governance"
+    },
+    {
+      "id": "PART2-OBL-PROCEEDINGS-PROTECTION",
+      "obligation_id": "PART2-OBL-PROCEEDINGS-PROTECTION",
+      "name": "Protection against use in proceedings",
+      "description": "Part 2 records must not be used or disclosed to investigate or prosecute a patient, or in proceedings against a patient, except as Part 2 specifically permits.",
+      "authority": "42 CFR Part 2",
+      "authority_tier": 1,
+      "citations": ["42 CFR § 2.12", "42 CFR § 2.13"],
+      "sources": ["src_42cfr2"],
+      "source_ids": ["src_42cfr2"],
+      "related_rules": ["PART2-R-INPUT-WRITE-DENY"],
+      "enforcement_options": ["DENY", "NO_WRITE_BACK", "LOG_GOVERNANCE_EVENT"],
+      "requirement_type": "REGULATORY_REQUIREMENT",
+      "interpretation_status": "scoped_ai_governance",
+      "note": "MVP encodes disclosure/export/write denial without consent; court-order pathways are out of scope."
+    }
+  ]
+}

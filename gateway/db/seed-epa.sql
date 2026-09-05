@@ -143,14 +143,21 @@ VALUES
 )
 ON CONFLICT (test_id) DO NOTHING;
 
--- M4+ regulatory packs (HIPAA pack v2 + financial/legal frameworks)
+-- M4+ regulatory packs (HIPAA pack + Part 2 + financial/legal frameworks)
 INSERT INTO policy_packs (pack_id, name, domain, description, status)
 VALUES
 (
   'pack_hipaa',
   'HIPAA',
   'hipaa',
-  'HIPAA AI/data governance pack v2 — health-information lifecycle (identify→controls→release). Not a compliance certification.',
+  'HIPAA AI/data governance pack v3.1 — health-information lifecycle (identify→controls→release). Not a compliance certification.',
+  'active'
+),
+(
+  'pack_42_cfr_part_2',
+  '42 CFR Part 2',
+  'healthcare',
+  '42 CFR Part 2 pack v1.0 — SUD patient record confidentiality for AI/data governance. Architecture Pack #2. Not a compliance certification.',
   'active'
 ),
 (
@@ -192,6 +199,26 @@ VALUES
   'HIPAA pack v2 output — residual PHI block and authorized detokenization.',
   'enigma',
   'hipaa',
+  'seed'
+),
+(
+  'pol_part2_sud_records',
+  'pack_42_cfr_part_2',
+  NULL,
+  'Part 2 SUD record input governance',
+  '42 CFR Part 2 pack v1 input — consent gates for SUD patient records.',
+  'enigma',
+  'healthcare',
+  'seed'
+),
+(
+  'pol_part2_redisclosure',
+  'pack_42_cfr_part_2',
+  NULL,
+  'Part 2 redisclosure / release governance',
+  '42 CFR Part 2 pack v1 output — redisclosure notice and Enigma release.',
+  'enigma',
+  'healthcare',
   'seed'
 ),
 (
@@ -296,6 +323,36 @@ VALUES
   'HIPAA pack v3 output — Enigma release authorizes detokenization',
   'sha256:hipaa_pack_v3_output',
   '[{"interpreter":"hipaa_pack_v3_output"}]'::jsonb,
+  'seed'
+),
+(
+  'pv_pol_part2_sud_records_v1',
+  'pol_part2_sud_records',
+  1,
+  'active',
+  210,
+  'regulatory',
+  'input',
+  now(),
+  'seed',
+  '42 CFR Part 2 pack v1.0 input — SUD confidentiality + consent gates',
+  'sha256:part2_pack_v1',
+  '[{"interpreter":"part2_pack_v1"}]'::jsonb,
+  'seed'
+),
+(
+  'pv_pol_part2_redisclosure_v1',
+  'pol_part2_redisclosure',
+  1,
+  'active',
+  210,
+  'regulatory',
+  'output',
+  now(),
+  'seed',
+  '42 CFR Part 2 pack v1.0 output — redisclosure / Enigma release',
+  'sha256:part2_pack_v1_output',
+  '[{"interpreter":"part2_pack_v1_output"}]'::jsonb,
   'seed'
 ),
 (

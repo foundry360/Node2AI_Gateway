@@ -1,0 +1,31 @@
+{
+  "profile_id": "part2_class_profile_v1",
+  "version": "1.0.0",
+  "semantic_model": {
+    "note": "Part 2 applicability is an Enigma regulatory_applicability marker (PART2), distinct from HIPAA PHI. SUD lexicon hits alone do not auto-apply Part 2 without program/record context evidence."
+  },
+  "sud_context_lexicon": [
+    "substance use",
+    "substance use disorder",
+    "sud",
+    "opioid",
+    "methadone",
+    "buprenorphine",
+    "alcohol treatment",
+    "addiction treatment",
+    "part 2",
+    "42 cfr"
+  ],
+  "always_part2_entity_types": ["SUD_PROGRAM_ID", "PART2_RECORD_ID"],
+  "elevation_rules": [
+    {
+      "id": "elev.part2_record_entity",
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_42cfr2"],
+      "when": "always_part2_entity_types match OR REGULATORY_APPLICABILITY:PART2",
+      "regulatory_applicability": ["PART2"],
+      "note": "Enigma heuristic/evidence path — not execution of §2.12 prose."
+    }
+  ],
+  "layers": ["DETECTION", "CLASSIFICATION", "REGULATORY_APPLICABILITY"]
+}

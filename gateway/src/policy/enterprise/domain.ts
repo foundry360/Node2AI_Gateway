@@ -18,14 +18,14 @@ export interface PolicyDomain {
   pack_ids: string[];
 }
 
-/** Healthcare regulatory governance domain. HIPAA is Pack #1 under this domain. */
+/** Healthcare regulatory governance domain. HIPAA is Pack #1; Part 2 is Pack #2. */
 export const HEALTHCARE_DOMAIN: PolicyDomain = {
   domain_id: 'healthcare',
   name: 'Healthcare',
   description:
-    'Healthcare regulatory governance domain. Contains versioned regulatory policy packs (HIPAA first). Not itself a policy pack or compliance checklist.',
+    'Healthcare regulatory governance domain. Contains versioned regulatory policy packs (HIPAA Pack #1, 42 CFR Part 2 Pack #2). Not itself a policy pack or compliance checklist.',
   status: 'active',
-  pack_ids: ['pack_hipaa'],
+  pack_ids: ['pack_hipaa', 'pack_42_cfr_part_2'],
 };
 
 const DOMAIN_REGISTRY = new Map<string, PolicyDomain>([

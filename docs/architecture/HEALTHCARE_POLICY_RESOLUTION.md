@@ -2,9 +2,12 @@
 
 **Status:** Active  
 **Scope:** Generic multi-pack evaluation, conflict detection, precedence, combined provenance  
-**Not in scope:** HITECH, 42 CFR Part 2, CMS, ONC, FDA, or any real Pack #2
+**Packs in domain:** HIPAA v3.1 (Pack #1), 42 CFR Part 2 v1.0 (Pack #2)
 
-Related: [HEALTHCARE_POLICY_DOMAIN.md](./HEALTHCARE_POLICY_DOMAIN.md)
+Related:
+
+- [HEALTHCARE_POLICY_DOMAIN.md](./HEALTHCARE_POLICY_DOMAIN.md)
+- [HEALTHCARE_POLICY_PACKS.md](./HEALTHCARE_POLICY_PACKS.md)
 
 ---
 
@@ -24,6 +27,8 @@ precedence · conflict · control · decision
 **Authority tier ≠ precedence.**  
 `authority_tier = 1` describes source authority. It does **not** automatically override another pack.
 
+**No universal Part 2 > HIPAA precedence.** Conflicts without declared precedence → `POLICY_CONFLICT_UNRESOLVED` → `REVIEW`.
+
 ---
 
 ## Flow
@@ -41,7 +46,7 @@ Request
 
 ```text
 HIPAA Pack ──┐
-Mock Pack  ──┼──→ resolvePackContributions() ──→ Decision
+Part 2 Pack ─┼──→ resolvePackContributions() ──→ Decision
 Pack N     ──┘
 ```
 
@@ -76,8 +81,8 @@ Skipped packs (not applicable) leave skip markers only.
 | Category | Meaning |
 | --- | --- |
 | `NONE` | No multi-pack interaction |
-| `AGREEMENT` | Same decision (e.g. DENY + DENY) |
-| `COMPLEMENTARY` | Compatible decisions with distinct obligations/controls |
+| `AGREEMENT` | Same decision (e.g. DENY + DENY). Deny agreements stay AGREEMENT even when obligation sets differ. |
+| `COMPLEMENTARY` | Compatible allow/transform decisions with distinct obligations/controls |
 | `RESTRICTIVE` | Compatible stronger restriction (e.g. ALLOW + TOKENIZE → TOKENIZE) |
 | `CONFLICT` | Decisions cannot both be satisfied (e.g. ALLOW vs DENY) |
 | `UNRESOLVED` | CONFLICT without valid declared precedence |

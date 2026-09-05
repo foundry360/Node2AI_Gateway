@@ -1,0 +1,41 @@
+{
+  "version": "1.0.0",
+  "controls": [
+    {
+      "control_id": "ctrl_transmission_security",
+      "control_type": "IMPLEMENTATION_OPTION",
+      "name": "Transmission / environment control",
+      "note": "Enigma control — not a Part 2-mandated technology."
+    },
+    {
+      "control_id": "ctrl_audit_logging",
+      "control_type": "IMPLEMENTATION_OPTION",
+      "name": "Governance event logging"
+    },
+    {
+      "control_id": "ctrl_no_write_back",
+      "control_type": "IMPLEMENTATION_OPTION",
+      "name": "No write-back / export"
+    },
+    {
+      "control_id": "ctrl_authorization",
+      "control_type": "IMPLEMENTATION_OPTION",
+      "name": "Authorization / consent evidence gate"
+    },
+    {
+      "control_id": "ctrl_processing_environment",
+      "control_type": "IMPLEMENTATION_OPTION",
+      "name": "Local/private processing preference"
+    },
+    {
+      "control_id": "ctrl_output_inspection",
+      "control_type": "IMPLEMENTATION_OPTION",
+      "name": "Output inspection"
+    },
+    {
+      "control_id": "ctrl_authorized_release",
+      "control_type": "IMPLEMENTATION_OPTION",
+      "name": "Enigma authorized release / detokenization"
+    }
+  ]
+}

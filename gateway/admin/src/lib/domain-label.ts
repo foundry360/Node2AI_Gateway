@@ -2,6 +2,8 @@
 const DOMAIN_LABELS: Record<string, string> = {
   healthcare: 'Healthcare',
   hipaa: 'HIPAA',
+  part2: '42 CFR Part 2',
+  '42_cfr_part_2': '42 CFR Part 2',
   pci: 'PCI',
   gdpr: 'GDPR',
   sox: 'SOX',

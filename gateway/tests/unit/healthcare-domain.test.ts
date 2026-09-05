@@ -134,19 +134,25 @@ describe('Healthcare Policy Domain — architecture', () => {
     unregisterOverlayInterpreter(MOCK_INTERPRETER);
     const domain = getPolicyDomain('healthcare');
     if (domain) {
-      domain.pack_ids = ['pack_hipaa'];
+      domain.pack_ids = ['pack_hipaa', 'pack_42_cfr_part_2'];
     }
   });
 
-  it('A. Healthcare Domain contains HIPAA v3.1 pack membership', () => {
+  it('A. Healthcare Domain contains HIPAA v3.1 and Part 2 pack membership', () => {
     expect(HEALTHCARE_DOMAIN.domain_id).toBe('healthcare');
     expect(HEALTHCARE_DOMAIN.status).toBe('active');
-    expect(listDomainPackIds('healthcare')).toContain('pack_hipaa');
+    expect(listDomainPackIds('healthcare')).toEqual(
+      expect.arrayContaining(['pack_hipaa', 'pack_42_cfr_part_2']),
+    );
     const snap = mergeDefaultSnapshot();
     expect(snap.packs.some((p) => p.pack_id === 'pack_hipaa')).toBe(true);
+    expect(snap.packs.some((p) => p.pack_id === 'pack_42_cfr_part_2')).toBe(true);
     expect(snap.policies.some((p) => p.pack_id === 'pack_hipaa' && p.status === 'active')).toBe(
       true,
     );
+    expect(
+      snap.policies.some((p) => p.pack_id === 'pack_42_cfr_part_2' && p.status === 'active'),
+    ).toBe(true);
   });
 
   it('B. Second pack registers via contribution + interpreter registry (no HIPAA fork)', () => {

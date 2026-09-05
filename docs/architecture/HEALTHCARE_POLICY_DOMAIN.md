@@ -2,9 +2,9 @@
 
 **Status:** Active  
 **Invariant:** Agent reasons · Policy decides · Gateway enforces  
-**Reference pack:** HIPAA Policy Pack **v3.1.0** (`pack_hipaa`)
+**Reference packs:** HIPAA Policy Pack **v3.1.0** (`pack_hipaa`); 42 CFR Part 2 **v1.0.0** (`pack_42_cfr_part_2`)
 
-Enigma is a **runtime governance and policy enforcement platform**. It is not a HIPAA assessment app, compliance checklist, regulatory document repository, or healthcare use-case library.
+Enigma is a **runtime governance and policy enforcement platform**. It is not a HIPAA or Part 2 assessment app, compliance checklist, regulatory document repository, or healthcare use-case library.
 
 ```text
 Regulation → Policy → Decision → Enforcement → Evidence
@@ -21,7 +21,7 @@ A **domain** is a business/regulatory governance area.
 | `domain_id` | `healthcare` |
 | `name` | Healthcare |
 | `status` | `active` |
-| `pack_ids` | `["pack_hipaa", …]` |
+| `pack_ids` | `["pack_hipaa", "pack_42_cfr_part_2", …]` |
 
 The Healthcare Domain is **not** a policy pack. It holds membership, shared governance concepts, and cross-pack resolution contracts. It does not contain CFR text or executable HIPAA rules.
 
@@ -39,7 +39,7 @@ A **policy pack** is a versioned regulatory authority/framework authored as docs
 | Domain identity, pack membership, cross-pack resolution concepts | **Domain** |
 | Provenance graph, overlay registry, PDP, gateway | **Platform (generic)** |
 
-HIPAA v3.1 is Pack #1 under Healthcare. Future packs (HITECH, 42 CFR Part 2, ONC, CMS, …) are **not** implemented here.
+HIPAA v3.1 is Pack #1 under Healthcare. 42 CFR Part 2 v1.0 is Pack #2 (architecture validation). Future packs (HITECH, ONC, CMS, …) are **not** implemented here. See [HEALTHCARE_POLICY_PACKS.md](./HEALTHCARE_POLICY_PACKS.md).
 
 ---
 

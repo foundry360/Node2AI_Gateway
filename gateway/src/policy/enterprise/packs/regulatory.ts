@@ -12,12 +12,15 @@ import {
   applyHipaaPackV3Input,
   applyHipaaPackV3Output,
 } from './hipaa/pack-v2.js';
+import { compilePart2Pack } from './part2/compile.js';
+import { applyPart2PackV1Input, applyPart2PackV1Output } from './part2/pack.js';
 import {
   applyRegisteredOverlays,
   mergePackContributions,
   registerOverlayInterpreter,
   type PackContribution,
 } from '../overlay-registry.js';
+import { addPackToDomain } from '../domain.js';
 
 function isCloudModel(modelId: string): boolean {
   return (
@@ -221,8 +224,11 @@ export function ensureDefaultOverlayRegistry(): void {
   registerOverlayInterpreter('hipaa_pack_v2', applyHipaaPackV2Input);
   registerOverlayInterpreter('hipaa_pack_v2_output', applyHipaaPackV2Output);
   registerOverlayInterpreter('hipaa_overlay_v1', applyHipaa);
+  registerOverlayInterpreter('part2_pack_v1', applyPart2PackV1Input);
+  registerOverlayInterpreter('part2_pack_v1_output', applyPart2PackV1Output);
   registerOverlayInterpreter('financial_overlay_v1', applyFinancial);
   registerOverlayInterpreter('legal_overlay_v1', applyLegal);
+  addPackToDomain('healthcare', 'pack_42_cfr_part_2');
   defaultOverlaysRegistered = true;
 }
 
@@ -304,6 +310,22 @@ export function legalPackContribution(): PackContribution {
   };
 }
 
+/** Part 2 pack contribution (Healthcare Pack #2). */
+export function part2PackContribution(): PackContribution {
+  const part2 = compilePart2Pack();
+  return {
+    packs: [
+      {
+        pack_id: 'pack_42_cfr_part_2',
+        status: 'active',
+        name: '42 CFR Part 2',
+        domain: 'healthcare',
+      },
+    ],
+    policies: [...part2.policies],
+  };
+}
+
 /**
  * Framework pack definitions for default EPA snapshot.
  * Contributions merge generically — add future packs via mergePackContributions.
@@ -312,6 +334,7 @@ export function regulatoryPackExtras(): Pick<PackSnapshot, 'packs' | 'policies'>
   ensureDefaultOverlayRegistry();
   return mergePackContributions(
     hipaaPackContribution(),
+    part2PackContribution(),
     financialPackContribution(),
     legalPackContribution(),
   );

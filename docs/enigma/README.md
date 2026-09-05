@@ -17,6 +17,7 @@ This folder holds the **foundational architecture deliverables** required before
 | 7 | Policy threat model | [policy-threat-model.md](./policy-threat-model.md) |
 | — | AI egress placeholder | [ai-egress.md](./ai-egress.md) |
 | — | HIPAA pack v3.1 (evaluation traces) | [hipaa-pack-v2.md](./hipaa-pack-v2.md) |
+| — | **Healthcare Policy Packs** (HIPAA + Part 2) | [../architecture/HEALTHCARE_POLICY_PACKS.md](../architecture/HEALTHCARE_POLICY_PACKS.md) |
 | — | **Healthcare Policy Domain** | [../architecture/HEALTHCARE_POLICY_DOMAIN.md](../architecture/HEALTHCARE_POLICY_DOMAIN.md) |
 | — | **Healthcare Policy Resolution v0.1** | [../architecture/HEALTHCARE_POLICY_RESOLUTION.md](../architecture/HEALTHCARE_POLICY_RESOLUTION.md) |
 | — | **Policy Pack Authoring Spec** | [../policy-packs/POLICY_PACK_AUTHORING_SPEC.md](../policy-packs/POLICY_PACK_AUTHORING_SPEC.md) |

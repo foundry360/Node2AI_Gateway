@@ -105,7 +105,6 @@ export interface ResolvedPolicyOutcome {
 
 const DENYING = new Set<ResolutionDecision>(['DENY', 'BLOCK_OUTPUT']);
 const TRANSFORMING = new Set<ResolutionDecision>(['TOKENIZE', 'REDACT']);
-const ALLOWING = new Set<ResolutionDecision>(['ALLOW']);
 
 function decisionFamily(
   d: ResolutionDecision,
@@ -371,28 +370,36 @@ export function resolvePackContributions(
     }
   }
 
-  // Upgrade AGREEMENT → COMPLEMENTARY when obligations/controls differ across packs
+  // Upgrade AGREEMENT → COMPLEMENTARY when obligations/controls differ across packs.
+  // DENY+DENY (and other pure deny agreements) stay AGREEMENT even when obligation
+  // sets differ — distinct deny-side obligations are not complementary controls.
   if (overall === 'AGREEMENT' && applicable.length > 1) {
-    const obligationKeys = applicable.map((c) =>
-      c.obligations
-        .map((o) => o.code)
-        .sort()
-        .join(','),
+    const families = applicable.map((c) => decisionFamily(c.decision));
+    const permitComplementaryUpgrade = families.every(
+      (f) => f === 'allow' || f === 'transform',
     );
-    const controlKeys = applicable.map((c) =>
-      c.controls
-        .map((x) => x.control_id)
-        .sort()
-        .join(','),
-    );
-    const obligationsDiffer = new Set(obligationKeys).size > 1;
-    const controlsDiffer = new Set(controlKeys).size > 1;
-    if (obligationsDiffer || controlsDiffer) {
-      overall = 'COMPLEMENTARY';
-      for (const pair of conflictPairs) {
-        if (pair.category === 'AGREEMENT') {
-          pair.category = 'COMPLEMENTARY';
-          pair.detail = `${pair.detail} (distinct obligations/controls)`;
+    if (permitComplementaryUpgrade) {
+      const obligationKeys = applicable.map((c) =>
+        c.obligations
+          .map((o) => o.code)
+          .sort()
+          .join(','),
+      );
+      const controlKeys = applicable.map((c) =>
+        c.controls
+          .map((x) => x.control_id)
+          .sort()
+          .join(','),
+      );
+      const obligationsDiffer = new Set(obligationKeys).size > 1;
+      const controlsDiffer = new Set(controlKeys).size > 1;
+      if (obligationsDiffer || controlsDiffer) {
+        overall = 'COMPLEMENTARY';
+        for (const pair of conflictPairs) {
+          if (pair.category === 'AGREEMENT') {
+            pair.category = 'COMPLEMENTARY';
+            pair.detail = `${pair.detail} (distinct obligations/controls)`;
+          }
         }
       }
     }

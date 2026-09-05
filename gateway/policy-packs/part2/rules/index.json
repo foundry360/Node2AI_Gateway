@@ -1,0 +1,145 @@
+{
+  "version": "1.0.0",
+  "rules": [
+    {
+      "rule_id": "PART2-R-INPUT-NO-CONSENT-DENY",
+      "name": "Deny Part 2 record processing on unauthorized external path without consent",
+      "phase": "input",
+      "priority": 100,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "PART2",
+        "processing_environment": "unauthorized_external",
+        "part2_consent_satisfied": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["PART2_CONSENT_REQUIRED_EXTERNAL_DENIED"],
+      "obligation_ids": ["PART2-OBL-CONFIDENTIALITY", "PART2-OBL-CONSENT"],
+      "control_ids": ["ctrl_transmission_security", "ctrl_audit_logging"],
+      "enigma_obligations": ["LOCAL_MODEL_ONLY", "NO_EXTERNAL_TRANSMISSION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_42cfr2"],
+      "derived_from": ["src_42cfr2"],
+      "note": "Enigma denies external transmission when Part 2 applies and consent is not evidenced."
+    },
+    {
+      "rule_id": "PART2-R-INPUT-WRITE-DENY",
+      "name": "Deny Part 2 write/export/share without consent evidence",
+      "phase": "input",
+      "priority": 90,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "PART2",
+        "operation_in": ["write", "export", "share", "transmit"],
+        "part2_consent_satisfied": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["PART2_DISCLOSURE_WITHOUT_CONSENT_DENIED"],
+      "obligation_ids": ["PART2-OBL-CONSENT", "PART2-OBL-PROCEEDINGS-PROTECTION"],
+      "control_ids": ["ctrl_no_write_back", "ctrl_audit_logging"],
+      "enigma_obligations": ["NO_WRITE_BACK", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_42cfr2"],
+      "derived_from": ["src_42cfr2"]
+    },
+    {
+      "rule_id": "PART2-R-INPUT-USE-WITHOUT-CONSENT-DENY",
+      "name": "Deny Part 2 record use when consent is not evidenced",
+      "phase": "input",
+      "priority": 85,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "PART2",
+        "part2_consent_satisfied": false,
+        "part2_consent_unknown": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["PART2_USE_WITHOUT_CONSENT_DENIED"],
+      "obligation_ids": ["PART2-OBL-CONFIDENTIALITY", "PART2-OBL-CONSENT"],
+      "control_ids": ["ctrl_authorization", "ctrl_audit_logging"],
+      "enigma_obligations": ["LOCAL_MODEL_ONLY", "NO_EXTERNAL_TRANSMISSION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_42cfr2"],
+      "derived_from": ["src_42cfr2"],
+      "note": "Use of Part 2 records is restricted under §2.13 unless Part 2 permits; MVP requires evidenced consent."
+    },
+    {
+      "rule_id": "PART2-R-INPUT-INSUFFICIENT-CONSENT",
+      "name": "Review when Part 2 consent evidence is insufficient",
+      "phase": "input",
+      "priority": 80,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "PART2",
+        "part2_consent_unknown": true
+      },
+      "decision": "REVIEW",
+      "reason_codes": ["PART2_CONSENT_EVIDENCE_INSUFFICIENT"],
+      "obligation_ids": ["PART2-OBL-CONSENT", "PART2-OBL-APPLICABILITY"],
+      "control_ids": ["ctrl_authorization", "ctrl_audit_logging"],
+      "enigma_obligations": ["REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_42cfr2"],
+      "derived_from": ["src_42cfr2"],
+      "note": "Explicit unknown consent must not silently become approved."
+    },
+    {
+      "rule_id": "PART2-R-INPUT-CONTROLS-SATISFIED",
+      "name": "Allow with controls when Part 2 processing conditions are satisfied",
+      "phase": "input",
+      "priority": 50,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "PART2",
+        "processing_environment": "local_or_private",
+        "part2_consent_satisfied": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": ["PART2_PROCESSING_CONTROLS_SATISFIED"],
+      "obligation_ids": ["PART2-OBL-CONFIDENTIALITY", "PART2-OBL-CONSENT", "PART2-OBL-APPLICABILITY"],
+      "control_ids": ["ctrl_processing_environment", "ctrl_audit_logging", "ctrl_authorization"],
+      "enigma_obligations": ["LOCAL_MODEL_ONLY", "NO_EXTERNAL_TRANSMISSION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_42cfr2"],
+      "derived_from": ["src_42cfr2"],
+      "note": "Does NOT certify Part 2 compliance. LOCAL is an Enigma control, not a Part 2 mandate."
+    },
+    {
+      "rule_id": "PART2-R-OUT-REDISCLOSURE-BLOCK",
+      "name": "Block Part 2 residual plaintext output when redisclosure conditions are not satisfied",
+      "phase": "output",
+      "priority": 100,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "PART2",
+        "inspection_sensitivity": "PART2",
+        "part2_redisclosure_ok": false
+      },
+      "decision": "BLOCK_OUTPUT",
+      "reason_codes": ["PART2_REDISCLOSURE_NOT_AUTHORIZED"],
+      "obligation_ids": ["PART2-OBL-REDISCLOSURE-NOTICE", "PART2-OBL-CONFIDENTIALITY"],
+      "control_ids": ["ctrl_output_inspection", "ctrl_audit_logging"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_42cfr2"],
+      "derived_from": ["src_42cfr2"]
+    },
+    {
+      "rule_id": "PART2-R-OUT-RELEASE-EVAL",
+      "name": "Enigma release may authorize detokenization when Part 2 release conditions are satisfied",
+      "phase": "output",
+      "priority": 50,
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "conditions": {
+        "regulatory_applicability": "PART2",
+        "contains_tokens": true,
+        "input_was_tokenized": true,
+        "part2_redisclosure_ok": true,
+        "release_conditions_satisfied": true
+      },
+      "decision": "AUTHORIZED_DETOKENIZATION",
+      "reason_codes": ["ENIGMA_RELEASE_AUTHORIZED_DETOKENIZATION"],
+      "obligation_ids": ["PART2-OBL-REDISCLOSURE-NOTICE", "PART2-OBL-CONSENT"],
+      "control_ids": ["ctrl_authorized_release", "ctrl_audit_logging"],
+      "enigma_obligations": ["AUTHORIZE_DETOKENIZATION", "LOG_GOVERNANCE_EVENT"],
+      "authorize_detokenization": true,
+      "sources": ["src_42cfr2"],
+      "derived_from": ["src_42cfr2"],
+      "note": "Part 2 obligations inform evaluation; Enigma release policy decides; gateway enforces. Part 2 does not authorize detokenization."
+    }
+  ]
+}

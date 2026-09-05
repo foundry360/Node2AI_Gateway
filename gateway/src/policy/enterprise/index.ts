@@ -28,7 +28,7 @@ export {
   type BridgedEnterprisePdp,
 } from './pack-pdp.js';
 export { InMemoryPolicyRepository, mergeDefaultSnapshot } from './repository.js';
-export { applyRegulatoryOverlays, regulatoryPackExtras, ensureDefaultOverlayRegistry } from './packs/regulatory.js';
+export { applyRegulatoryOverlays, regulatoryPackExtras, ensureDefaultOverlayRegistry, part2PackContribution, hipaaPackContribution } from './packs/regulatory.js';
 export {
   HEALTHCARE_DOMAIN,
   addPackToDomain,
@@ -51,6 +51,7 @@ export {
   type PackContribution,
 } from './overlay-registry.js';
 export { compileHipaaPack } from './packs/hipaa/compile.js';
+export { compilePart2Pack } from './packs/part2/compile.js';
 export {
   applyHipaaPackV2Input,
   applyHipaaPackV2Output,
@@ -58,6 +59,8 @@ export {
   applyHipaaPackV3Output,
   applyHipaaClassificationProfile,
 } from './packs/hipaa/pack-v2.js';
+export { applyPart2PackV1Input, applyPart2PackV1Output } from './packs/part2/pack.js';
+export { PART2_PROVENANCE_GRAPH, PART2_PACK_META } from './packs/part2/compiled-bundle.js';
 export { PostgresPolicyRepository, type PolicyRepository } from './pg-repository.js';
 export {
   fromLegacyRequestResult,

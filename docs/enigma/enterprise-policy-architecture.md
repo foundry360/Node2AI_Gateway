@@ -257,7 +257,8 @@ Reusable, versioned packs **without** modifying core enforcement code:
 | Pack | Intent |
 |------|--------|
 | Enterprise AI Baseline | General enterprise AI governance |
-| HIPAA | Healthcare / PHI controls |
+| HIPAA | Healthcare / PHI controls (Pack #1) |
+| 42 CFR Part 2 | SUD patient-record confidentiality (Pack #2) |
 | Financial Services | Financial / customer data |
 | Legal | Privilege / confidentiality |
 

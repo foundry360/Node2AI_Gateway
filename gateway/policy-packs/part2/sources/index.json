@@ -1,0 +1,65 @@
+{
+  "version": "1.0.0",
+  "authority_hierarchy": [
+    {
+      "rank": 1,
+      "class": "CFR",
+      "authority_type": "PRIMARY_REGULATORY",
+      "label": "Code of Federal Regulations",
+      "note": "Primary legal authority for Part 2"
+    },
+    {
+      "rank": 2,
+      "class": "HHS_SAMHSA",
+      "authority_type": "OFFICIAL_REGULATORY_GUIDANCE",
+      "label": "HHS/SAMHSA official guidance",
+      "note": "Authoritative interpretive guidance — not CFR"
+    },
+    {
+      "rank": 4,
+      "class": "NIST",
+      "authority_type": "IMPLEMENTATION_GUIDANCE",
+      "label": "NIST implementation guidance",
+      "note": "Not legal authority for Part 2 DENY decisions"
+    }
+  ],
+  "sources": [
+    {
+      "id": "src_42cfr2",
+      "source_id": "src_42cfr2",
+      "authority": "42 CFR Part 2",
+      "authority_tier": 1,
+      "authority_rank": 1,
+      "authority_type": "PRIMARY_REGULATORY",
+      "legal_authority": true,
+      "citation": "42 CFR Part 2",
+      "title": "Confidentiality of Substance Use Disorder Patient Records",
+      "publisher": "U.S. Department of Health and Human Services",
+      "canonical_url": "https://www.ecfr.gov/current/title-42/chapter-I/subchapter-A/part-2",
+      "effective_date": null,
+      "retrieved_date": null,
+      "version": "current",
+      "authority_class": "CFR",
+      "path": "sources/cfr/42cfr2.md",
+      "note": "Includes 2024 final-rule amendments (effective 2024-04-16; compliance date 2026-02-16)."
+    },
+    {
+      "id": "src_hhs_part2_overview",
+      "source_id": "src_hhs_part2_overview",
+      "authority": "HHS Part 2 Overview",
+      "authority_tier": 2,
+      "authority_rank": 2,
+      "authority_type": "OFFICIAL_REGULATORY_GUIDANCE",
+      "legal_authority": false,
+      "citation": "HHS — Understanding Confidentiality of SUD Patient Records (Part 2)",
+      "title": "Understanding Confidentiality of Substance Use Disorder (SUD) Patient Records or “Part 2”",
+      "publisher": "U.S. Department of Health and Human Services",
+      "canonical_url": "https://www.hhs.gov/hipaa/part-2/index.html",
+      "effective_date": null,
+      "retrieved_date": null,
+      "version": null,
+      "authority_class": "HHS_SAMHSA",
+      "path": "sources/hhs/part2-overview.md"
+    }
+  ]
+}

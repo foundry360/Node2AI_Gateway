@@ -1,0 +1,41 @@
+{
+  "pack_id": "pack_42_cfr_part_2",
+  "name": "42 CFR Part 2",
+  "domain": "healthcare",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "scope": "AI_DATA_GOVERNANCE",
+  "not": "PART2_COMPLIANCE_CERTIFICATION",
+  "description": "Minimum viable 42 CFR Part 2 policy pack for AI/data governance of SUD patient records. Architecture-validation Pack #2 under the Healthcare Domain — not a Part 2 compliance application or checklist.",
+  "interpreters": {
+    "input": "part2_pack_v1",
+    "output": "part2_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_part2_sud_records",
+      "version": 1,
+      "phase": "input",
+      "name": "Part 2 SUD record input governance"
+    },
+    {
+      "policy_id": "pol_part2_redisclosure",
+      "version": 1,
+      "phase": "output",
+      "name": "Part 2 redisclosure / release governance"
+    }
+  ],
+  "classification_profile_id": "part2_class_profile_v1",
+  "semantic_notes": [
+    "Part 2 applicability is independent of HIPAA PHI applicability",
+    "Consent evidence is required for most uses/disclosures — unknown must not silently become approved",
+    "TOKENIZE and LOCAL_MODEL_ONLY are Enigma implementation options, not Part 2 mandates",
+    "No universal Part 2 > HIPAA precedence — conflicts without declared precedence → REVIEW"
+  ],
+  "deliberately_not_implemented": [
+    "Full Part 2 program determination workflows",
+    "Court order / subpoena pathways (§2.64 / §2.65) as executable rules",
+    "Every Part 2 provision",
+    "Part 2 assessment questionnaires or scorecards"
+  ]
+}
