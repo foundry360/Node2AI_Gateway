@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { AuditService } from '../audit/service.js';
 import type { IntegrityAuditService } from '../audit/integrity-service.js';
@@ -9,7 +9,7 @@ import {
   persistModelStatus,
   type MutableModelRegistry,
 } from '../models/registry.js';
-import type { ModelProvider, RegisteredModel } from '../models/types.js';
+import type { LocalModelRuntime, ModelProvider, RegisteredModel } from '../models/types.js';
 import type { PolicyStore } from '../policy/store.js';
 import type { PolicyRepository } from '../policy/enterprise/pg-repository.js';
 import type { PackBackedEnterprisePdp } from '../policy/enterprise/pack-pdp.js';
@@ -21,9 +21,40 @@ import {
   type PolicyTestFixture,
 } from '../policy/enterprise/lifecycle.js';
 import { getPolicyDefinition } from '../policy/enterprise/packs/definitions.js';
+import {
+  buildHeuristicActionItems,
+  parseActionItemsJson,
+  type ActionItemFacts,
+} from '../admin/action-items.js';
+import {
+  aggregateRiskCounts,
+  classifyApplicationHeuristic,
+  parseRiskClassificationJson,
+  type AppRiskInput,
+} from '../admin/risk-classification.js';
+import {
+  PRIORITY_FRAMEWORKS,
+  overallComplianceScore,
+  parseComplianceJson,
+  scoreFrameworkHeuristic,
+} from '../admin/compliance-score.js';
+import { filterEventsByDays, parseDaysQuery } from '../admin/time-window.js';
 import type { GatewayConfig } from '../shared/config.js';
 import type { DatabaseHealth } from '../shared/db-health.js';
 import type { PgQueryable } from '../shared/pg.js';
+
+/** Insights: keep LLM responses short and abandon slow CPU inference. */
+const INSIGHT_LLM_TIMEOUT_MS = 20_000;
+const INSIGHT_NUM_PREDICT = 220;
+
+function wantsInsightLlm(query: unknown): boolean {
+  const llm = (query as { llm?: string } | undefined)?.llm;
+  return !(llm === '0' || llm === 'false');
+}
+
+function insightLlmSignal(): AbortSignal {
+  return AbortSignal.timeout(INSIGHT_LLM_TIMEOUT_MS);
+}
 
 function enrichPolicyMeta<T extends { policy_id: string; interpreter: string }>(meta: T) {
   const def = getPolicyDefinition(meta.policy_id, meta.interpreter);
@@ -58,6 +89,8 @@ export interface AdminContext {
     available: boolean;
     airgap: boolean;
   }>;
+  /** On-appliance inference used for console insights (not the public completions path). */
+  localRuntime?: LocalModelRuntime;
 }
 
 function extractBearer(header: string | undefined): string | undefined {
@@ -106,15 +139,19 @@ export function registerAdminRoutes(
       return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
     }
 
+    const days = parseDaysQuery(request.query);
     const [events, applications, users, policies] = await Promise.all([
       ctx.audit.list(),
       ctx.identityStore.listApplications(),
       ctx.identityStore.listUsers(),
       ctx.policyStore.listLatest(),
     ]);
-    const recent = [...events].reverse().slice(0, 25);
-    const blocked = recent.filter(
-      (e) => e.response_decision === 'BLOCK' || e.policy_decision === 'BLOCK',
+    const inWindow = filterEventsByDays(events, days);
+    const blocked = [...inWindow]
+      .reverse()
+      .filter((e) => e.response_decision === 'BLOCK' || e.policy_decision === 'BLOCK');
+    const appNameById = new Map(
+      applications.map((a) => [a.application_id, a.name] as const),
     );
     const db = ctx.checkDatabase
       ? await ctx.checkDatabase()
@@ -140,17 +177,21 @@ export function registerAdminRoutes(
       },
       database: db,
       persistence: ctx.persistence,
+      days,
       security_events: blocked.length,
-      recent_blocked: blocked.slice(0, 10).map((e) => ({
+      recent_blocked: blocked.slice(0, 50).map((e) => ({
         request_id: e.request_id,
         timestamp: e.timestamp,
         reason_codes: e.reason_codes,
         application_id: e.application_id,
+        application_name: e.application_id
+          ? appNameById.get(e.application_id)
+          : undefined,
         response_decision: e.response_decision,
         policy_decision: e.policy_decision,
       })),
       totals: {
-        audit_events: events.length,
+        audit_events: inWindow.length,
         applications: applications.length,
         users: users.length,
       },
@@ -175,6 +216,92 @@ export function registerAdminRoutes(
         allowed_datasets: a.allowed_datasets,
         allowed_operations: a.allowed_operations,
       })),
+    };
+  });
+
+  app.get('/v1/admin/applications/:applicationId/activity', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    const { applicationId } = request.params as { applicationId: string };
+    const appRecord = await ctx.identityStore.getApplication(applicationId);
+    if (!appRecord) {
+      return reply.status(404).send({ status: 'error', message: 'application not found' });
+    }
+
+    const hours = 24;
+    const now = Date.now();
+    const windowStart = now - hours * 60 * 60 * 1000;
+    const endHour = new Date(now);
+    endHour.setMinutes(0, 0, 0);
+    const bucketStarts: number[] = [];
+    for (let i = hours - 1; i >= 0; i -= 1) {
+      bucketStarts.push(endHour.getTime() - i * 60 * 60 * 1000);
+    }
+
+    const events = (await ctx.audit.list()).filter((e) => {
+      if (e.application_id !== applicationId) return false;
+      const t = Date.parse(e.timestamp);
+      return Number.isFinite(t) && t >= windowStart;
+    });
+
+    const isBlocked = (e: (typeof events)[number]) =>
+      e.response_decision === 'BLOCK' || e.policy_decision === 'BLOCK';
+    const isTokenize = (e: (typeof events)[number]) => {
+      const decision = (e.policy_decision ?? '').toUpperCase();
+      const transform = (e.input_transformation ?? '').toLowerCase();
+      const reasons = (e.reason_codes ?? []).map((c) => c.toUpperCase());
+      return (
+        decision === 'TOKENIZE' ||
+        transform.includes('token') ||
+        reasons.some((c) => c.includes('TOKENIZE'))
+      );
+    };
+    const isAllowed = (e: (typeof events)[number]) =>
+      !isBlocked(e) &&
+      ((e.policy_decision ?? '').toUpperCase() === 'ALLOW' ||
+        e.response_decision === 'RELEASE' ||
+        e.response_decision === 'ALLOW');
+
+    const bucketize = (
+      predicate: (e: (typeof events)[number]) => boolean,
+    ) =>
+      bucketStarts.map((startMs, idx) => {
+        const endMs =
+          idx === bucketStarts.length - 1 ? now : bucketStarts[idx + 1]!;
+        const count = events.filter((e) => {
+          const t = Date.parse(e.timestamp);
+          return t >= startMs && t < endMs && predicate(e);
+        }).length;
+        return {
+          start: new Date(startMs).toISOString(),
+          end: new Date(endMs).toISOString(),
+          label: new Date(startMs).toLocaleTimeString([], {
+            hour: 'numeric',
+            minute: '2-digit',
+          }),
+          value: count,
+        };
+      });
+
+    const seriesOf = (predicate: (e: (typeof events)[number]) => boolean) => {
+      const buckets = bucketize(predicate);
+      return {
+        total: buckets.reduce((sum, b) => sum + b.value, 0),
+        buckets,
+      };
+    };
+
+    return {
+      application_id: applicationId,
+      window_hours: hours,
+      generated_at: new Date(now).toISOString(),
+      series: {
+        requests: seriesOf(() => true),
+        allowed: seriesOf(isAllowed),
+        blocked: seriesOf(isBlocked),
+        tokenize: seriesOf(isTokenize),
+      },
     };
   });
 
@@ -814,9 +941,11 @@ export function registerAdminRoutes(
     if (!(await requireAdmin(request.headers.authorization))) {
       return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
     }
-    const events = await ctx.audit.list();
+    const days = parseDaysQuery(request.query);
+    const events = filterEventsByDays(await ctx.audit.list(), days);
     const limit = Number((request.query as { limit?: string }).limit ?? 100);
     return {
+      days,
       events: [...events]
         .reverse()
         .slice(0, Math.min(limit, 500))
@@ -904,6 +1033,330 @@ export function registerAdminRoutes(
         name: o.name,
         status: o.status,
       })),
+    };
+  });
+
+  app.get('/v1/admin/insights/action-items', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+
+    const days = parseDaysQuery(request.query);
+    const [events, applications, policies] = await Promise.all([
+      ctx.audit.list(),
+      ctx.identityStore.listApplications(),
+      ctx.policyStore.listLatest(),
+    ]);
+    const inWindow = filterEventsByDays(events, days);
+    const blocked = [...inWindow]
+      .reverse()
+      .filter((e) => e.response_decision === 'BLOCK' || e.policy_decision === 'BLOCK');
+    const db = ctx.checkDatabase
+      ? await ctx.checkDatabase()
+      : {
+          ok: ctx.persistence === 'memory',
+          detail: ctx.persistence === 'postgres' ? 'unchecked' : 'not_configured',
+        };
+    const localRuntimeStatus = ctx.checkLocalRuntime
+      ? await ctx.checkLocalRuntime()
+      : { mode: 'stub', active_runtime: 'stub-local', available: false, airgap: false };
+
+    const reasonCounts = new Map<string, number>();
+    for (const e of blocked) {
+      for (const code of e.reason_codes ?? []) {
+        reasonCounts.set(code, (reasonCounts.get(code) ?? 0) + 1);
+      }
+    }
+    const blocked_reasons = [...reasonCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([code]) => code);
+
+    const facts: ActionItemFacts = {
+      gateway_ok: true,
+      database_ok: !!db.ok && db.detail !== 'not_configured',
+      database_detail: db.detail,
+      runtime_available: localRuntimeStatus.available,
+      runtime_id: localRuntimeStatus.active_runtime,
+      active_policies: policies.filter((p) => p.status === 'active').length,
+      active_models: ctx.registry.listActive().length,
+      applications: applications.length,
+      audit_events: inWindow.length,
+      recent_blocked: blocked.length,
+      blocked_reasons,
+      persistence: ctx.persistence,
+    };
+
+    const heuristicItems = buildHeuristicActionItems(facts);
+    let items = heuristicItems;
+    let summary =
+      'Assessed gateway activity and performance from live console signals.';
+    let source: 'local_model' | 'heuristic' = 'heuristic';
+    let model_id: string | undefined;
+
+    const runtime = ctx.localRuntime;
+    if (runtime && localRuntimeStatus.available && wantsInsightLlm(request.query)) {
+      const preferred =
+        ctx.config.ollamaModelName ||
+        ctx.registry.listActive().find((m) => m.kind === 'local')?.model_id ||
+        'local-general-v1';
+      model_id = preferred;
+      try {
+        const generated = await runtime.generate({
+          model: preferred,
+          request_id: `insight-${randomUUID()}`,
+          num_predict: INSIGHT_NUM_PREDICT,
+          signal: insightLlmSignal(),
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are the Enigma gateway console analyst. Assess activity and performance. Return JSON only with shape {"summary":string,"items":[{"priority":"high"|"medium"|"low","title":string,"detail":string,"href"?:string}]}. Max 6 items. Prefer href values among /audit /policies /applications /models /system.',
+            },
+            {
+              role: 'user',
+              content: `Analyze these live facts and report top action items:\n${JSON.stringify(facts, null, 2)}`,
+            },
+          ],
+        });
+        const parsed = parseActionItemsJson(generated.content);
+        if (parsed?.items && parsed.items.length > 0) {
+          items = parsed.items.slice(0, 6);
+          source = 'local_model';
+        }
+        if (parsed?.summary) {
+          summary = parsed.summary;
+          if (parsed.items && parsed.items.length > 0) source = 'local_model';
+        } else if (generated.content && !generated.content.startsWith('[local-runtime:')) {
+          summary = generated.content.slice(0, 240);
+          source = 'local_model';
+        }
+      } catch {
+        // Keep heuristic items — console must stay usable when inference fails/times out.
+      }
+    }
+
+    return {
+      summary,
+      items,
+      source,
+      model_id,
+      days,
+      runtime: localRuntimeStatus,
+      generated_at: new Date().toISOString(),
+    };
+  });
+
+  app.get('/v1/admin/insights/risk-classification', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+
+    const days = parseDaysQuery(request.query);
+    const [applications, events] = await Promise.all([
+      ctx.identityStore.listApplications(),
+      ctx.audit.list(),
+    ]);
+    const inWindow = filterEventsByDays(events, days);
+    const blocksByApp = new Map<string, number>();
+    for (const e of inWindow) {
+      if (
+        (e.response_decision === 'BLOCK' || e.policy_decision === 'BLOCK') &&
+        e.application_id
+      ) {
+        blocksByApp.set(
+          e.application_id,
+          (blocksByApp.get(e.application_id) ?? 0) + 1,
+        );
+      }
+    }
+
+    const inputs: AppRiskInput[] = applications.map((a) => ({
+      application_id: a.application_id,
+      name: a.name,
+      type: a.type,
+      environment: a.environment,
+      status: a.status,
+      trust_level: a.trust_level,
+      allowed_models: a.allowed_models,
+      allowed_operations: a.allowed_operations,
+      recent_blocks: blocksByApp.get(a.application_id) ?? 0,
+    }));
+
+    let applicationsClassified = inputs.map(classifyApplicationHeuristic);
+    let source: 'local_model' | 'heuristic' = 'heuristic';
+    let model_id: string | undefined;
+    let summary =
+      'Local runtime analyzed and classified application risk from live console signals.';
+
+    const localRuntimeStatus = ctx.checkLocalRuntime
+      ? await ctx.checkLocalRuntime()
+      : { mode: 'stub', active_runtime: 'stub-local', available: false, airgap: false };
+    const runtime = ctx.localRuntime;
+
+    if (runtime && localRuntimeStatus.available && inputs.length > 0 && wantsInsightLlm(request.query)) {
+      const preferred =
+        ctx.config.ollamaModelName ||
+        ctx.registry.listActive().find((m) => m.kind === 'local')?.model_id ||
+        'local-general-v1';
+      model_id = preferred;
+      try {
+        const generated = await runtime.generate({
+          model: preferred,
+          request_id: `risk-${randomUUID()}`,
+          num_predict: INSIGHT_NUM_PREDICT,
+          signal: insightLlmSignal(),
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are the Enigma gateway risk analyst. Analyze each application and classify risk as high, medium, low, or undetermined. Return JSON only: {"summary":string,"applications":[{"application_id":string,"name":string,"risk":"high"|"medium"|"low"|"undetermined","rationale":string}]}.',
+            },
+            {
+              role: 'user',
+              content: `Classify each application for governance risk:\n${JSON.stringify(inputs, null, 2)}`,
+            },
+          ],
+        });
+        const parsed = parseRiskClassificationJson(generated.content);
+        if (parsed) {
+          // Prefer model labels; fill any missing apps with heuristics.
+          const byId = new Map(parsed.map((p) => [p.application_id, p]));
+          applicationsClassified = inputs.map(
+            (app) => byId.get(app.application_id) ?? classifyApplicationHeuristic(app),
+          );
+          source = 'local_model';
+        }
+        try {
+          const start = generated.content.indexOf('{');
+          const end = generated.content.lastIndexOf('}');
+          if (start >= 0 && end > start) {
+            const obj = JSON.parse(generated.content.slice(start, end + 1)) as {
+              summary?: string;
+            };
+            if (typeof obj.summary === 'string' && obj.summary.trim()) {
+              summary = obj.summary.trim();
+            }
+          }
+        } catch {
+          // keep default summary
+        }
+      } catch {
+        // Keep heuristic classifications.
+      }
+    } else if (inputs.length === 0) {
+      summary = 'No applications registered to classify.';
+    }
+
+    const counts = aggregateRiskCounts(applicationsClassified);
+
+    return {
+      summary,
+      total: applicationsClassified.length,
+      counts,
+      applications: applicationsClassified,
+      source,
+      model_id,
+      days,
+      runtime: localRuntimeStatus,
+      generated_at: new Date().toISOString(),
+    };
+  });
+
+  app.get('/v1/admin/insights/compliance-score', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+
+    const packs = ctx.policyRepository
+      ? ctx.policyRepository.getSnapshot().packs.map((p) => ({
+          pack_id: p.pack_id,
+          name: p.name,
+          domain: p.domain,
+          status: p.status,
+        }))
+      : [];
+    const policies = ctx.policyRepository
+      ? ctx.policyRepository.getSnapshot().policies.map((p) => ({
+          policy_id: p.policy_id,
+          pack_id: p.pack_id,
+          status: p.status,
+        }))
+      : [];
+
+    let frameworks = PRIORITY_FRAMEWORKS.map((def) =>
+      scoreFrameworkHeuristic(def, packs, policies),
+    );
+    let overall = overallComplianceScore(frameworks);
+    let source: 'local_model' | 'heuristic' = 'heuristic';
+    let model_id: string | undefined;
+    let summary =
+      'Local runtime scored priority framework compliance from live pack posture.';
+
+    const localRuntimeStatus = ctx.checkLocalRuntime
+      ? await ctx.checkLocalRuntime()
+      : { mode: 'stub', active_runtime: 'stub-local', available: false, airgap: false };
+    const runtime = ctx.localRuntime;
+
+    if (runtime && localRuntimeStatus.available && wantsInsightLlm(request.query)) {
+      const preferred =
+        ctx.config.ollamaModelName ||
+        ctx.registry.listActive().find((m) => m.kind === 'local')?.model_id ||
+        'local-general-v1';
+      model_id = preferred;
+      try {
+        const generated = await runtime.generate({
+          model: preferred,
+          request_id: `compliance-${randomUUID()}`,
+          num_predict: INSIGHT_NUM_PREDICT,
+          signal: insightLlmSignal(),
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are the Enigma gateway compliance analyst. Score each priority framework 0-100. Return JSON only: {"summary":string,"overall":number,"frameworks":[{"framework_id":string,"name":string,"score":number,"status":"strong"|"partial"|"weak"|"unknown","detail":string,"compliant_controls":number,"total_controls":number,"high_priority_issues":number}]}.',
+            },
+            {
+              role: 'user',
+              content: `Score compliance for each priority framework:\n${JSON.stringify(
+                {
+                  priority_frameworks: PRIORITY_FRAMEWORKS,
+                  packs,
+                  policies,
+                },
+                null,
+                2,
+              )}`,
+            },
+          ],
+        });
+        const parsed = parseComplianceJson(generated.content);
+        if (parsed?.frameworks && parsed.frameworks.length > 0) {
+          const byId = new Map(parsed.frameworks.map((f) => [f.framework_id, f]));
+          frameworks = PRIORITY_FRAMEWORKS.map(
+            (def) =>
+              byId.get(def.framework_id) ??
+              scoreFrameworkHeuristic(def, packs, policies),
+          );
+          overall =
+            typeof parsed.overall === 'number'
+              ? parsed.overall
+              : overallComplianceScore(frameworks);
+          source = 'local_model';
+        }
+        if (parsed?.summary) summary = parsed.summary;
+      } catch {
+        // Keep heuristic scores.
+      }
+    }
+
+    return {
+      summary,
+      overall,
+      frameworks,
+      source,
+      model_id,
+      runtime: localRuntimeStatus,
+      generated_at: new Date().toISOString(),
     };
   });
 }

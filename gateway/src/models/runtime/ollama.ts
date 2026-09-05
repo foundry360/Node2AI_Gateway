@@ -57,6 +57,8 @@ export class OllamaLocalRuntime implements LocalModelRuntime {
     model: string;
     messages: ModelMessage[];
     request_id: string;
+    num_predict?: number;
+    signal?: AbortSignal;
   }): Promise<{ content: string; usage: { input_tokens: number; output_tokens: number } }> {
     const ollamaModel = this.modelMap[input.model] ?? input.model;
 
@@ -94,9 +96,21 @@ export class OllamaLocalRuntime implements LocalModelRuntime {
           model: ollamaModel,
           messages: input.messages,
           stream: false,
+          options:
+            input.num_predict != null
+              ? { num_predict: input.num_predict }
+              : undefined,
         }),
+        signal: input.signal,
       });
-    } catch {
+    } catch (err) {
+      if (input.signal?.aborted) {
+        throw new GatewayError(
+          'LOCAL_RUNTIME_UNAVAILABLE',
+          'LOCAL_RUNTIME_UNAVAILABLE: Ollama inference timed out.',
+          503,
+        );
+      }
       throw new GatewayError(
         'LOCAL_RUNTIME_UNAVAILABLE',
         'LOCAL_RUNTIME_UNAVAILABLE: Ollama request failed.',

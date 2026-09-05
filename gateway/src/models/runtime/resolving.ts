@@ -87,6 +87,8 @@ export class ResolvingLocalRuntime implements LocalModelRuntime {
     model: string;
     messages: ModelMessage[];
     request_id: string;
+    num_predict?: number;
+    signal?: AbortSignal;
   }): Promise<{ content: string; usage: { input_tokens: number; output_tokens: number } }> {
     const runtime = await this.resolve();
     if (this.airgap && runtime.runtimeId === 'ollama') {

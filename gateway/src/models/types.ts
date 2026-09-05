@@ -65,5 +65,9 @@ export interface LocalModelRuntime {
     model: string;
     messages: ModelMessage[];
     request_id: string;
+    /** Soft cap on generated tokens (Ollama num_predict). */
+    num_predict?: number;
+    /** Abort long-running inference (e.g. Insights timeout). */
+    signal?: AbortSignal;
   }): Promise<{ content: string; usage: { input_tokens: number; output_tokens: number } }>;
 }

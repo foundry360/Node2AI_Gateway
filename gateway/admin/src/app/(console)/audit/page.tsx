@@ -33,6 +33,18 @@ type IntegrityResponse = {
   note: string;
 };
 
+function formatIntegrityReason(reason?: string): string {
+  if (!reason) return 'Unknown integrity failure';
+  const known: Record<string, string> = {
+    signature_invalid:
+      'Signature invalid — audit signing key may have changed since this event was sealed',
+    event_hash_mismatch: 'Event hash mismatch — event payload may have been altered',
+    prev_hash_mismatch: 'Previous hash mismatch — chain order or linkage may be broken',
+    missing_integrity_fields: 'Missing integrity fields on a sealed-chain event',
+  };
+  return known[reason] ?? reason.replace(/_/g, ' ');
+}
+
 export default async function AuditPage() {
   let data: AuditResponse | null = null;
   let integrity: IntegrityResponse | null = null;
@@ -65,7 +77,10 @@ export default async function AuditPage() {
                 <tr>
                   <th>Status</th>
                   <td>
-                    <StatusBadge status={integrity.integrity.ok ? 'valid' : 'broken'} />
+                    <StatusBadge
+                      variant="badge"
+                      status={integrity.integrity.ok ? 'valid' : 'broken'}
+                    />
                   </td>
                 </tr>
                 <tr>
@@ -76,7 +91,10 @@ export default async function AuditPage() {
                   <tr>
                     <th>Break</th>
                     <td className="error">
-                      {integrity.integrity.reason} at {integrity.integrity.broken_at_audit_id}
+                      {formatIntegrityReason(integrity.integrity.reason)}
+                      {integrity.integrity.broken_at_audit_id
+                        ? ` (${integrity.integrity.broken_at_audit_id})`
+                        : ''}
                     </td>
                   </tr>
                 ) : null}

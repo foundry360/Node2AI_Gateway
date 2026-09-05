@@ -1,9 +1,13 @@
 import { Suspense } from 'react';
 import { LoginForm } from '@/components/LoginForm';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function LoginPage() {
   return (
     <div className="login-shell">
+      <div className="login-theme">
+        <ThemeToggle />
+      </div>
       <div className="login-card">
         <div className="login-brand">
           <div className="brand-name">Enigma</div>

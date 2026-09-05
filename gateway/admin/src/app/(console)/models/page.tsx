@@ -69,7 +69,7 @@ export default async function ModelsPage() {
                       <td className="mono">{m.provider_id}</td>
                       <td>{m.kind}</td>
                       <td>
-                        <StatusBadge status={m.status} />
+                        <StatusBadge showLabel status={m.status} />
                       </td>
                       <td>
                         <ModelActions modelId={m.model_id} status={m.status} />

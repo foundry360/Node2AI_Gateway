@@ -8,6 +8,7 @@ import {
 } from '@/components/PolicyLifecycle';
 import { EmptyState } from '@/components/EmptyState';
 import { StatusBadge } from '@/components/StatusBadge';
+import { formatReasonCode, formatReasonCodes } from '@/lib/reason-codes';
 
 type Definition = {
   description: string;
@@ -91,6 +92,10 @@ export function PolicyDetailView({ detail }: { detail: PolicyDetail }) {
   const [tab, setTab] = useState<Tab>('Overview');
   const { policy, pack, definition, store, versions, evaluations, engine_mode } =
     detail;
+  const domain = policy.domain ?? pack?.domain ?? definition?.domain;
+  const domainLabel = domain
+    ? domain.charAt(0).toUpperCase() + domain.slice(1)
+    : '—';
 
   return (
     <div className="stack">
@@ -157,7 +162,7 @@ export function PolicyDetailView({ detail }: { detail: PolicyDetail }) {
               <dt>Pack ID</dt>
               <dd className="mono">{policy.pack_id}</dd>
               <dt>Domain</dt>
-              <dd>{policy.domain ?? pack?.domain ?? definition?.domain ?? '—'}</dd>
+              <dd>{domainLabel}</dd>
               <dt>Scope tier</dt>
               <dd>{policy.scope_tier ?? definition?.scope_tier ?? '—'}</dd>
             </dl>
@@ -228,7 +233,7 @@ export function PolicyDetailView({ detail }: { detail: PolicyDetail }) {
               rows={(definition?.decisions ?? []).map((d) => [
                 d.when,
                 d.decision,
-                d.reason_codes.join(', '),
+                d.reason_codes.map((c) => formatReasonCode(c)).join(', '),
               ])}
             />
           ) : null}
@@ -304,8 +309,8 @@ export function PolicyDetailView({ detail }: { detail: PolicyDetail }) {
                         />
                       </td>
                       <td>{e.data_classification ?? '—'}</td>
-                      <td className="mono">
-                        {(e.reason_codes ?? []).join(', ') || '—'}
+                      <td>
+                        {formatReasonCodes(e.reason_codes) || '—'}
                       </td>
                     </tr>
                   ))}

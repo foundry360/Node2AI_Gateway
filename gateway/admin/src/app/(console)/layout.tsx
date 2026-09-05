@@ -16,10 +16,6 @@ export default async function ConsoleLayout({
       <TopChrome userName={session?.name ?? 'admin'} />
       <div className="shell-body">
         <aside className="sidebar">
-          <div className="brand">
-            <div className="brand-name">Enigma</div>
-            <div className="brand-sub">AI Governance Gateway</div>
-          </div>
           <SidebarNav />
         </aside>
         <main className="main">{children}</main>

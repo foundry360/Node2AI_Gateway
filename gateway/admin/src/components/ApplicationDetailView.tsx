@@ -5,6 +5,7 @@ import {
   ApiKeyRevoke,
 } from '@/components/AdminForms';
 import { ApplicationEditDrawer } from '@/components/ApplicationEditDrawer';
+import { ApplicationSparklines } from '@/components/ApplicationSparklines';
 import { StatusBadge } from '@/components/StatusBadge';
 
 type App = {
@@ -51,6 +52,8 @@ export function ApplicationDetailView({
   ];
   const doneCount = checklist.filter((c) => c.done && !c.pending).length;
   const activeKeys = keys.filter((k) => k.status === 'active').length;
+  const capitalize = (value: string) =>
+    value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 
   return (
     <div className="stack">
@@ -80,14 +83,16 @@ export function ApplicationDetailView({
               <div className="leader-row">
                 <span className="leader-label">Trust level</span>
                 <span className="leader-dots" aria-hidden />
-                <span className="leader-value">{app.trust_level || '—'}</span>
+                <span className="leader-value">
+                  {app.trust_level ? capitalize(app.trust_level) : '—'}
+                </span>
               </div>
               <div className="leader-row">
                 <span className="leader-label">Model coverage</span>
                 <span className="leader-dots" aria-hidden />
                 <span className="leader-value">
                   {app.allowed_models.length > 0
-                    ? `${app.allowed_models.length} allowlisted`
+                    ? `${app.allowed_models.length} Allow listed`
                     : 'Not enough data'}
                 </span>
               </div>
@@ -118,21 +123,44 @@ export function ApplicationDetailView({
             </div>
             <div className="meridian-attr">
               <span className="meridian-attr-label">Type</span>
-              <span className="meridian-attr-value">{app.type}</span>
+              <span className="meridian-attr-value">{capitalize(app.type)}</span>
             </div>
             <div className="meridian-attr">
               <span className="meridian-attr-label">Environment</span>
-              <span className="meridian-attr-value">{app.environment}</span>
+              <span className="meridian-attr-value">{capitalize(app.environment)}</span>
             </div>
             <div className="meridian-attr">
               <span className="meridian-attr-label">Status</span>
               <span className="meridian-attr-value">
-                <StatusBadge status={app.status} />
+                <span
+                  className={`status-inline${
+                    app.status.toLowerCase() === 'active'
+                      ? ' status-inline-active'
+                      : app.status.toLowerCase() === 'suspended'
+                        ? ' status-inline-suspended'
+                        : app.status.toLowerCase() === 'deleted'
+                          ? ' status-inline-deleted'
+                          : ''
+                  }`}
+                >
+                  <span className="status-dot" aria-hidden />
+                  <span className="status-inline-text">
+                    {app.status.toLowerCase() === 'active'
+                      ? 'Active'
+                      : app.status.toLowerCase() === 'suspended'
+                        ? 'Suspended'
+                        : app.status.toLowerCase() === 'deleted'
+                          ? 'Deleted'
+                          : app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                  </span>
+                </span>
               </span>
             </div>
             <div className="meridian-attr">
               <span className="meridian-attr-label">Trust</span>
-              <span className="meridian-attr-value">{app.trust_level || '—'}</span>
+              <span className="meridian-attr-value">
+                {app.trust_level ? capitalize(app.trust_level) : '—'}
+              </span>
             </div>
             <div className="meridian-attr">
               <span className="meridian-attr-label">Datasets</span>
@@ -149,6 +177,8 @@ export function ApplicationDetailView({
           </div>
         </div>
       </div>
+
+      <ApplicationSparklines applicationId={app.application_id} />
 
       <div className="triple-grid">
         <div className="section-card">

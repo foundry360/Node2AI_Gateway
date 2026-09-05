@@ -340,6 +340,7 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
               airgap: config.deploymentMode === 'airgap',
             };
           },
+          localRuntime,
         },
       }),
   };

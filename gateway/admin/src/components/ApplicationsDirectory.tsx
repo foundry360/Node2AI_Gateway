@@ -35,7 +35,6 @@ export function ApplicationsDirectory({
 
   const filtered = useMemo(() => {
     return applications.filter((a) => {
-      if (a.status === 'suspended') return false;
       if (trust !== 'all' && a.trust_level !== trust) return false;
       if (q.trim()) {
         const needle = q.trim().toLowerCase();
@@ -45,6 +44,22 @@ export function ApplicationsDirectory({
       return true;
     });
   }, [applications, q, trust]);
+
+  function statusLabel(status: string) {
+    const s = status.toLowerCase();
+    if (s === 'active') return 'Active';
+    if (s === 'suspended') return 'Suspended';
+    if (s === 'deleted') return 'Deleted';
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  }
+
+  function statusClass(status: string) {
+    const s = status.toLowerCase();
+    if (s === 'active') return 'status-inline-active';
+    if (s === 'suspended') return 'status-inline-suspended';
+    if (s === 'deleted') return 'status-inline-deleted';
+    return '';
+  }
 
   return (
     <div>
@@ -151,9 +166,9 @@ export function ApplicationsDirectory({
                   <span className="tag">{app.environment}</span>
                 </div>
                 <div className="entity-card-footer">
-                  <span className="connected">
-                    <span className="status-dot" />
-                    {app.status === 'active' ? 'Connected' : app.status}
+                  <span className={`status-inline ${statusClass(app.status)}`}>
+                    <span className="status-dot" aria-hidden />
+                    <span className="status-inline-text">{statusLabel(app.status)}</span>
                   </span>
                   <span>
                     {app.key_count ?? 0} API key{(app.key_count ?? 0) === 1 ? '' : 's'}
@@ -191,7 +206,12 @@ export function ApplicationsDirectory({
                   {app.type} · {app.environment}
                 </td>
                 <td>{app.trust_level}</td>
-                <td>{app.status}</td>
+                <td>
+                  <span className={`status-inline ${statusClass(app.status)}`}>
+                    <span className="status-dot" aria-hidden />
+                    <span className="status-inline-text">{statusLabel(app.status)}</span>
+                  </span>
+                </td>
                 <td>{app.key_count ?? 0}</td>
                 <td>
                   <ApplicationCardMenu

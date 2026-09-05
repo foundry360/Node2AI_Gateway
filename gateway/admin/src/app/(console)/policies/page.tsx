@@ -22,7 +22,6 @@ type PacksResponse = {
     priority?: number;
     domain?: string;
   }>;
-  engine_mode: string;
 };
 
 export default async function PoliciesPage() {
@@ -38,13 +37,8 @@ export default async function PoliciesPage() {
     <div>
       <PageHeader
         title="Policies"
-        lede="Enterprise policy packs — open a policy to validate, simulate, approve, activate, suspend, or retire. Binding decisions come from the pack-backed PDP."
+        lede="Enterprise policy packs. Open a policy to validate, simulate, approve, activate, suspend, or retire. Binding decisions come from the pack-backed PDP."
       />
-      {packs ? (
-        <p className="muted" style={{ marginTop: '-0.75rem', marginBottom: '1rem' }}>
-          Engine mode: <strong className="mono">{packs.engine_mode}</strong>
-        </p>
-      ) : null}
       {error ? <div className="error">{error}</div> : null}
       {packs ? (
         <PoliciesTable packs={packs.packs} policies={packs.policies} />

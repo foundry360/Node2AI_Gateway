@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import { StatusBadge } from '@/components/StatusBadge';
+import { formatReasonCodes } from '@/lib/reason-codes';
 
 type AuditEvent = {
   audit_id: string;
@@ -92,10 +93,10 @@ export function AuditTable({ events }: { events: AuditEvent[] }) {
                 </td>
                 <td>
                   <div>
-                    req: <StatusBadge status={e.policy_decision ?? '—'} />
+                    req: <StatusBadge variant="badge" status={e.policy_decision ?? '—'} />
                   </div>
                   <div style={{ marginTop: '0.25rem' }}>
-                    res: <StatusBadge status={e.response_decision ?? '—'} />
+                    res: <StatusBadge variant="badge" status={e.response_decision ?? '—'} />
                   </div>
                 </td>
                 <td className="mono">
@@ -108,7 +109,7 @@ export function AuditTable({ events }: { events: AuditEvent[] }) {
                     evt {e.event_hash ? `${e.event_hash.slice(0, 12)}…` : '—'}
                   </div>
                 </td>
-                <td className="mono">{(e.reason_codes ?? []).join(', ')}</td>
+                <td>{formatReasonCodes(e.reason_codes) || '—'}</td>
               </tr>
             ))}
           </tbody>

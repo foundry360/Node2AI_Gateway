@@ -1,4 +1,5 @@
 import './globals.css';
+import { ThemeProvider, THEME_BOOT_SCRIPT } from '@/components/ThemeProvider';
 
 export const metadata = {
   title: 'Enigma Admin',
@@ -11,8 +12,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
+      <body>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

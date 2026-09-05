@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import { StatusBadge } from '@/components/StatusBadge';
+
+const PAGE_SIZE = 25;
 
 type Pack = {
   pack_id: string;
@@ -26,6 +28,10 @@ type PolicyRow = {
   domain?: string;
 };
 
+function capitalize(value: string) {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+}
+
 export function PoliciesTable({
   packs,
   policies,
@@ -36,6 +42,7 @@ export function PoliciesTable({
   const [packFilter, setPackFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [q, setQ] = useState('');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const packById = useMemo(
     () => new Map(packs.map((p) => [p.pack_id, p])),
@@ -55,28 +62,15 @@ export function PoliciesTable({
     });
   }, [policies, packFilter, statusFilter, q]);
 
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [packFilter, statusFilter, q]);
+
+  const visible = filtered.slice(0, visibleCount);
+  const hasMore = visibleCount < filtered.length;
+
   return (
     <div className="stack-tight">
-      <div className="pack-chips">
-        {packs.map((p) => (
-          <button
-            key={p.pack_id}
-            type="button"
-            className="chip"
-            onClick={() =>
-              setPackFilter((cur) => (cur === p.pack_id ? 'all' : p.pack_id))
-            }
-            style={
-              packFilter === p.pack_id
-                ? { borderColor: 'var(--accent)', color: 'var(--accent)' }
-                : undefined
-            }
-          >
-            {p.name}
-            <StatusBadge status={p.status} />
-          </button>
-        ))}
-      </div>
       <div className="toolbar">
         <select value={packFilter} onChange={(e) => setPackFilter(e.target.value)}>
           <option value="all">All packs</option>
@@ -102,9 +96,6 @@ export function PoliciesTable({
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <span className="muted">
-          {filtered.length} of {policies.length}
-        </span>
       </div>
       {filtered.length === 0 ? (
         <EmptyState
@@ -112,48 +103,62 @@ export function PoliciesTable({
           description="Adjust pack, status, or search filters."
         />
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Domain / Pack</th>
-              <th>Status</th>
-              <th>Version</th>
-              <th>Phase</th>
-              <th>Interpreter</th>
-              <th>Priority</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((p) => {
-              const pack = packById.get(p.pack_id);
-              return (
-                <tr key={p.policy_id}>
-                  <td>
-                    <Link
-                      href={`/policies/${p.policy_id}`}
-                      className="table-link"
-                    >
-                      {p.name}
-                    </Link>
-                    <div className="muted mono">{p.policy_id}</div>
-                  </td>
-                  <td>
-                    <div>{p.domain ?? pack?.domain ?? '—'}</div>
-                    <div className="muted">{pack?.name ?? p.pack_id}</div>
-                  </td>
-                  <td>
-                    <StatusBadge status={p.status} />
-                  </td>
-                  <td className="mono">v{p.version}</td>
-                  <td>{p.phase}</td>
-                  <td className="mono">{p.interpreter}</td>
-                  <td className="mono">{p.priority ?? '—'}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Domain / Pack</th>
+                <th>Status</th>
+                <th>Version</th>
+                <th>Phase</th>
+                <th>Interpreter</th>
+                <th>Priority</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((p) => {
+                const pack = packById.get(p.pack_id);
+                const domain = p.domain ?? pack?.domain;
+                return (
+                  <tr key={p.policy_id}>
+                    <td>
+                      <Link
+                        href={`/policies/${p.policy_id}`}
+                        className="table-link"
+                      >
+                        {p.name}
+                      </Link>
+                      <div className="muted mono">{p.policy_id}</div>
+                    </td>
+                    <td>
+                      <div>{domain ? capitalize(domain) : '—'}</div>
+                      <div className="muted">{pack?.name ?? p.pack_id}</div>
+                    </td>
+                    <td>
+                      <StatusBadge showLabel status={p.status} />
+                    </td>
+                    <td className="mono">v{p.version}</td>
+                    <td>{p.phase}</td>
+                    <td className="mono">{p.interpreter}</td>
+                    <td className="mono">{p.priority ?? '—'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {hasMore ? (
+            <div className="table-load-more">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+              >
+                Load More
+              </button>
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );

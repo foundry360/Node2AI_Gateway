@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -33,7 +32,7 @@ export function SidebarNav() {
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (
-            <Link
+            <a
               key={item.href}
               href={item.href}
               className={`nav-link${active ? ' nav-link-active' : ''}`}
@@ -42,12 +41,12 @@ export function SidebarNav() {
                 <Icon size={20} strokeWidth={1.75} />
               </span>
               {item.label}
-            </Link>
+            </a>
           );
         })}
       </nav>
       <div className="sidebar-footer">
-        <Link
+        <a
           href="/system"
           className={`nav-link${pathname.startsWith('/system') ? ' nav-link-active' : ''}`}
         >
@@ -55,7 +54,7 @@ export function SidebarNav() {
             <Settings size={20} strokeWidth={1.75} />
           </span>
           System settings
-        </Link>
+        </a>
       </div>
     </>
   );

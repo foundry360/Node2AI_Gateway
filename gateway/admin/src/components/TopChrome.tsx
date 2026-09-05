@@ -1,8 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Clock, LogOut, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
+import { ProfileMenu } from '@/components/ProfileMenu';
 
 export function TopChrome({
   context,
@@ -29,9 +29,9 @@ export function TopChrome({
   return (
     <header className="topchrome">
       <div className="topchrome-left">
-        <Link href="/" className="topchrome-brand">
+        <a href="/" className="topchrome-brand">
           Enigma
-        </Link>
+        </a>
         <span className="topchrome-sep">/</span>
         <span className="topchrome-ctx">{crumb}</span>
       </div>
@@ -41,16 +41,7 @@ export function TopChrome({
           <span>Search</span>
           <kbd>⌘K</kbd>
         </div>
-        <button type="button" className="icon-btn" aria-label="History" title="History">
-          <Clock size={18} strokeWidth={1.75} />
-        </button>
-        <span className="topchrome-user muted">{userName}</span>
-        <form action="/api/auth/logout" method="POST">
-          <button type="submit" className="icon-btn" aria-label="Sign out" title="Sign out">
-            <LogOut size={18} strokeWidth={1.75} />
-          </button>
-        </form>
-        <div className="avatar" title={userName} aria-label={userName} />
+        <ProfileMenu userName={userName} />
       </div>
     </header>
   );

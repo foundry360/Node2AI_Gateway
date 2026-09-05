@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { proxyJson } from '@/lib/client-api';
+import { formatReasonCodes } from '@/lib/reason-codes';
 import { StatusBadge } from '@/components/StatusBadge';
 
 type Decision = {
@@ -208,8 +209,8 @@ export function PolicySimulatePanel({ policyId }: { policyId: string }) {
             <div className="muted" style={{ marginBottom: '0.35rem' }}>
               Reason codes
             </div>
-            <div className="mono">
-              {(simResult.reason_codes ?? []).join(', ') || '—'}
+            <div>
+              {formatReasonCodes(simResult.reason_codes) || '—'}
             </div>
           </div>
           <div>
