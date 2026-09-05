@@ -241,7 +241,8 @@ const BASELINE_OUTPUT: PolicyDefinition = {
 };
 
 const HIPAA: PolicyDefinition = {
-  description: 'HIPAA overlay: reinforce PHI local-only and no external transmission.',
+  description:
+    'HIPAA pack v3: PHI regulatory applicability with Enigma controls. health-sensitive ≠ PHI. LOCAL/PRIVATE ≠ HIPAA compliant. TOKENIZE/detokenize are Enigma implementation options. Not a HIPAA compliance certification.',
   owner: 'compliance',
   priority: 200,
   scope_tier: 'regulatory',
@@ -249,57 +250,97 @@ const HIPAA: PolicyDefinition = {
   subjects: [
     {
       type: 'application',
-      match: 'any (when PHI)',
-      description: 'Applies when request classification is PHI.',
+      match: 'any (when regulatory PHI / HIPAA applicability)',
+      description: 'Applies when classification is PHI and HIPAA is applicable — not mere health-sensitive context.',
     },
   ],
   resources: [
     {
       type: 'prompt_content',
       classification: 'PHI',
-      description: 'Protected health information.',
+      description: 'Protected health information (regulatory).',
     },
   ],
   actions: [
     {
       action: '*',
       effect: 'restrict',
-      description: 'Never weaken a prior DENY; may further restrict models.',
+      description: 'Never weaken a prior DENY; may further restrict models and release.',
     },
   ],
   ai_context: [
     {
       key: 'requested_model',
-      constraint: 'Cloud/public models denied for PHI',
+      constraint: 'External processing denied when required controls are not satisfied',
     },
     {
-      key: 'eligible_models',
-      constraint: 'Filtered to local-* only',
+      key: 'purpose',
+      constraint: 'Explicit unknown purpose does not silently become approved',
     },
   ],
   conditions: [
     {
-      id: 'c_hipaa_cloud',
-      statement: 'IF PHI AND (cloud requested OR cloud eligible) THEN DENY',
+      id: 'HIPAA-R-INPUT-EXTERNAL-DENY',
+      statement:
+        'IF PHI AND HIPAA applicable AND unauthorized_external AND NOT controls_satisfied THEN DENY',
+    },
+    {
+      id: 'HIPAA-R-INPUT-CONTROLS-SATISFIED',
+      statement:
+        'IF PHI AND local_or_private AND controls_satisfied THEN ALLOW_WITH_CONTROLS (not a compliance claim)',
+    },
+    {
+      id: 'HIPAA-R-INPUT-INSUFFICIENT-EVIDENCE',
+      statement: 'IF PHI AND evidence_insufficient THEN REVIEW',
+    },
+    {
+      id: 'HIPAA-R-OUT-RELEASE-EVAL',
+      statement:
+        'IF tokens AND release_conditions_satisfied THEN ENIGMA AUTHORIZED_DETOKENIZATION',
     },
   ],
   decisions: [
     {
-      when: 'PHI with cloud path',
+      when: 'PHI with external controls not satisfied',
       decision: 'DENY',
-      reason_codes: ['HIPAA_PHI_CLOUD_BLOCKED'],
+      reason_codes: ['HIPAA_PHI_EXTERNAL_CONTROLS_NOT_SATISFIED'],
+    },
+    {
+      when: 'PHI with processing controls satisfied',
+      decision: 'ALLOW',
+      reason_codes: ['HIPAA_PHI_PROCESSING_CONTROLS_SATISFIED'],
+    },
+    {
+      when: 'Insufficient evidence',
+      decision: 'REVIEW',
+      reason_codes: ['HIPAA_PHI_INSUFFICIENT_EVIDENCE_FOR_PROCESSING'],
+    },
+    {
+      when: 'Unauthorized residual PHI in output',
+      decision: 'BLOCK_OUTPUT',
+      reason_codes: ['HIPAA_PHI_OUTPUT_NOT_AUTHORIZED'],
     },
   ],
   obligations: [
     {
       code: 'LOCAL_MODEL_ONLY',
-      when: 'PHI',
-      description: 'Force local execution for PHI.',
+      when: 'Enigma implementation option for PHI path',
+      description: 'Enigma control — not a HIPAA mandate.',
     },
     {
       code: 'NO_EXTERNAL_TRANSMISSION',
-      when: 'PHI',
-      description: 'No external transmission of PHI.',
+      when: 'Enigma implementation option',
+      description: 'Enigma control supporting transmission security obligation.',
+    },
+    {
+      code: 'TOKENIZE_PII',
+      when: 'optional Enigma control on non-trusted entity spans',
+      description: 'TOKENIZE is Enigma enforcement, not a HIPAA mandate.',
+    },
+    {
+      code: 'AUTHORIZE_DETOKENIZATION',
+      when: 'Enigma release policy when release conditions satisfied',
+      description: 'Enigma release decides; gateway enforces. HIPAA does not issue detokenize.',
     },
   ],
 };
@@ -447,6 +488,7 @@ const BY_POLICY_ID: Record<string, PolicyDefinition> = {
   pol_phase2_core: BASELINE_INPUT,
   pol_phase5_response: BASELINE_OUTPUT,
   pol_hipaa_phi_local: HIPAA,
+  pol_hipaa_release: HIPAA,
   pol_financial_tokenize: FINANCIAL,
   pol_legal_no_external: LEGAL,
 };
@@ -455,6 +497,10 @@ const BY_INTERPRETER: Record<string, PolicyDefinition> = {
   baseline_input_v2: BASELINE_INPUT,
   baseline_output_v5: BASELINE_OUTPUT,
   hipaa_overlay_v1: HIPAA,
+  hipaa_pack_v2: HIPAA,
+  hipaa_pack_v2_output: HIPAA,
+  hipaa_pack_v3: HIPAA,
+  hipaa_pack_v3_output: HIPAA,
   financial_overlay_v1: FINANCIAL,
   legal_overlay_v1: LEGAL,
 };

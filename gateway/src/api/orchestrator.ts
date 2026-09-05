@@ -167,6 +167,7 @@ export class GatewayOrchestrator {
           requested_model: body.model,
           environment: principal.application.environment,
           deployment_mode: this.deps.config.deploymentMode,
+          application_type: principal.application.type,
         });
       } catch {
         return block(

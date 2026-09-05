@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://enigma.local/schemas/policy-pack-contract.json",
+  "title": "Enigma Policy Pack Contract Fragments",
+  "description": "Shared vocabulary for requirement types, decisions, and authority ranks. Schema version 1.0.0.",
+  "type": "object",
+  "$defs": {
+    "requirement_type": {
+      "type": "string",
+      "enum": [
+        "REGULATORY_REQUIREMENT",
+        "DERIVED_CONTROL",
+        "IMPLEMENTATION_OPTION"
+      ]
+    },
+    "definition_type": {
+      "type": "string",
+      "enum": ["REGULATORY_DEFINITION", "ENIGMA_OPERATIONAL_DEFINITION"]
+    },
+    "rule_decision": {
+      "type": "string",
+      "enum": [
+        "DENY",
+        "ALLOW",
+        "ALLOW_WITH_CONTROLS",
+        "TRANSFORM",
+        "TOKENIZE",
+        "REVIEW",
+        "BLOCK_OUTPUT",
+        "AUTHORIZED_DETOKENIZATION"
+      ]
+    },
+    "rule_phase": {
+      "type": "string",
+      "enum": ["input", "output"]
+    },
+    "authority_rank": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 6,
+      "description": "1=primary law/CFR … 4=implementation guidance … 6=secondary"
+    },
+    "authority_type": {
+      "type": "string",
+      "enum": [
+        "PRIMARY_REGULATORY",
+        "OFFICIAL_REGULATORY_GUIDANCE",
+        "FEDERAL_GUIDANCE",
+        "IMPLEMENTATION_GUIDANCE",
+        "RECOGNIZED_STANDARD",
+        "SECONDARY"
+      ]
+    },
+    "source_record": {
+      "type": "object",
+      "required": ["source_id", "authority", "authority_tier", "authority_type", "legal_authority"],
+      "properties": {
+        "source_id": { "type": "string" },
+        "authority": { "type": "string" },
+        "authority_tier": { "$ref": "#/$defs/authority_rank" },
+        "authority_type": { "$ref": "#/$defs/authority_type" },
+        "legal_authority": { "type": "boolean" },
+        "title": { "type": "string" },
+        "publisher": { "type": "string" },
+        "citation": { "type": "string" },
+        "canonical_url": { "type": ["string", "null"] },
+        "effective_date": { "type": ["string", "null"] },
+        "retrieved_date": { "type": ["string", "null"] },
+        "version": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "obligation_provenance": {
+      "type": "object",
+      "required": ["obligation_id", "citations", "source_ids"],
+      "properties": {
+        "obligation_id": { "type": "string" },
+        "requirement_type": { "$ref": "#/$defs/requirement_type" },
+        "authority": { "type": "string" },
+        "authority_tier": { "$ref": "#/$defs/authority_rank" },
+        "citations": { "type": "array", "items": { "type": "string" } },
+        "source_ids": { "type": "array", "items": { "type": "string" } },
+        "informational": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+
+    "classification_layers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["DETECTION", "CLASSIFICATION", "REGULATORY_APPLICABILITY"]
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "rule": {
+      "type": "object",
+      "required": ["rule_id", "phase", "priority", "conditions", "decision", "reason_codes"],
+      "properties": {
+        "rule_id": { "type": "string" },
+        "name": { "type": "string" },
+        "phase": { "$ref": "#/$defs/rule_phase" },
+        "priority": { "type": "integer" },
+        "requirement_type": { "$ref": "#/$defs/requirement_type" },
+        "conditions": { "type": "object" },
+        "decision": { "$ref": "#/$defs/rule_decision" },
+        "reason_codes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "obligation_ids": { "type": "array", "items": { "type": "string" } },
+        "control_ids": { "type": "array", "items": { "type": "string" } },
+        "enigma_obligations": { "type": "array", "items": { "type": "string" } },
+        "sources": { "type": "array", "items": { "type": "string" } },
+        "source_type": { "type": "string" },
+        "derived_from": { "type": "array", "items": { "type": "string" } },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

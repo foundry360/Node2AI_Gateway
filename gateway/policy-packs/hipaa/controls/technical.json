@@ -1,0 +1,74 @@
+{
+  "version": "3.0.0",
+  "controls": [
+    {
+      "id": "ctrl_processing_environment",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "control_type": "implementation_option",
+      "name": "Processing environment gate",
+      "description": "Restrict PHI processing to local/private model environments when external controls are not satisfied. Does NOT assert HIPAA compliance.",
+      "enigma_actions": ["LOCAL_MODEL_ONLY", "APPROVED_MODEL_ONLY"],
+      "satisfies_obligations": ["HIPAA-OBL-PHI-PROTECTION", "HIPAA-OBL-TRANSMISSION"],
+      "note": "LOCAL/PRIVATE is an Enigma control option, not a legal certification."
+    },
+    {
+      "id": "ctrl_authorization",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "control_type": "implementation_option",
+      "name": "Authorization / trust gate",
+      "enigma_actions": ["REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION", "REVIEW"],
+      "satisfies_obligations": ["HIPAA-OBL-ACCESS", "HIPAA-OBL-DISCLOSURE", "HIPAA-OBL-AUTHORIZATION"]
+    },
+    {
+      "id": "ctrl_audit_logging",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "control_type": "implementation_option",
+      "name": "Governance audit logging",
+      "enigma_actions": ["LOG_GOVERNANCE_EVENT"],
+      "satisfies_obligations": ["HIPAA-OBL-AUDIT"]
+    },
+    {
+      "id": "ctrl_transmission_security",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "control_type": "implementation_option",
+      "name": "Block unauthorized external transmission",
+      "enigma_actions": ["NO_EXTERNAL_TRANSMISSION", "DENY"],
+      "satisfies_obligations": ["HIPAA-OBL-TRANSMISSION"]
+    },
+    {
+      "id": "ctrl_tokenization",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "control_type": "implementation_option",
+      "source_type": "DERIVED_CONTROL",
+      "name": "Vault tokenization",
+      "enigma_actions": ["TOKENIZE_PII", "TOKENIZE"],
+      "satisfies_obligations": ["HIPAA-OBL-PHI-PROTECTION", "HIPAA-OBL-TRANSMISSION", "HIPAA-OBL-MINIMUM-NECESSARY"],
+      "note": "Enigma mechanism — not a HIPAA mandate"
+    },
+    {
+      "id": "ctrl_output_inspection",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "control_type": "implementation_option",
+      "name": "Output inspection",
+      "enigma_actions": ["BLOCK_OUTPUT"],
+      "satisfies_obligations": ["HIPAA-OBL-PHI-PROTECTION", "HIPAA-OBL-DISCLOSURE"]
+    },
+    {
+      "id": "ctrl_authorized_release",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "control_type": "implementation_option",
+      "name": "Enigma release / detokenization gate",
+      "enigma_actions": ["AUTHORIZE_DETOKENIZATION"],
+      "satisfies_obligations": ["HIPAA-OBL-DISCLOSURE", "HIPAA-OBL-ACCESS"],
+      "note": "Enigma release policy authorizes detokenization; HIPAA obligations inform the evaluation but do not issue the detokenize command."
+    },
+    {
+      "id": "ctrl_no_write_back",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "control_type": "implementation_option",
+      "name": "No unauthorized write-back",
+      "enigma_actions": ["NO_WRITE_BACK", "DENY"],
+      "satisfies_obligations": ["HIPAA-OBL-DISCLOSURE", "HIPAA-OBL-INTEGRITY"]
+    }
+  ]
+}

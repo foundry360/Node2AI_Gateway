@@ -143,14 +143,14 @@ VALUES
 )
 ON CONFLICT (test_id) DO NOTHING;
 
--- M4 regulatory pack frameworks (subset overlays)
+-- M4+ regulatory packs (HIPAA pack v2 + financial/legal frameworks)
 INSERT INTO policy_packs (pack_id, name, domain, description, status)
 VALUES
 (
   'pack_hipaa',
   'HIPAA',
   'hipaa',
-  'Healthcare PHI overlay — reinforces local-only / no external transmission.',
+  'HIPAA AI/data governance pack v2 — health-information lifecycle (identify→controls→release). Not a compliance certification.',
   'active'
 ),
 (
@@ -167,7 +167,10 @@ VALUES
   'Legal privilege — no external models framework (activate overlay to enforce).',
   'draft'
 )
-ON CONFLICT (pack_id) DO NOTHING;
+ON CONFLICT (pack_id) DO UPDATE SET
+  description = EXCLUDED.description,
+  status = EXCLUDED.status,
+  updated_at = now();
 
 INSERT INTO epa_policies (policy_id, pack_id, organization_id, name, description, owner, domain, created_by)
 VALUES
@@ -175,8 +178,18 @@ VALUES
   'pol_hipaa_phi_local',
   'pack_hipaa',
   NULL,
-  'PHI local-only (HIPAA overlay)',
-  'M4 subset overlay.',
+  'HIPAA health-information input governance',
+  'HIPAA pack v2 input — obligations/controls for health-sensitive processing.',
+  'enigma',
+  'hipaa',
+  'seed'
+),
+(
+  'pol_hipaa_release',
+  'pack_hipaa',
+  NULL,
+  'HIPAA output/release governance',
+  'HIPAA pack v2 output — residual PHI block and authorized detokenization.',
   'enigma',
   'hipaa',
   'seed'
@@ -201,7 +214,9 @@ VALUES
   'legal',
   'seed'
 )
-ON CONFLICT (policy_id) DO NOTHING;
+ON CONFLICT (policy_id) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description;
 
 INSERT INTO policy_versions (
   policy_version_id, policy_id, version, status, priority, scope_tier, phase,
@@ -212,15 +227,75 @@ VALUES
   'pv_pol_hipaa_phi_local_v1',
   'pol_hipaa_phi_local',
   1,
+  'suspended',
+  200,
+  'regulatory',
+  'input',
+  NULL,
+  NULL,
+  'M4 HIPAA overlay (immutable historical)',
+  'sha256:hipaa_overlay_v1',
+  '[{"interpreter":"hipaa_overlay_v1"}]'::jsonb,
+  'seed'
+),
+(
+  'pv_pol_hipaa_v2',
+  'pol_hipaa_phi_local',
+  2,
+  'suspended',
+  200,
+  'regulatory',
+  'input',
+  NULL,
+  NULL,
+  'HIPAA pack v2 — health-information lifecycle governance (immutable historical; suspended on v3)',
+  'sha256:hipaa_pack_v2',
+  '[{"interpreter":"hipaa_pack_v2","classification_profile_id":"hipaa_class_profile_v2"}]'::jsonb,
+  'seed'
+),
+(
+  'pv_pol_hipaa_v3',
+  'pol_hipaa_phi_local',
+  3,
   'active',
   200,
   'regulatory',
   'input',
   now(),
   'seed',
-  'M4 HIPAA overlay',
-  'sha256:hipaa_overlay_v1',
-  '[{"interpreter":"hipaa_overlay_v1"}]'::jsonb,
+  'HIPAA pack v3 — PHI vs health-sensitive; controls-satisfied; purpose context',
+  'sha256:hipaa_pack_v3',
+  '[{"interpreter":"hipaa_pack_v3","classification_profile_id":"hipaa_class_profile_v3"}]'::jsonb,
+  'seed'
+),
+(
+  'pv_pol_hipaa_release_v1',
+  'pol_hipaa_release',
+  1,
+  'suspended',
+  200,
+  'regulatory',
+  'output',
+  NULL,
+  NULL,
+  'HIPAA pack v2 output/release governance (immutable historical)',
+  'sha256:hipaa_pack_v2_output',
+  '[{"interpreter":"hipaa_pack_v2_output"}]'::jsonb,
+  'seed'
+),
+(
+  'pv_pol_hipaa_release_v2',
+  'pol_hipaa_release',
+  2,
+  'active',
+  200,
+  'regulatory',
+  'output',
+  now(),
+  'seed',
+  'HIPAA pack v3 output — Enigma release authorizes detokenization',
+  'sha256:hipaa_pack_v3_output',
+  '[{"interpreter":"hipaa_pack_v3_output"}]'::jsonb,
   'seed'
 ),
 (
@@ -253,4 +328,10 @@ VALUES
   '[{"interpreter":"legal_overlay_v1"}]'::jsonb,
   'seed'
 )
-ON CONFLICT (policy_id, version) DO NOTHING;
+ON CONFLICT (policy_id, version) DO UPDATE SET
+  status = EXCLUDED.status,
+  changelog = EXCLUDED.changelog,
+  content_hash = EXCLUDED.content_hash,
+  rules = EXCLUDED.rules,
+  activated_at = EXCLUDED.activated_at,
+  activated_by = EXCLUDED.activated_by;

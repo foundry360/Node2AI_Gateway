@@ -1,0 +1,17 @@
+{
+  "version": "3.0.0",
+  "tests": [
+    { "id": "t01", "name": "MRN → PHI + HIPAA applicability" },
+    { "id": "t02", "name": "EMAIL alone → PII, not HIPAA" },
+    { "id": "t03", "name": "EMAIL + health context → PHI" },
+    { "id": "t04", "name": "Credential not elevated to PHI" },
+    { "id": "t05", "name": "health-sensitive ≠ PHI" },
+    { "id": "t06", "name": "local ≠ HIPAA approved; controls-satisfied reason" },
+    { "id": "t08", "name": "PHI + public cloud → DENY" },
+    { "id": "t09", "name": "PHI + controls satisfied → ALLOW_WITH_CONTROLS semantics" },
+    { "id": "t10", "name": "purpose=unknown → REVIEW" },
+    { "id": "t12", "name": "Enigma release authorizes detokenization" },
+    { "id": "t14", "name": "Residual PHI → BLOCK" }
+  ],
+  "runtime_suite": "gateway/tests/unit/regulatory-packs.test.ts"
+}

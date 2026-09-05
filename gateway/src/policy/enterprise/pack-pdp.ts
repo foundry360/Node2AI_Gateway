@@ -17,12 +17,25 @@ import type {
   PolicyDecision,
   PolicyEvaluationRequest,
 } from './types.js';
+import { toEvaluationRecord } from './evaluation-record.js';
 
 function newEvaluationId(): string {
   return `eval_${randomBytes(8).toString('hex')}`;
 }
 
 function factsFromRequest(context: PolicyRequestContext): BaselineFacts {
+  const entityTypes = context.classification.entities?.map((e) => e.type) ?? [];
+  const reasonCodes = context.classification.reason_codes ?? [];
+  const regulatory = reasonCodes
+    .filter((c) => c.startsWith('REGULATORY_APPLICABILITY:'))
+    .map((c) => c.replace('REGULATORY_APPLICABILITY:', ''));
+  if (
+    (String(context.classification.sensitivity).toUpperCase() === 'PHI' ||
+      String(context.classification.sensitivity).toUpperCase() === 'EPHI') &&
+    !regulatory.includes('HIPAA')
+  ) {
+    regulatory.push('HIPAA');
+  }
   return {
     trust_level: context.application.trust_level,
     application_status: context.application.status,
@@ -35,6 +48,26 @@ function factsFromRequest(context: PolicyRequestContext): BaselineFacts {
     roles: context.user.roles,
     requested_model: context.requestedModel,
     available_models: context.availableModels,
+    entity_types: entityTypes,
+    has_entity_spans: entityTypes.length > 0,
+    health_context: reasonCodes.some(
+      (c) =>
+        c.includes('HEALTH') ||
+        c.includes('HIPAA_PROFILE') ||
+        c.startsWith('PROFILE:hipaa'),
+    ),
+    health_sensitive: reasonCodes.some(
+      (c) => c.includes('ENIGMA_HEALTH_SENSITIVE') || c.includes('HEALTH_INFORMATION'),
+    ),
+    classification_profile_id: reasonCodes
+      .find((c) => c.startsWith('PROFILE:'))
+      ?.replace('PROFILE:', ''),
+    regulatory_applicability: regulatory,
+    purpose: context.purpose,
+    recipient: context.recipient,
+    source_system: context.source_system,
+    processing_location: context.processing_location,
+    authorization_context: context.authorization_context,
   };
 }
 
@@ -42,6 +75,15 @@ function factsFromResponse(
   context: PolicyResponseContext,
   allowDetokenization: boolean,
 ): BaselineFacts {
+  const releaseConditions =
+    context.release_conditions_satisfied !== undefined
+      ? context.release_conditions_satisfied
+      : allowDetokenization &&
+        !!context.inspection.contains_tokens &&
+        !!context.input_was_tokenized &&
+        context.application.trust_level === 'trusted' &&
+        context.application.type === 'clinical' &&
+        context.user.roles.includes('clinician');
   return {
     trust_level: context.application.trust_level,
     application_status: context.application.status,
@@ -59,6 +101,13 @@ function factsFromResponse(
     contains_tokens: context.inspection.contains_tokens,
     input_was_tokenized: context.input_was_tokenized,
     allow_detokenization: allowDetokenization,
+    release_authorized: releaseConditions,
+    release_conditions_satisfied: releaseConditions,
+    entity_types: context.inspection.entities?.map((e) => e.type) ?? [],
+    has_entity_spans: (context.inspection.entities?.length ?? 0) > 0,
+    purpose: context.purpose,
+    recipient: context.recipient,
+    authorization_context: context.authorization_context,
   };
 }
 
@@ -66,17 +115,41 @@ function toEpaDecision(
   result: InterpretedResult,
   evidence: PolicyDecision['evidence'],
 ): PolicyDecision {
+  const provenance = result.provenance;
+  const resolution = result.resolution;
+  const evidenceOut: PolicyDecision['evidence'] = {
+    ...evidence,
+    classification_provenance:
+      evidence.classification_provenance ?? provenance?.classification,
+  };
+
+  const applicable_policies = [
+    {
+      policy_id: result.policy_id,
+      version: result.policy_version,
+      pack_id: result.pack_id,
+    },
+  ];
+  // Only surface additional pack refs when multiple packs contributed to resolution.
+  // Single-pack reinforce (HIPAA on baseline DENY) must not change applicable_policies parity.
+  if ((resolution?.resolution.contributing_pack_ids.length ?? 0) > 1) {
+    for (const p of resolution!.applicable_policies) {
+      if (
+        p.policy_id === result.policy_id &&
+        p.version === result.policy_version &&
+        p.pack_id === result.pack_id
+      ) {
+        continue;
+      }
+      applicable_policies.push(p);
+    }
+  }
+
   return {
     decision: result.decision,
     reason: result.reason_codes.join(', ') || result.decision,
     reason_codes: result.reason_codes,
-    applicable_policies: [
-      {
-        policy_id: result.policy_id,
-        version: result.policy_version,
-        pack_id: result.pack_id,
-      },
-    ],
+    applicable_policies,
     obligations: result.obligations,
     transformations: result.transforms,
     restrictions: {
@@ -87,7 +160,7 @@ function toEpaDecision(
       ),
     },
     approval_requirements: [],
-    conflicts: [],
+    conflicts: resolution?.conflicts ?? [],
     explanation: {
       matched_conditions: result.matched.map((detail) => ({
         policy_id: result.policy_id,
@@ -97,8 +170,44 @@ function toEpaDecision(
       })),
       rejected_conditions: [],
       final_reason: result.reason_codes.join(', ') || result.decision,
+      provenance: provenance
+        ? {
+            matched_rules: provenance.matched_rules,
+            sources: provenance.sources?.map((s) => ({
+              source_id: s.source_id,
+              authority: s.authority,
+              authority_tier: s.authority_tier,
+              authority_type: s.authority_type,
+              legal_authority: s.legal_authority,
+              citation: s.citation,
+              title: s.title,
+              publisher: s.publisher,
+              canonical_url: s.canonical_url,
+            })),
+            classification: provenance.classification,
+            controls: provenance.controls,
+            enforcement: provenance.enforcement,
+          }
+        : undefined,
+      resolution: resolution
+        ? {
+            category: resolution.resolution.category,
+            basis: resolution.resolution.basis,
+            contributing_pack_ids: resolution.resolution.contributing_pack_ids,
+            detail: resolution.resolution.detail,
+            conflict_pairs: resolution.resolution.conflict_pairs,
+            contributions: resolution.resolution.contributions.map((c) => ({
+              pack_id: c.pack_id,
+              policy_id: c.policy_id,
+              policy_version: c.policy_version,
+              decision: c.decision,
+              rule_ids: c.rule_ids,
+              obligation_ids: c.obligation_ids,
+            })),
+          }
+        : undefined,
     },
-    evidence,
+    evidence: evidenceOut,
     evaluation_id: newEvaluationId(),
   };
 }
@@ -144,6 +253,20 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
       };
     }
 
+    const reasonCodes = request.evidence.reason_codes ?? [];
+    const regulatory = reasonCodes
+      .filter((c) => c.startsWith('REGULATORY_APPLICABILITY:'))
+      .map((c) => c.replace('REGULATORY_APPLICABILITY:', ''));
+    const classification = String(
+      request.evidence.classification ?? request.resource.classification ?? 'INTERNAL',
+    );
+    if (
+      (classification.toUpperCase() === 'PHI' || classification.toUpperCase() === 'EPHI') &&
+      !regulatory.includes('HIPAA')
+    ) {
+      regulatory.push('HIPAA');
+    }
+
     const facts: BaselineFacts = {
       trust_level: request.subject.trust_level,
       application_status: String(
@@ -153,9 +276,7 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
       allowed_operations: request.resource.attributes.allowed_operations as string[],
       allowed_models: request.resource.attributes.allowed_models as string[],
       operation: request.action.toLowerCase(),
-      classification: String(
-        request.evidence.classification ?? request.resource.classification ?? 'INTERNAL',
-      ),
+      classification,
       deployment_mode: request.context.deployment_mode,
       roles: request.subject.roles,
       requested_model: request.ai_context.requested_model,
@@ -168,6 +289,36 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
       ),
       contains_tokens: request.evidence.contains_tokens,
       input_was_tokenized: request.evidence.input_was_tokenized,
+      entity_types: request.evidence.entities?.map((e) => e.type) ?? [],
+      has_entity_spans: (request.evidence.entities?.length ?? 0) > 0,
+      health_context: reasonCodes.some(
+        (c) =>
+          c.includes('HEALTH') ||
+          c.includes('HIPAA_PROFILE') ||
+          c.startsWith('PROFILE:hipaa'),
+      ),
+      health_sensitive: reasonCodes.some((c) => c.includes('ENIGMA_HEALTH_SENSITIVE')),
+      release_authorized:
+        !!request.evidence.contains_tokens &&
+        !!request.evidence.input_was_tokenized &&
+        request.subject.trust_level === 'trusted' &&
+        String(request.resource.attributes.application_type ?? '') === 'clinical' &&
+        request.subject.roles.includes('clinician'),
+      release_conditions_satisfied:
+        !!request.evidence.contains_tokens &&
+        !!request.evidence.input_was_tokenized &&
+        request.subject.trust_level === 'trusted' &&
+        String(request.resource.attributes.application_type ?? '') === 'clinical' &&
+        request.subject.roles.includes('clinician'),
+      classification_profile_id: reasonCodes
+        .find((c) => c.startsWith('PROFILE:'))
+        ?.replace('PROFILE:', ''),
+      regulatory_applicability: regulatory,
+      purpose: request.context.purpose,
+      recipient: request.context.recipient,
+      source_system: request.context.source,
+      processing_location: request.context.processing_location,
+      authorization_context: request.context.authorization,
     };
 
     if (request.evaluation_phase === 'output') {
@@ -229,7 +380,9 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
     const result = interpretBaselineInput(facts, meta);
     const overlays = this.repository.listActiveOverlays('input');
     const withOverlays = applyRegulatoryOverlays(result, facts, overlays);
-    return toEpaDecision(withOverlays, evidence);
+    const decision = toEpaDecision(withOverlays, evidence);
+    this.persistEvaluation(decision, 'input');
+    return decision;
   }
 
   private async evaluateOutputFacts(
@@ -241,7 +394,21 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
       return failClosed('No active baseline output policy', evidence);
     }
     const result = interpretBaselineOutput(facts, meta);
-    return toEpaDecision(result, evidence);
+    const overlays = this.repository.listActiveOverlays('output');
+    const withOverlays = applyRegulatoryOverlays(result, facts, overlays);
+    const decision = toEpaDecision(withOverlays, evidence);
+    this.persistEvaluation(decision, 'output');
+    return decision;
+  }
+
+  private persistEvaluation(
+    decision: PolicyDecision,
+    phase: 'input' | 'output' | 'simulate',
+  ): void {
+    if (!this.repository.recordEvaluation) return;
+    void this.repository.recordEvaluation(
+      toEvaluationRecord(decision, { evaluation_phase: phase }),
+    );
   }
 }
 

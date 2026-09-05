@@ -61,7 +61,9 @@ describe('Phase 5 acceptance — Response Governance', () => {
     expect(result.httpStatus).toBe(403);
     expect(result.body.status).toBe('blocked');
     if (result.body.status === 'blocked') {
-      expect(result.body.reason_code).toBe('RESPONSE_PHI_BLOCKED');
+      expect(result.body.reason_code).toMatch(
+        /^(RESPONSE_PHI_BLOCKED|HIPAA_PHI_OUTPUT_NOT_AUTHORIZED)$/,
+      );
     }
     const last = (await gw.audit.list()).at(-1)!;
     expect(last.response_decision).toBe('BLOCK');

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { adminFetch } from '@/lib/api';
+import { formatDomainLabel } from '@/lib/domain-label';
 import { PageHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ConsoleTabs } from '@/components/ConsoleTabs';
@@ -175,9 +176,7 @@ export default async function OverviewPage() {
                           <div className="status-pack-main">
                             <div className="status-pack-name">{p.name}</div>
                             <div className="status-pack-domain muted">
-                              {p.domain
-                                ? p.domain.charAt(0).toUpperCase() + p.domain.slice(1)
-                                : '—'}
+                              {formatDomainLabel(p.domain)}
                             </div>
                           </div>
                           <div className="status-pack-status">

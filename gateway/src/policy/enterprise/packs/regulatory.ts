@@ -5,6 +5,19 @@ import type {
   PackPolicyMeta,
   PackSnapshot,
 } from './baseline.js';
+import { compileHipaaPack } from './hipaa/compile.js';
+import {
+  applyHipaaPackV2Input,
+  applyHipaaPackV2Output,
+  applyHipaaPackV3Input,
+  applyHipaaPackV3Output,
+} from './hipaa/pack-v2.js';
+import {
+  applyRegisteredOverlays,
+  mergePackContributions,
+  registerOverlayInterpreter,
+  type PackContribution,
+} from '../overlay-registry.js';
 
 function isCloudModel(modelId: string): boolean {
   return (
@@ -15,46 +28,14 @@ function isCloudModel(modelId: string): boolean {
   );
 }
 
-/**
- * Regulatory pack overlays (M4 framework).
- * Subset rules only — full regulatory packs are Future expansions.
- * Overlays never weaken a prior DENY; they may further restrict.
- */
-export function applyRegulatoryOverlays(
-  result: InterpretedResult,
-  facts: BaselineFacts,
-  overlays: PackPolicyMeta[],
-): InterpretedResult {
-  let current = { ...result, obligations: [...result.obligations], matched: [...result.matched] };
-
-  for (const meta of overlays) {
-    if (meta.status !== 'active') continue;
-
-    if (meta.interpreter === 'hipaa_overlay_v1' && facts.classification === 'PHI') {
-      current = applyHipaa(current, facts, meta);
-    }
-    if (
-      meta.interpreter === 'financial_overlay_v1' &&
-      (facts.classification === 'FINANCIAL' || facts.classification === 'Financial')
-    ) {
-      current = applyFinancial(current, facts, meta);
-    }
-    if (
-      meta.interpreter === 'legal_overlay_v1' &&
-      (facts.classification === 'LEGAL' || facts.classification === 'Legal')
-    ) {
-      current = applyLegal(current, facts, meta);
-    }
-  }
-
-  return current;
-}
-
+/** Legacy v1 overlay kept for reactivation / comparison; default seed activates pack v3. */
 function applyHipaa(
   current: InterpretedResult,
   facts: BaselineFacts,
   meta: PackPolicyMeta,
 ): InterpretedResult {
+  if (facts.classification !== 'PHI') return current;
+
   const matched = [...current.matched, 'hipaa_overlay'];
 
   if (current.decision === 'DENY') {
@@ -79,7 +60,11 @@ function applyHipaa(
       reason_codes: ['HIPAA_PHI_CLOUD_BLOCKED', ...current.reason_codes],
       eligible_models: [],
       transforms: [],
-      obligations: [{ code: 'LOCAL_MODEL_ONLY' }, { code: 'NO_EXTERNAL_TRANSMISSION' }, { code: 'LOG_GOVERNANCE_EVENT' }],
+      obligations: [
+        { code: 'LOCAL_MODEL_ONLY' },
+        { code: 'NO_EXTERNAL_TRANSMISSION' },
+        { code: 'LOG_GOVERNANCE_EVENT' },
+      ],
       policy_id: meta.policy_id,
       policy_version: meta.version,
       pack_id: meta.pack_id,
@@ -108,11 +93,14 @@ function applyFinancial(
   facts: BaselineFacts,
   meta: PackPolicyMeta,
 ): InterpretedResult {
+  if (facts.classification !== 'FINANCIAL' && facts.classification !== 'Financial') {
+    return current;
+  }
+
   if (current.decision === 'DENY') {
     return { ...current, matched: [...current.matched, 'financial_overlay_skip_denied'] };
   }
 
-  // Expand: block WRITE/EXPORT/SHARE of financial data without approval obligation.
   if (['write', 'export', 'share', 'transmit'].includes(facts.operation)) {
     return {
       ...current,
@@ -159,13 +147,16 @@ function applyLegal(
   facts: BaselineFacts,
   meta: PackPolicyMeta,
 ): InterpretedResult {
+  if (facts.classification !== 'LEGAL' && facts.classification !== 'Legal') {
+    return current;
+  }
+
   const matched = [...current.matched, 'legal_overlay'];
 
   if (current.decision === 'DENY') {
     return { ...current, matched: [...matched, 'legal_reinforces_deny'] };
   }
 
-  // Expand: EXPORT/SHARE of legal data always denied.
   if (['export', 'share', 'transmit'].includes(facts.operation)) {
     return {
       ...current,
@@ -220,8 +211,38 @@ function applyLegal(
   };
 }
 
-/** Framework pack definitions for default EPA snapshot (M4). */
-export function regulatoryPackExtras(): Pick<PackSnapshot, 'packs' | 'policies'> {
+let defaultOverlaysRegistered = false;
+
+/** Idempotent registration of built-in regulatory overlay interpreters. */
+export function ensureDefaultOverlayRegistry(): void {
+  if (defaultOverlaysRegistered) return;
+  registerOverlayInterpreter('hipaa_pack_v3', applyHipaaPackV3Input);
+  registerOverlayInterpreter('hipaa_pack_v3_output', applyHipaaPackV3Output);
+  registerOverlayInterpreter('hipaa_pack_v2', applyHipaaPackV2Input);
+  registerOverlayInterpreter('hipaa_pack_v2_output', applyHipaaPackV2Output);
+  registerOverlayInterpreter('hipaa_overlay_v1', applyHipaa);
+  registerOverlayInterpreter('financial_overlay_v1', applyFinancial);
+  registerOverlayInterpreter('legal_overlay_v1', applyLegal);
+  defaultOverlaysRegistered = true;
+}
+
+/**
+ * Regulatory pack overlays (M4+).
+ * Dispatches via generic interpreter registry — packs register apply functions.
+ * Overlays never weaken a prior DENY; they may further restrict.
+ */
+export function applyRegulatoryOverlays(
+  result: InterpretedResult,
+  facts: BaselineFacts,
+  overlays: PackPolicyMeta[],
+): InterpretedResult {
+  ensureDefaultOverlayRegistry();
+  return applyRegisteredOverlays(result, facts, overlays);
+}
+
+/** HIPAA pack contribution (reference pack under healthcare domain). */
+export function hipaaPackContribution(): PackContribution {
+  const hipaa = compileHipaaPack();
   return {
     packs: [
       {
@@ -230,29 +251,22 @@ export function regulatoryPackExtras(): Pick<PackSnapshot, 'packs' | 'policies'>
         name: 'HIPAA',
         domain: 'hipaa',
       },
+    ],
+    policies: [...hipaa.policies],
+  };
+}
+
+export function financialPackContribution(): PackContribution {
+  return {
+    packs: [
       {
         pack_id: 'pack_financial',
         status: 'draft',
         name: 'Financial Services',
         domain: 'financial',
       },
-      {
-        pack_id: 'pack_legal',
-        status: 'draft',
-        name: 'Legal',
-        domain: 'legal',
-      },
     ],
     policies: [
-      {
-        policy_id: 'pol_hipaa_phi_local',
-        version: 1,
-        pack_id: 'pack_hipaa',
-        name: 'PHI local-only (HIPAA overlay)',
-        phase: 'input',
-        status: 'active',
-        interpreter: 'hipaa_overlay_v1',
-      },
       {
         policy_id: 'pol_financial_tokenize',
         version: 1,
@@ -262,6 +276,21 @@ export function regulatoryPackExtras(): Pick<PackSnapshot, 'packs' | 'policies'>
         status: 'suspended',
         interpreter: 'financial_overlay_v1',
       },
+    ],
+  };
+}
+
+export function legalPackContribution(): PackContribution {
+  return {
+    packs: [
+      {
+        pack_id: 'pack_legal',
+        status: 'draft',
+        name: 'Legal',
+        domain: 'legal',
+      },
+    ],
+    policies: [
       {
         policy_id: 'pol_legal_no_external',
         version: 1,
@@ -273,4 +302,17 @@ export function regulatoryPackExtras(): Pick<PackSnapshot, 'packs' | 'policies'>
       },
     ],
   };
+}
+
+/**
+ * Framework pack definitions for default EPA snapshot.
+ * Contributions merge generically — add future packs via mergePackContributions.
+ */
+export function regulatoryPackExtras(): Pick<PackSnapshot, 'packs' | 'policies'> {
+  ensureDefaultOverlayRegistry();
+  return mergePackContributions(
+    hipaaPackContribution(),
+    financialPackContribution(),
+    legalPackContribution(),
+  );
 }

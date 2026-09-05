@@ -22,6 +22,13 @@ export interface PolicyRepository {
     status: string,
   ): PackSnapshot['packs'][number] | undefined | Promise<PackSnapshot['packs'][number] | undefined>;
   reload?(): Promise<void>;
+  /** Persist evaluation explanation (including provenance) when supported. */
+  recordEvaluation?(record: import('./evaluation-record.js').PolicyEvaluationRecord): void | Promise<void>;
+  getEvaluation?(
+    evaluationId: string,
+  ): import('./evaluation-record.js').PolicyEvaluationRecord | undefined | Promise<
+    import('./evaluation-record.js').PolicyEvaluationRecord | undefined
+  >;
 }
 
 /**
@@ -170,5 +177,57 @@ export class PostgresPolicyRepository implements PolicyRepository {
       // best-effort
     }
     return updated;
+  }
+
+  recordEvaluation(record: import('./evaluation-record.js').PolicyEvaluationRecord): void {
+    this.memory.recordEvaluation(record);
+    void this.persistEvaluationRow(record);
+  }
+
+  getEvaluation(evaluationId: string) {
+    return this.memory.getEvaluation(evaluationId);
+  }
+
+  private async persistEvaluationRow(
+    record: import('./evaluation-record.js').PolicyEvaluationRecord,
+  ): Promise<void> {
+    try {
+      await this.db.query(
+        `INSERT INTO policy_evaluations (
+           evaluation_id, request_id, phase, organization_id,
+           subject, resource, action, context, ai_context, evidence_in,
+           decision, reason, applicable_policies, obligations, explanation
+         ) VALUES (
+           $1, $2, $3, $4,
+           $5::jsonb, $6::jsonb, $7, $8::jsonb, $9::jsonb, $10::jsonb,
+           $11, $12, $13::jsonb, $14::jsonb, $15::jsonb
+         )
+         ON CONFLICT (evaluation_id) DO UPDATE SET
+           explanation = EXCLUDED.explanation,
+           decision = EXCLUDED.decision,
+           reason = EXCLUDED.reason,
+           applicable_policies = EXCLUDED.applicable_policies,
+           obligations = EXCLUDED.obligations`,
+        [
+          record.evaluation_id,
+          record.request_id ?? null,
+          record.phase,
+          record.organization_id ?? null,
+          JSON.stringify(record.subject),
+          JSON.stringify(record.resource),
+          record.action ?? null,
+          JSON.stringify(record.context),
+          JSON.stringify(record.ai_context),
+          JSON.stringify(record.evidence_in),
+          record.decision,
+          record.reason ?? null,
+          JSON.stringify(record.applicable_policies),
+          JSON.stringify(record.obligations),
+          JSON.stringify(record.explanation),
+        ],
+      );
+    } catch {
+      // best-effort — schema may be absent in some environments
+    }
   }
 }

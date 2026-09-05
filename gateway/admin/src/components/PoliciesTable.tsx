@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import { StatusBadge } from '@/components/StatusBadge';
+import { formatDomainLabel } from '@/lib/domain-label';
 
 const PAGE_SIZE = 25;
 
@@ -27,10 +28,6 @@ type PolicyRow = {
   priority?: number;
   domain?: string;
 };
-
-function capitalize(value: string) {
-  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
-}
 
 export function PoliciesTable({
   packs,
@@ -132,7 +129,7 @@ export function PoliciesTable({
                       <div className="muted mono">{p.policy_id}</div>
                     </td>
                     <td>
-                      <div>{domain ? capitalize(domain) : '—'}</div>
+                      <div>{formatDomainLabel(domain)}</div>
                       <div className="muted">{pack?.name ?? p.pack_id}</div>
                     </td>
                     <td>

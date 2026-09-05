@@ -1,4 +1,6 @@
 import type { Obligation, ObligationCode } from '../types.js';
+import type { DecisionProvenance } from '../provenance.js';
+import type { ResolvedPolicyOutcome } from '../policy-resolution.js';
 
 /** Facts bag for baseline pack interpreters (input + output). */
 export interface BaselineFacts {
@@ -19,6 +21,23 @@ export interface BaselineFacts {
   contains_tokens?: boolean;
   input_was_tokenized?: boolean;
   allow_detokenization?: boolean;
+  /** Pack enrichment (HIPAA / classification profiles) */
+  entity_types?: string[];
+  has_entity_spans?: boolean;
+  health_context?: boolean;
+  /** Enigma operational — not a legal HIPAA classification. */
+  health_sensitive?: boolean;
+  release_authorized?: boolean;
+  release_conditions_satisfied?: boolean;
+  classification_profile_id?: string;
+  regulatory_applicability?: string[];
+  evidence_sufficient?: boolean;
+  /** First-class purpose; unknown must not silently become approved. */
+  purpose?: string;
+  recipient?: string;
+  source_system?: string;
+  processing_location?: string;
+  authorization_context?: string;
 }
 
 export interface PackPolicyMeta {
@@ -32,9 +51,14 @@ export interface PackPolicyMeta {
     | 'baseline_input_v2'
     | 'baseline_output_v5'
     | 'hipaa_overlay_v1'
+    | 'hipaa_pack_v2'
+    | 'hipaa_pack_v2_output'
+    | 'hipaa_pack_v3'
+    | 'hipaa_pack_v3_output'
     | 'financial_overlay_v1'
     | 'legal_overlay_v1'
-    | 'framework_stub';
+    | 'framework_stub'
+    | (string & {});
   /** Admin / catalog enrichment (optional). */
   description?: string;
   owner?: string;
@@ -42,6 +66,15 @@ export interface PackPolicyMeta {
   scope_tier?: string;
   domain?: string;
   content_hash?: string;
+  /**
+   * Declared policy precedence for multi-pack conflict resolution.
+   * Distinct from source authority_tier — never inferred from citations alone.
+   */
+  precedence?: {
+    priority: number;
+    basis: 'DECLARED_POLICY_PRECEDENCE' | 'PACK_PRIORITY';
+    overrides_pack_ids?: string[];
+  };
 }
 
 export interface PackSnapshot {
@@ -55,7 +88,8 @@ export interface InterpretedResult {
     | 'DENY'
     | 'TOKENIZE'
     | 'REDACT'
-    | 'BLOCK_OUTPUT';
+    | 'BLOCK_OUTPUT'
+    | 'REVIEW';
   reason_codes: string[];
   eligible_models: string[];
   transforms: Array<{ type: string; targets: string[] }>;
@@ -65,6 +99,10 @@ export interface InterpretedResult {
   policy_version: number;
   pack_id: string;
   matched: string[];
+  /** Pack-agnostic provenance chain attached by pack interpreters. */
+  provenance?: DecisionProvenance;
+  /** Multi-pack resolution outcome when the generic resolver ran. */
+  resolution?: ResolvedPolicyOutcome;
 }
 
 function isCloudModel(modelId: string): boolean {

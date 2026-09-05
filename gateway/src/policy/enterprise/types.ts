@@ -63,6 +63,12 @@ export interface PolicyContext {
   risk_level?: 'low' | 'medium' | 'high';
   session_id?: string;
   application_environment?: string;
+  /** WHO/WHAT/WHY — optional; unknown must not silently become approved. */
+  purpose?: string;
+  recipient?: string;
+  source?: string;
+  processing_location?: string;
+  authorization?: string;
 }
 
 export interface PolicyAIContext {
@@ -81,6 +87,22 @@ export interface PolicyAIContext {
   eligible_models_hint?: string[];
 }
 
+export interface ClassificationProvenanceEvidence {
+  classification: string;
+  classification_basis?: {
+    type: 'ENIGMA_HEURISTIC' | 'REGULATORY_DEFINITION' | 'DETECTOR' | 'REQUEST_SUPPLIED' | (string & {});
+    rule_id?: string;
+  };
+  regulatory_reference?: {
+    source_ids: string[];
+    citations: string[];
+  };
+  applicability?: {
+    packs: string[];
+    basis: 'ENIGMA_OPERATIONAL' | (string & {});
+  };
+}
+
 export interface PolicyEvidence {
   classification?: ClassificationLabel;
   confidence?: number;
@@ -91,6 +113,8 @@ export interface PolicyEvidence {
   inspector_findings?: Array<{ code: string; detail?: string }>;
   contains_tokens?: boolean;
   input_was_tokenized?: boolean;
+  /** Distinguishes Enigma heuristics from regulatory definition references. */
+  classification_provenance?: ClassificationProvenanceEvidence;
 }
 
 export type EvaluationPhase = 'input' | 'output' | 'simulate';
@@ -115,6 +139,7 @@ export type PolicyDecisionCode =
   | 'TOKENIZE'
   | 'MASK'
   | 'REQUIRE_APPROVAL'
+  | 'REVIEW'
   | 'ROUTE_LOCAL'
   | 'RESTRICT_MODEL'
   | 'RESTRICT_DATA'
@@ -145,6 +170,47 @@ export interface Obligation {
   parameters?: Record<string, unknown>;
 }
 
+export interface MatchedRuleProvenanceEvidence {
+  rule_id: string;
+  obligation_ids: string[];
+  citations: string[];
+  source_ids: string[];
+  authority_tier?: number;
+  authority?: string;
+  authority_type?: string;
+  legal_authority?: boolean;
+  control_ids?: string[];
+  requirement_type?: string;
+  obligations?: Array<{
+    obligation_id: string;
+    citations: string[];
+    source_ids: string[];
+    authority_tier?: number;
+    requirement_type?: string;
+  }>;
+}
+
+export interface PolicyExplanationProvenance {
+  matched_rules: MatchedRuleProvenanceEvidence[];
+  sources?: Array<{
+    source_id: string;
+    authority: string;
+    authority_tier: number;
+    authority_type?: string;
+    legal_authority?: boolean;
+    citation?: string;
+    title?: string;
+    publisher?: string;
+    canonical_url?: string | null;
+  }>;
+  classification?: ClassificationProvenanceEvidence;
+  controls?: Array<{ control_id: string; control_type?: string }>;
+  enforcement?: {
+    actions: string[];
+    authorize_detokenization?: boolean;
+  };
+}
+
 export interface PolicyExplanation {
   matched_conditions: Array<{
     policy_id: string;
@@ -159,6 +225,10 @@ export interface PolicyExplanation {
     detail?: string;
   }>;
   final_reason: string;
+  /** Structured Rule → Obligation → Citation → Source chain (pack-agnostic). */
+  provenance?: PolicyExplanationProvenance;
+  /** Multi-pack resolution summary (when multiple packs contributed). */
+  resolution?: PolicyResolutionEvidence;
 }
 
 export interface PolicyConflictRecord {
@@ -166,7 +236,52 @@ export interface PolicyConflictRecord {
   policy_a: string;
   policy_b: string;
   detail: string;
-  resolution: 'precedence' | 'deny_unresolved';
+  resolution:
+    | 'precedence'
+    | 'deny_unresolved'
+    | 'compose'
+    | 'review_unresolved'
+    | 'agreement';
+  /** Generic conflict category when recorded by the policy resolver. */
+  category?:
+    | 'NONE'
+    | 'AGREEMENT'
+    | 'COMPLEMENTARY'
+    | 'RESTRICTIVE'
+    | 'CONFLICT'
+    | 'UNRESOLVED';
+  pack_a?: string;
+  pack_b?: string;
+  resolution_basis?: string;
+}
+
+export interface PolicyResolutionEvidence {
+  category:
+    | 'NONE'
+    | 'AGREEMENT'
+    | 'COMPLEMENTARY'
+    | 'RESTRICTIVE'
+    | 'CONFLICT'
+    | 'UNRESOLVED';
+  basis: string;
+  contributing_pack_ids: string[];
+  detail: string;
+  conflict_pairs?: Array<{
+    pack_a: string;
+    pack_b: string;
+    policy_a: string;
+    policy_b: string;
+    category: string;
+    detail: string;
+  }>;
+  contributions?: Array<{
+    pack_id: string;
+    policy_id: string;
+    policy_version: number;
+    decision: string;
+    rule_ids: string[];
+    obligation_ids: string[];
+  }>;
 }
 
 export interface PolicyDecision {

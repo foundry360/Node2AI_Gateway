@@ -30,6 +30,12 @@ export interface PolicyRequestContext {
   environment: string;
   classification: ClassificationEvidence;
   deploymentMode: 'connected' | 'airgap';
+  /** Optional purpose; explicit 'unknown' must not silently become approved. */
+  purpose?: string;
+  recipient?: string;
+  source_system?: string;
+  processing_location?: string;
+  authorization_context?: string;
 }
 
 export interface PolicyEvaluationResult {
@@ -50,6 +56,11 @@ export interface PolicyResponseContext {
   inspection: ResponseInspectionEvidence;
   /** True when input path produced vault tokens that may appear in output. */
   input_was_tokenized: boolean;
+  purpose?: string;
+  recipient?: string;
+  authorization_context?: string;
+  /** Explicit Enigma release evaluation result when provided. */
+  release_conditions_satisfied?: boolean;
 }
 
 export interface PolicyResponseResult {

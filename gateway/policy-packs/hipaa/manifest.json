@@ -1,0 +1,56 @@
+{
+  "pack_id": "pack_hipaa",
+  "name": "HIPAA",
+  "domain": "hipaa",
+  "pack_version": "3.1.0",
+  "status": "active",
+  "scope": "AI_DATA_GOVERNANCE",
+  "not": "HIPAA_COMPLIANCE_CERTIFICATION",
+  "description": "Versioned HIPAA regulatory policy pack for AI/data governance. Distinguishes Enigma health-sensitive context from regulatory PHI. Determines obligations and controls when PHI is processed — does not certify HIPAA compliance. v3.1 adds end-to-end citation provenance on decisions.",
+  "interpreters": {
+    "input": "hipaa_pack_v3",
+    "output": "hipaa_pack_v3_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_hipaa_phi_local",
+      "version": 3,
+      "phase": "input",
+      "name": "HIPAA PHI input governance"
+    },
+    {
+      "policy_id": "pol_hipaa_release",
+      "version": 2,
+      "phase": "output",
+      "name": "HIPAA-informed Enigma output/release governance"
+    }
+  ],
+  "classification_profile_id": "hipaa_class_profile_v3",
+  "compatibility": {
+    "preserves_policy_id": "pol_hipaa_phi_local",
+    "prior_versions": [
+      {
+        "policy_version_id": "pv_pol_hipaa_phi_local_v1",
+        "interpreter": "hipaa_overlay_v1",
+        "status": "suspended_immutable"
+      },
+      {
+        "policy_version_id": "pv_pol_hipaa_v2",
+        "interpreter": "hipaa_pack_v2",
+        "status": "suspended_on_v3_activate"
+      },
+      {
+        "policy_version_id": "pv_pol_hipaa_release_v1",
+        "interpreter": "hipaa_pack_v2_output",
+        "status": "suspended_on_v3_activate"
+      }
+    ]
+  },
+  "semantic_notes": [
+    "health-sensitive ≠ PHI ≠ HIPAA-approved",
+    "LOCAL/PRIVATE ≠ HIPAA compliant",
+    "TOKENIZE and AUTHORIZE_DETOKENIZATION are Enigma implementation options",
+    "Purpose UNKNOWN must not silently become approved",
+    "v3.1: decision evidence carries Rule → Obligation → Exact Citation → Source → Authority Tier"
+  ]
+}

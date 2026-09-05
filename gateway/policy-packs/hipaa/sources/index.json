@@ -1,0 +1,142 @@
+{
+  "version": "3.1.0",
+  "authority_hierarchy": [
+    {
+      "rank": 1,
+      "class": "CFR",
+      "authority_type": "PRIMARY_REGULATORY",
+      "label": "Code of Federal Regulations",
+      "note": "Primary legal/regulatory authority"
+    },
+    {
+      "rank": 2,
+      "class": "HHS_OCR",
+      "authority_type": "OFFICIAL_REGULATORY_GUIDANCE",
+      "label": "HHS/OCR official regulatory guidance",
+      "note": "Authoritative interpretive guidance — not CFR"
+    },
+    {
+      "rank": 3,
+      "class": "FEDERAL_GUIDANCE",
+      "authority_type": "FEDERAL_GUIDANCE",
+      "label": "Other official federal guidance"
+    },
+    {
+      "rank": 4,
+      "class": "NIST",
+      "authority_type": "IMPLEMENTATION_GUIDANCE",
+      "label": "NIST implementation guidance",
+      "note": "Implementation/reference — NOT legal authority for DENY alone"
+    },
+    {
+      "rank": 5,
+      "class": "RECOGNIZED_STANDARD",
+      "authority_type": "RECOGNIZED_STANDARD",
+      "label": "Other recognized standards"
+    },
+    {
+      "rank": 6,
+      "class": "SECONDARY",
+      "authority_type": "SECONDARY",
+      "label": "Secondary sources"
+    }
+  ],
+  "intentionally_out_of_scope_citations": [
+    {
+      "citation": "45 CFR 164.302",
+      "reason": "Not required by current executable HIPAA pack obligations/rules"
+    },
+    {
+      "citation": "45 CFR 164.304",
+      "reason": "Not required by current executable HIPAA pack obligations/rules"
+    },
+    {
+      "citation": "45 CFR 164.310",
+      "reason": "Not required by current executable HIPAA pack obligations/rules"
+    },
+    {
+      "citation": "45 CFR 164.314",
+      "reason": "Not required by current executable HIPAA pack obligations/rules"
+    },
+    {
+      "citation": "45 CFR 164.316",
+      "reason": "Not required by current executable HIPAA pack obligations/rules"
+    }
+  ],
+  "sources": [
+    {
+      "id": "src_45cfr160",
+      "source_id": "src_45cfr160",
+      "authority": "45 CFR Part 160",
+      "authority_tier": 1,
+      "authority_rank": 1,
+      "authority_type": "PRIMARY_REGULATORY",
+      "legal_authority": true,
+      "citation": "45 CFR Part 160",
+      "title": "General Administrative Requirements",
+      "publisher": "U.S. Department of Health and Human Services",
+      "canonical_url": "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-160",
+      "effective_date": null,
+      "retrieved_date": null,
+      "version": "current",
+      "authority_class": "CFR",
+      "path": "sources/cfr/45cfr160.md"
+    },
+    {
+      "id": "src_45cfr164",
+      "source_id": "src_45cfr164",
+      "authority": "45 CFR Part 164",
+      "authority_tier": 1,
+      "authority_rank": 1,
+      "authority_type": "PRIMARY_REGULATORY",
+      "legal_authority": true,
+      "citation": "45 CFR Part 164",
+      "title": "Security and Privacy",
+      "publisher": "U.S. Department of Health and Human Services",
+      "canonical_url": "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164",
+      "effective_date": null,
+      "retrieved_date": null,
+      "version": "current",
+      "authority_class": "CFR",
+      "path": "sources/cfr/45cfr164.md"
+    },
+    {
+      "id": "src_hhs_deid",
+      "source_id": "src_hhs_deid",
+      "authority": "HHS/OCR De-identification Guidance",
+      "authority_tier": 2,
+      "authority_rank": 2,
+      "authority_type": "OFFICIAL_REGULATORY_GUIDANCE",
+      "legal_authority": false,
+      "citation": "HHS Guidance on De-identification of Protected Health Information",
+      "title": "Guidance Regarding Methods for De-identification of Protected Health Information in Accordance with the Health Insurance Portability and Accountability Act (HIPAA) Privacy Rule",
+      "publisher": "U.S. Department of Health and Human Services / Office for Civil Rights",
+      "canonical_url": "https://www.hhs.gov/hipaa/for-professionals/privacy/special-topics/de-identification/index.html",
+      "document_identifier": "HHS/OCR De-identification Guidance",
+      "effective_date": null,
+      "retrieved_date": null,
+      "version": null,
+      "authority_class": "HHS_OCR",
+      "path": "sources/hhs/deidentification.md"
+    },
+    {
+      "id": "src_nist_800_66_r2",
+      "source_id": "src_nist_800_66_r2",
+      "authority": "NIST SP 800-66 Rev. 2",
+      "authority_tier": 4,
+      "authority_rank": 4,
+      "authority_type": "IMPLEMENTATION_GUIDANCE",
+      "legal_authority": false,
+      "citation": "NIST SP 800-66 Rev. 2",
+      "title": "Implementing the Health Insurance Portability and Accountability Act (HIPAA) Security Rule: A Cybersecurity Resource Guide",
+      "publisher": "National Institute of Standards and Technology",
+      "canonical_url": "https://csrc.nist.gov/pubs/sp/800/66/r2/final",
+      "effective_date": null,
+      "retrieved_date": null,
+      "version": "Rev. 2",
+      "authority_class": "NIST",
+      "note": "Implementation/reference mapping — not legal authority for DENY decisions alone",
+      "path": "sources/nist/sp800-66r2.md"
+    }
+  ]
+}

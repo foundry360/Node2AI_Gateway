@@ -1,0 +1,153 @@
+{
+  "version": "3.0.0",
+  "rules": [
+    {
+      "rule_id": "HIPAA-R-INPUT-EXTERNAL-DENY",
+      "name": "Deny PHI when external processing controls are not satisfied",
+      "phase": "input",
+      "priority": 100,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "HIPAA",
+        "classification": "PHI",
+        "processing_environment": "unauthorized_external",
+        "required_controls_satisfied": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["HIPAA_PHI_EXTERNAL_CONTROLS_NOT_SATISFIED"],
+      "obligation_ids": ["HIPAA-OBL-TRANSMISSION", "HIPAA-OBL-PHI-PROTECTION"],
+      "control_ids": ["ctrl_transmission_security", "ctrl_audit_logging"],
+      "enigma_obligations": ["LOCAL_MODEL_ONLY", "NO_EXTERNAL_TRANSMISSION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_45cfr164"],
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr164"]
+    },
+    {
+      "rule_id": "HIPAA-R-INPUT-WRITE-DENY",
+      "name": "Deny PHI write/export/share without authorization path",
+      "phase": "input",
+      "priority": 90,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "HIPAA",
+        "classification": "PHI",
+        "operation_in": ["write", "export", "share", "transmit"]
+      },
+      "decision": "DENY",
+      "reason_codes": ["HIPAA_PHI_WRITEBACK_NOT_AUTHORIZED"],
+      "obligation_ids": ["HIPAA-OBL-DISCLOSURE", "HIPAA-OBL-INTEGRITY"],
+      "control_ids": ["ctrl_no_write_back", "ctrl_audit_logging"],
+      "enigma_obligations": ["NO_WRITE_BACK", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_45cfr164"],
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr164"]
+    },
+    {
+      "rule_id": "HIPAA-R-INPUT-INSUFFICIENT-EVIDENCE",
+      "name": "Review when PHI applicability evidence is insufficient",
+      "phase": "input",
+      "priority": 80,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "HIPAA",
+        "classification": "PHI",
+        "evidence_sufficient": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": ["HIPAA_PHI_INSUFFICIENT_EVIDENCE_FOR_PROCESSING"],
+      "obligation_ids": ["HIPAA-OBL-AUTHORIZATION", "HIPAA-OBL-AUDIT"],
+      "control_ids": ["ctrl_authorization", "ctrl_audit_logging"],
+      "enigma_obligations": ["REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_45cfr164"],
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr164"],
+      "note": "Unknown purpose or missing authorization context does not silently become approved."
+    },
+    {
+      "rule_id": "HIPAA-R-INPUT-CONTROLS-SATISFIED",
+      "name": "Allow with controls when PHI processing controls are satisfied",
+      "phase": "input",
+      "priority": 50,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "HIPAA",
+        "classification": "PHI",
+        "processing_environment": "local_or_private",
+        "required_controls_satisfied": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": ["HIPAA_PHI_PROCESSING_CONTROLS_SATISFIED"],
+      "obligation_ids": ["HIPAA-OBL-PHI-PROTECTION", "HIPAA-OBL-AUDIT", "HIPAA-OBL-TRANSMISSION", "HIPAA-OBL-ACCESS"],
+      "control_ids": ["ctrl_processing_environment", "ctrl_audit_logging", "ctrl_output_inspection"],
+      "enigma_obligations": ["LOCAL_MODEL_ONLY", "NO_EXTERNAL_TRANSMISSION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_45cfr164"],
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr164"],
+      "note": "Does NOT assert HIPAA compliance. Means applicable pack controls were satisfied for this evaluation."
+    },
+    {
+      "rule_id": "HIPAA-R-INPUT-TOKENIZE-OPTION",
+      "name": "Select Enigma tokenization when entity spans exist on non-fully-trusted path",
+      "phase": "input",
+      "priority": 40,
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "conditions": {
+        "regulatory_applicability": "HIPAA",
+        "classification": "PHI",
+        "has_entity_spans": true,
+        "trust_level_not": "trusted"
+      },
+      "decision": "TRANSFORM",
+      "reason_codes": ["ENIGMA_TOKENIZE_SELECTED"],
+      "obligation_ids": ["HIPAA-OBL-MINIMUM-NECESSARY", "HIPAA-OBL-PHI-PROTECTION"],
+      "control_ids": ["ctrl_tokenization", "ctrl_audit_logging"],
+      "enigma_obligations": ["TOKENIZE_PII", "LOCAL_MODEL_ONLY", "NO_EXTERNAL_TRANSMISSION", "LOG_GOVERNANCE_EVENT"],
+      "transforms": [{ "type": "tokenize", "targets": ["PHI"] }],
+      "sources": ["src_45cfr164"],
+      "source_type": "IMPLEMENTATION_OPTION",
+      "note": "TOKENIZE is an Enigma implementation_option, not a regulatory mandate"
+    },
+    {
+      "rule_id": "HIPAA-R-OUT-RESIDUAL-PHI-BLOCK",
+      "name": "Block residual plaintext PHI when release conditions are not satisfied",
+      "phase": "output",
+      "priority": 100,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "inspection_sensitivity": "PHI",
+        "release_conditions_satisfied": false,
+        "contains_tokens_only": false
+      },
+      "decision": "BLOCK_OUTPUT",
+      "reason_codes": ["HIPAA_PHI_OUTPUT_NOT_AUTHORIZED"],
+      "obligation_ids": ["HIPAA-OBL-DISCLOSURE", "HIPAA-OBL-PHI-PROTECTION"],
+      "control_ids": ["ctrl_output_inspection", "ctrl_audit_logging"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_45cfr164"],
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr164"]
+    },
+    {
+      "rule_id": "HIPAA-R-OUT-RELEASE-EVAL",
+      "name": "Enigma release policy may authorize detokenization when release conditions are satisfied",
+      "phase": "output",
+      "priority": 50,
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "conditions": {
+        "contains_tokens": true,
+        "input_was_tokenized": true,
+        "release_conditions_satisfied": true
+      },
+      "decision": "AUTHORIZED_DETOKENIZATION",
+      "reason_codes": ["ENIGMA_RELEASE_AUTHORIZED_DETOKENIZATION"],
+      "obligation_ids": ["HIPAA-OBL-DISCLOSURE", "HIPAA-OBL-ACCESS"],
+      "control_ids": ["ctrl_authorized_release", "ctrl_audit_logging"],
+      "enigma_obligations": ["AUTHORIZE_DETOKENIZATION", "LOG_GOVERNANCE_EVENT"],
+      "authorize_detokenization": true,
+      "sources": ["src_45cfr164"],
+      "source_type": "IMPLEMENTATION_OPTION",
+      "derived_from": ["src_45cfr164"],
+      "note": "HIPAA obligations inform evaluation; Enigma release policy decides; gateway enforces detokenization."
+    }
+  ]
+}

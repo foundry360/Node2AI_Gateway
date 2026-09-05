@@ -4,6 +4,7 @@ import { createPhase1Gateway } from '../../src/api/app-factory.js';
 describe('Phase 6 — Admin API', () => {
   it('requires admin auth and returns overview', async () => {
     const gw = createPhase1Gateway();
+    const adminKey = gw.config.adminApiKey;
     const server = await gw.buildServer();
     await server.ready();
 
@@ -13,7 +14,7 @@ describe('Phase 6 — Admin API', () => {
     const ok = await server.inject({
       method: 'GET',
       url: '/v1/admin/overview',
-      headers: { authorization: 'Bearer n2ai_admin_dev_key' },
+      headers: { authorization: `Bearer ${adminKey}` },
     });
     expect(ok.statusCode).toBe(200);
     const body = ok.json();
@@ -24,7 +25,7 @@ describe('Phase 6 — Admin API', () => {
     const apps = await server.inject({
       method: 'GET',
       url: '/v1/admin/applications',
-      headers: { authorization: 'Bearer n2ai_admin_dev_key' },
+      headers: { authorization: `Bearer ${adminKey}` },
     });
     expect(apps.statusCode).toBe(200);
     expect(apps.json().applications.length).toBeGreaterThan(0);

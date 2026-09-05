@@ -1,0 +1,24 @@
+{
+  "version": "2.0.0",
+  "note": "Maps HIPAA obligations to Enigma enforcement mechanisms. Selection is contextual.",
+  "mappings": [
+    {
+      "obligation_id": "HIPAA-OBL-TRANSMISSION",
+      "control_id": "ctrl_transmission_security",
+      "enigma_actions": ["NO_EXTERNAL_TRANSMISSION", "DENY"],
+      "selection": "when_unauthorized_external"
+    },
+    {
+      "obligation_id": "HIPAA-OBL-PHI-PROTECTION",
+      "control_id": "ctrl_tokenization",
+      "enigma_actions": ["TOKENIZE"],
+      "selection": "optional_when_spans_and_not_trusted"
+    },
+    {
+      "obligation_id": "HIPAA-OBL-DISCLOSURE",
+      "control_id": "ctrl_authorized_release",
+      "enigma_actions": ["AUTHORIZE_DETOKENIZATION", "BLOCK_OUTPUT"],
+      "selection": "output_release_evaluation"
+    }
+  ]
+}

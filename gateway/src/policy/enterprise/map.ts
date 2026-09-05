@@ -261,7 +261,7 @@ export function fromLegacyResponseResult(result: PolicyResponseResult): EpaDecis
 
 export function toLegacyRequestResult(decision: EpaDecision): PolicyEvaluationResult {
   const legacyDecision: PolicyDecision =
-    decision.decision === 'DENY'
+    decision.decision === 'DENY' || decision.decision === 'REVIEW'
       ? 'BLOCK'
       : decision.decision === 'TOKENIZE' ||
           decision.decision === 'ALLOW' ||

@@ -44,6 +44,8 @@ export interface InterrogationContext {
   requested_model?: string;
   environment: string;
   deployment_mode: 'connected' | 'airgap';
+  /** Optional — used by pack classification profiles (evidence only). */
+  application_type?: string;
 }
 
 export interface InterrogationResult {
@@ -62,6 +64,10 @@ export interface InterrogationResult {
     confidence?: number;
     reason_codes?: string[];
   };
+  /** Bound classification profile id when a pack profile ran (evidence). */
+  classification_profile_id?: string;
+  /** Enigma operational health-sensitive flag — not a legal HIPAA classification. */
+  health_sensitive?: boolean;
 }
 
 export interface DataInterrogator {

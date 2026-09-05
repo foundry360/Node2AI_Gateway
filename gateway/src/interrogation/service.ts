@@ -8,6 +8,7 @@ import type {
   SemanticClassifier,
   SensitivityLabel,
 } from './types.js';
+import { applyHipaaClassificationProfile } from '../policy/enterprise/packs/hipaa/pack-v2.js';
 
 const SENSITIVITY_RANK: Record<SensitivityLabel, number> = {
   Public: 0,
@@ -42,6 +43,11 @@ function riskFor(sensitivity: SensitivityLabel): 'low' | 'medium' | 'high' {
   return 'low';
 }
 
+function asSensitivity(label: string): SensitivityLabel {
+  if (label in SENSITIVITY_RANK) return label as SensitivityLabel;
+  return 'Internal';
+}
+
 export class HybridDataInterrogator implements DataInterrogator {
   constructor(
     private readonly options: {
@@ -49,6 +55,8 @@ export class HybridDataInterrogator implements DataInterrogator {
       /** Run semantic when deterministic confidence is below this threshold. */
       semanticConfidenceThreshold?: number;
       forceFailure?: boolean;
+      /** Bind HIPAA classification profile (default true when pack present). */
+      applyHipaaProfile?: boolean;
     } = {},
   ) {}
 
@@ -75,7 +83,7 @@ export class HybridDataInterrogator implements DataInterrogator {
       ...detection.reason_codes,
       'DETERMINISTIC_CLASSIFICATION',
     ];
-    let entities = detection.entities;
+    const entities = detection.entities;
     let risk = riskFor(sensitivity);
 
     const threshold = this.options.semanticConfidenceThreshold ?? 0.85;
@@ -113,8 +121,26 @@ export class HybridDataInterrogator implements DataInterrogator {
         risk = sem.risk ?? riskFor(sensitivity);
       }
       reason_codes = [...reason_codes, ...sem.reason_codes];
-      if (sem.intent) {
-        // Prefer operation-derived intent; semantic may refine only if operation was generic
+    }
+
+    let classification_profile_id: string | undefined;
+    let health_sensitive = false;
+    if (this.options.applyHipaaProfile !== false) {
+      const profiled = applyHipaaClassificationProfile({
+        text,
+        sensitivity,
+        entityTypes: entities.map((e) => e.type),
+        applicationType: context.application_type,
+        reasonCodes: reason_codes,
+      });
+      classification_profile_id = profiled.profile_id;
+      reason_codes = profiled.reason_codes;
+      health_sensitive = profiled.classification.health_sensitive;
+      const elevated = asSensitivity(profiled.classification.sensitivity);
+      if (SENSITIVITY_RANK[elevated] > SENSITIVITY_RANK[sensitivity]) {
+        sensitivity = elevated;
+        risk = riskFor(sensitivity);
+        confidence = Math.max(confidence, 0.9);
       }
     }
 
@@ -125,6 +151,8 @@ export class HybridDataInterrogator implements DataInterrogator {
       risk,
       reason_codes,
       semantic: semanticMeta,
+      classification_profile_id,
+      health_sensitive,
     };
   }
 }

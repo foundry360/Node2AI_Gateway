@@ -1,0 +1,158 @@
+{
+  "profile_id": "hipaa_class_profile_v3",
+  "version": "3.1.0",
+  "prior_profile_id": "hipaa_class_profile_v2",
+  "phi_definition_ref": "def.phi",
+  "safe_harbor_ref": "def.safe_harbor",
+  "semantic_model": {
+    "enigma_sensitivity": ["PII", "PHI", "HEALTH_INFORMATION", "CREDENTIAL", "FINANCIAL", "CONFIDENTIAL"],
+    "regulatory_classifications": [
+      "Health Information",
+      "Individually Identifiable Health Information",
+      "PHI",
+      "ePHI",
+      "De-identified Information",
+      "Limited Data Set"
+    ],
+    "note": "health-sensitive is an Enigma operational category (enigma.health_sensitive). It is NOT a legal HIPAA classification. PHI is the regulatory classification used for HIPAA applicability."
+  },
+  "safe_harbor_note": "Identifier categories below are DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER metadata. They support de-identification awareness and evidence typing. They do NOT redefine PHI as only these items.",
+  "safe_harbor_identifier_categories": [
+    {
+      "id": "sh.names",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "names"
+    },
+    {
+      "id": "sh.geographic_subdivisions",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "geographic_subdivisions"
+    },
+    {
+      "id": "sh.dates_related_to_individual",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "dates_related_to_individual"
+    },
+    {
+      "id": "sh.telephone_numbers",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "telephone_numbers"
+    },
+    {
+      "id": "sh.fax_numbers",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "fax_numbers"
+    },
+    {
+      "id": "sh.email_addresses",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "email_addresses"
+    },
+    {
+      "id": "sh.social_security_numbers",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "social_security_numbers"
+    },
+    {
+      "id": "sh.medical_record_numbers",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "medical_record_numbers"
+    },
+    {
+      "id": "sh.health_plan_beneficiary_numbers",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "health_plan_beneficiary_numbers"
+    },
+    {
+      "id": "sh.account_numbers",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "account_numbers"
+    },
+    {
+      "id": "sh.certificate_license_numbers",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "certificate_license_numbers"
+    },
+    {
+      "id": "sh.vehicle_identifiers",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "vehicle_identifiers"
+    },
+    {
+      "id": "sh.device_identifiers",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "device_identifiers"
+    },
+    {
+      "id": "sh.urls",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "urls"
+    },
+    {
+      "id": "sh.ip_addresses",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "ip_addresses"
+    },
+    {
+      "id": "sh.biometric_identifiers",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "biometric_identifiers"
+    },
+    {
+      "id": "sh.full_face_photos",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "full_face_photos"
+    },
+    {
+      "id": "sh.other_unique_identifying_codes",
+      "type": "DEIDENTIFICATION_SAFE_HARBOR_IDENTIFIER",
+      "category": "other_unique_identifying_codes"
+    }
+  ],
+  "always_phi_entity_types": ["MRN", "NPI", "DOB", "DIAGNOSIS_MARKER"],
+  "elevatable_pii_entity_types": ["SSN", "EMAIL", "PHONE"],
+  "health_context_lexicon": [
+    "patient",
+    "clinical",
+    "hipaa",
+    "prescription",
+    "lab result",
+    "ehr",
+    "diagnosis",
+    "treatment",
+    "health plan",
+    "medical record"
+  ],
+  "elevation_rules": [
+    {
+      "id": "elev.always_phi_entity",
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr160"],
+      "when": "always_phi_entity_types match",
+      "enigma_classification": "PHI",
+      "regulatory_applicability": ["HIPAA"],
+      "regulatory_classification": "PHI"
+    },
+    {
+      "id": "elev.identifier_plus_health_context",
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr160", "src_hhs_deid"],
+      "when": "elevatable_pii_entity AND health_context",
+      "enigma_classification": "PHI",
+      "regulatory_applicability": ["HIPAA"],
+      "regulatory_classification": "PHI",
+      "also_marks": ["HEALTH_SENSITIVE"]
+    },
+    {
+      "id": "elev.health_context_only",
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": [],
+      "when": "health_context AND NOT elevatable_pii AND NOT always_phi",
+      "enigma_classification": "unchanged_or_HEALTH_INFORMATION",
+      "regulatory_applicability": [],
+      "marks": ["HEALTH_SENSITIVE"],
+      "note": "Health-sensitive alone does NOT equal PHI and does NOT auto-apply HIPAA."
+    }
+  ],
+  "layers": ["DETECTION", "CLASSIFICATION", "REGULATORY_APPLICABILITY"]
+}

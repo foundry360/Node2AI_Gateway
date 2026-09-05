@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://enigma.local/schemas/policy-pack-manifest.json",
+  "title": "Enigma Policy Pack Manifest",
+  "description": "Machine-readable contract for gateway/policy-packs/*/manifest.json. Schema version 1.0.0.",
+  "type": "object",
+  "required": [
+    "pack_id",
+    "name",
+    "pack_version",
+    "status",
+    "domain",
+    "interpreters",
+    "policies"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "pack_id": {
+      "type": "string",
+      "pattern": "^pack_[a-z0-9_]+$",
+      "description": "Stable immutable pack identifier."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Display name (e.g. HIPAA)."
+    },
+    "domain": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Catalog domain key (e.g. hipaa). UI may map to acronym labels."
+    },
+    "pack_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+",
+      "description": "Semver pack content version."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "active", "retired"]
+    },
+    "scope": {
+      "type": "string",
+      "description": "Pack scope, e.g. AI_DATA_GOVERNANCE."
+    },
+    "not": {
+      "type": "string",
+      "description": "Explicit non-claim (e.g. not a compliance certification)."
+    },
+    "description": { "type": "string" },
+    "authority": {
+      "type": "string",
+      "description": "Primary authority label (optional)."
+    },
+    "jurisdiction": { "type": "string" },
+    "effective_date": { "type": "string" },
+    "supersedes": { "type": "string" },
+    "schema_version": { "type": "string" },
+    "compiler_version": { "type": "string" },
+    "classification_profile_id": { "type": "string" },
+    "interpreters": {
+      "type": "object",
+      "required": ["input"],
+      "properties": {
+        "input": { "type": "string", "minLength": 1 },
+        "output": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "policies": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["policy_id", "version", "phase", "name"],
+        "properties": {
+          "policy_id": { "type": "string", "pattern": "^pol_" },
+          "version": { "type": "integer", "minimum": 1 },
+          "phase": { "type": "string", "enum": ["input", "output", "both"] },
+          "name": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "semantic_notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

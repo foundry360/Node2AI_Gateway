@@ -4,6 +4,7 @@ import {
   type PackSnapshot,
 } from './packs/baseline.js';
 import { regulatoryPackExtras } from './packs/regulatory.js';
+import type { PolicyEvaluationRecord } from './evaluation-record.js';
 
 export function mergeDefaultSnapshot(): PackSnapshot {
   const base = defaultPackSnapshot();
@@ -17,6 +18,7 @@ export function mergeDefaultSnapshot(): PackSnapshot {
 /** In-memory EPA policy repository (Production for appliance memory mode). */
 export class InMemoryPolicyRepository {
   private snapshot: PackSnapshot;
+  private evaluations = new Map<string, PolicyEvaluationRecord>();
 
   constructor(snapshot: PackSnapshot = mergeDefaultSnapshot()) {
     this.snapshot = structuredClone(snapshot);
@@ -33,9 +35,8 @@ export class InMemoryPolicyRepository {
   }
 
   listActiveOverlays(phase: 'input' | 'output' = 'input'): PackPolicyMeta[] {
-    return this.listActivePolicies(phase).filter((p) =>
-      p.interpreter.endsWith('_overlay_v1'),
-    );
+    const baseline = new Set(['baseline_input_v2', 'baseline_output_v5', 'framework_stub']);
+    return this.listActivePolicies(phase).filter((p) => !baseline.has(p.interpreter));
   }
 
   findByInterpreter(
@@ -66,5 +67,14 @@ export class InMemoryPolicyRepository {
     if (!pack) return undefined;
     pack.status = status;
     return { ...pack };
+  }
+
+  recordEvaluation(record: PolicyEvaluationRecord): void {
+    this.evaluations.set(record.evaluation_id, structuredClone(record));
+  }
+
+  getEvaluation(evaluationId: string): PolicyEvaluationRecord | undefined {
+    const row = this.evaluations.get(evaluationId);
+    return row ? structuredClone(row) : undefined;
   }
 }

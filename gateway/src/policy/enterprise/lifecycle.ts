@@ -170,7 +170,20 @@ export function validatePolicyVersion(meta: PackPolicyMeta | undefined): {
   if (!meta.interpreter) {
     errors.push('Policy version missing interpreter');
   }
-  if (!['baseline_input_v2', 'baseline_output_v5', 'hipaa_overlay_v1', 'financial_overlay_v1', 'legal_overlay_v1', 'framework_stub'].includes(meta.interpreter)) {
+  if (
+    ![
+      'baseline_input_v2',
+      'baseline_output_v5',
+      'hipaa_overlay_v1',
+      'hipaa_pack_v2',
+      'hipaa_pack_v2_output',
+      'hipaa_pack_v3',
+      'hipaa_pack_v3_output',
+      'financial_overlay_v1',
+      'legal_overlay_v1',
+      'framework_stub',
+    ].includes(meta.interpreter)
+  ) {
     errors.push(`Unknown interpreter: ${meta.interpreter}`);
   }
   if (!meta.version || meta.version < 1) {

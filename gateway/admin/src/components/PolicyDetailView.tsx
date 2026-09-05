@@ -8,6 +8,7 @@ import {
 } from '@/components/PolicyLifecycle';
 import { EmptyState } from '@/components/EmptyState';
 import { StatusBadge } from '@/components/StatusBadge';
+import { formatDomainLabel } from '@/lib/domain-label';
 import { formatReasonCode, formatReasonCodes } from '@/lib/reason-codes';
 
 type Definition = {
@@ -92,10 +93,9 @@ export function PolicyDetailView({ detail }: { detail: PolicyDetail }) {
   const [tab, setTab] = useState<Tab>('Overview');
   const { policy, pack, definition, store, versions, evaluations, engine_mode } =
     detail;
-  const domain = policy.domain ?? pack?.domain ?? definition?.domain;
-  const domainLabel = domain
-    ? domain.charAt(0).toUpperCase() + domain.slice(1)
-    : '—';
+  const domainLabel = formatDomainLabel(
+    policy.domain ?? pack?.domain ?? definition?.domain,
+  );
 
   return (
     <div className="stack">
