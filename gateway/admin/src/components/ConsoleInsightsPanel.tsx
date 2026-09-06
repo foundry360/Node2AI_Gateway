@@ -5,6 +5,8 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { TopActionItemsCard } from '@/components/TopActionItemsCard';
 import { RiskClassificationCard } from '@/components/RiskClassificationCard';
 import { ComplianceScoreCard } from '@/components/ComplianceScoreCard';
+import { GovernanceAttentionPanel } from '@/components/GovernanceAttentionPanel';
+import { CollapsiblePanel } from '@/components/CollapsiblePanel';
 import { useConsoleTimeframe } from '@/components/ConsoleTabs';
 import { proxyJson } from '@/lib/client-api';
 
@@ -81,71 +83,83 @@ export function ConsoleInsightsPanel({
   const runtimeOk = data.models.local_runtime?.available !== false;
   const activeEpa = data.policy.active_policies || activePoliciesFallback;
 
+  const microcards = (
+    <div className="metrics metrics-2x4">
+      <div className="metric">
+        <div className="metric-label">Gateway</div>
+        <div className="metric-value">
+          <StatusBadge
+            showLabel
+            status={data.gateway.status === 'ok' ? 'healthy' : 'degraded'}
+          />
+        </div>
+      </div>
+      <div className="metric">
+        <div className="metric-label">Database</div>
+        <div className="metric-value">
+          <StatusBadge
+            showLabel
+            status={postureLabel(data.database.ok, data.database.detail)}
+          />
+        </div>
+      </div>
+      <div className="metric">
+        <div className="metric-label">Mode</div>
+        <div className="metric-value mono">{data.gateway.mode}</div>
+      </div>
+      <div className="metric">
+        <div className="metric-label">Runtime</div>
+        <div className="metric-value">
+          <StatusBadge
+            showLabel
+            status={runtimeOk ? 'ready' : 'unavailable'}
+            label={
+              runtimeOk
+                ? runtimeDisplayLabel(data.models.local_runtime)
+                : 'Unavailable'
+            }
+          />
+        </div>
+      </div>
+      <div className="metric">
+        <div className="metric-label">Policies</div>
+        <div className="metric-value">{activeEpa}</div>
+      </div>
+      <div className="metric">
+        <div className="metric-label">Models</div>
+        <div className="metric-value">{data.models.active}</div>
+      </div>
+      <div className="metric">
+        <div className="metric-label">Applications</div>
+        <div className="metric-value">{data.totals.applications}</div>
+      </div>
+      <div className="metric">
+        <div className="metric-label">Blocked (ops)</div>
+        <div className="metric-value">{data.security_events}</div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className={`console-banner${pending ? ' is-refreshing' : ''}`}>
-      <div className="console-banner-top">
-        <div className="metrics metrics-2x4">
-          <div className="metric">
-            <div className="metric-label">Gateway</div>
-            <div className="metric-value">
-              <StatusBadge
-                showLabel
-                status={data.gateway.status === 'ok' ? 'healthy' : 'degraded'}
-              />
-            </div>
+    <div className={`stack${pending ? ' is-refreshing' : ''}`}>
+      <GovernanceAttentionPanel leadLeft={microcards} />
+
+      <CollapsiblePanel
+        label="Show posture heuristics (non-authoritative)"
+        defaultOpen={false}
+      >
+        <div className="panel-pad stack-tight">
+          <p className="muted">
+            Risk and compliance heuristics are context only. They do not define Enigma
+            governance and are not authoritative policy decisions.
+          </p>
+          <div className="console-banner-scores">
+            <RiskClassificationCard />
+            <ComplianceScoreCard />
           </div>
-          <div className="metric">
-            <div className="metric-label">Database</div>
-            <div className="metric-value">
-              <StatusBadge
-                showLabel
-                status={postureLabel(data.database.ok, data.database.detail)}
-              />
-            </div>
-          </div>
-          <div className="metric">
-            <div className="metric-label">Mode</div>
-            <div className="metric-value mono">{data.gateway.mode}</div>
-          </div>
-          <div className="metric">
-            <div className="metric-label">Runtime</div>
-            <div className="metric-value">
-              <StatusBadge
-                showLabel
-                status={runtimeOk ? 'ready' : 'unavailable'}
-                label={
-                  runtimeOk
-                    ? runtimeDisplayLabel(data.models.local_runtime)
-                    : 'Unavailable'
-                }
-              />
-            </div>
-          </div>
-          <div className="metric">
-            <div className="metric-label">Policies</div>
-            <div className="metric-value">{activeEpa}</div>
-          </div>
-          <div className="metric">
-            <div className="metric-label">Models</div>
-            <div className="metric-value">{data.models.active}</div>
-          </div>
-          <div className="metric">
-            <div className="metric-label">Applications</div>
-            <div className="metric-value">{data.totals.applications}</div>
-          </div>
-          <div className="metric">
-            <div className="metric-label">Blocked</div>
-            <div className="metric-value">{data.security_events}</div>
-          </div>
+          <TopActionItemsCard />
         </div>
-        <div className="console-banner-scores">
-          <RiskClassificationCard />
-          <ComplianceScoreCard />
-        </div>
-      </div>
-      <div className="console-banner-bottom">
-        <TopActionItemsCard />
-      </div>
+      </CollapsiblePanel>
     </div>
   );
 }

@@ -19,6 +19,12 @@ export interface PolicyTestFixture {
   trust_level?: string;
   application_status?: string;
   deployment_mode?: string;
+  /** Regulatory applicability tags (e.g. HIPAA, PART2) — fixture data, not UI branches. */
+  regulatory_applicability?: string[];
+  purpose?: string;
+  authorization_context?: string;
+  recipient?: string;
+  processing_location?: string;
 }
 
 export interface PolicyTestSpec {
@@ -112,11 +118,19 @@ export function fixtureToFacts(fixture: PolicyTestFixture): BaselineFacts {
     roles: fixture.roles ?? ['clinician'],
     requested_model: fixture.requested_model,
     available_models: available,
+    regulatory_applicability: fixture.regulatory_applicability,
+    purpose: fixture.purpose,
+    authorization_context: fixture.authorization_context,
+    recipient: fixture.recipient,
+    processing_location: fixture.processing_location,
   };
 }
 
 export function fixtureToRequestContext(fixture: PolicyTestFixture): PolicyRequestContext {
   const facts = fixtureToFacts(fixture);
+  const applicabilityCodes = (facts.regulatory_applicability ?? []).map(
+    (a) => `REGULATORY_APPLICABILITY:${a}`,
+  );
   return {
     user: {
       user_id: 'sim_user',
@@ -150,9 +164,13 @@ export function fixtureToRequestContext(fixture: PolicyTestFixture): PolicyReque
       sensitivity: facts.classification,
       confidence: 1,
       risk: 'medium',
-      reason_codes: ['SIMULATION'],
+      reason_codes: ['SIMULATION', ...applicabilityCodes],
     },
     deploymentMode: facts.deployment_mode === 'airgap' ? 'airgap' : 'connected',
+    purpose: facts.purpose,
+    recipient: facts.recipient,
+    processing_location: facts.processing_location,
+    authorization_context: facts.authorization_context,
   };
 }
 
@@ -179,6 +197,8 @@ export function validatePolicyVersion(meta: PackPolicyMeta | undefined): {
       'hipaa_pack_v2_output',
       'hipaa_pack_v3',
       'hipaa_pack_v3_output',
+      'part2_pack_v1',
+      'part2_pack_v1_output',
       'financial_overlay_v1',
       'legal_overlay_v1',
       'framework_stub',
@@ -235,7 +255,10 @@ export async function simulatePolicy(
   pdp: PackBackedEnterprisePdp,
   fixture: PolicyTestFixture,
 ): Promise<PolicyDecision> {
-  return pdp.evaluateLegacyRequest(fixtureToRequestContext(fixture));
+  return pdp.evaluateLegacyRequest({
+    ...fixtureToRequestContext(fixture),
+    evaluation_phase: 'simulate',
+  });
 }
 
 /** Dry-run interpreter against pack meta without mutating state. */

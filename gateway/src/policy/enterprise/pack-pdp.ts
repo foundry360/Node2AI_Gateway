@@ -18,6 +18,11 @@ import type {
   PolicyEvaluationRequest,
 } from './types.js';
 import { toEvaluationRecord } from './evaluation-record.js';
+import { withOperatorExplanation } from './decision-explanation.js';
+import {
+  toInputEvaluationRequest,
+  toOutputEvaluationRequest,
+} from './map.js';
 
 function newEvaluationId(): string {
   return `eval_${randomBytes(8).toString('hex')}`;
@@ -145,7 +150,7 @@ function toEpaDecision(
     }
   }
 
-  return {
+  const decision: PolicyDecision = {
     decision: result.decision,
     reason: result.reason_codes.join(', ') || result.decision,
     reason_codes: result.reason_codes,
@@ -198,11 +203,17 @@ function toEpaDecision(
             conflict_pairs: resolution.resolution.conflict_pairs,
             contributions: resolution.resolution.contributions.map((c) => ({
               pack_id: c.pack_id,
+              pack_name: c.pack_name,
+              pack_version: c.pack_version,
               policy_id: c.policy_id,
+              policy_name: c.policy_name,
               policy_version: c.policy_version,
               decision: c.decision,
               rule_ids: c.rule_ids,
               obligation_ids: c.obligation_ids,
+              obligations: c.obligations.map((o) => o.code),
+              controls: c.controls,
+              reason_codes: c.reason_codes,
             })),
           }
         : undefined,
@@ -210,6 +221,7 @@ function toEpaDecision(
     evidence: evidenceOut,
     evaluation_id: newEvaluationId(),
   };
+  return withOperatorExplanation(decision);
 }
 
 /**
@@ -322,23 +334,41 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
     };
 
     if (request.evaluation_phase === 'output') {
-      return this.evaluateOutputFacts(facts, request.evidence);
+      return this.evaluateOutputFacts(facts, request.evidence, {
+        request_id: request.request_id,
+        phase: 'output',
+        request,
+      });
     }
-    return this.evaluateInputFacts(facts, request.evidence);
-  }
-
-  async evaluateLegacyRequest(context: PolicyRequestContext): Promise<PolicyDecision> {
-    return this.evaluateInputFacts(factsFromRequest(context), {
-      classification: String(
-        context.classification.sensitivity,
-      ) as PolicyDecision['evidence']['classification'],
-      confidence: context.classification.confidence,
-      risk: context.classification.risk,
-      reason_codes: context.classification.reason_codes,
+    return this.evaluateInputFacts(facts, request.evidence, {
+      request_id: request.request_id,
+      phase: request.evaluation_phase === 'simulate' ? 'simulate' : 'input',
+      request,
     });
   }
 
+  async evaluateLegacyRequest(context: PolicyRequestContext): Promise<PolicyDecision> {
+    const phase = context.evaluation_phase === 'simulate' ? 'simulate' : 'input';
+    const request = toInputEvaluationRequest(context, context.request_id);
+    request.evaluation_phase = phase;
+    return this.evaluateInputFacts(
+      factsFromRequest(context),
+      {
+        classification: String(
+          context.classification.sensitivity,
+        ) as PolicyDecision['evidence']['classification'],
+        confidence: context.classification.confidence,
+        risk: context.classification.risk,
+        reason_codes: context.classification.reason_codes,
+        intent: context.classification.intent,
+        entities: context.classification.entities?.map((e) => ({ type: e.type })),
+      },
+      { request_id: context.request_id, phase, request },
+    );
+  }
+
   async evaluateLegacyResponse(context: PolicyResponseContext): Promise<PolicyDecision> {
+    const request = toOutputEvaluationRequest(context, context.request_id);
     return this.evaluateOutputFacts(
       factsFromResponse(context, !!this.options.allowDetokenization),
       {
@@ -348,6 +378,7 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
         contains_tokens: context.inspection.contains_tokens,
         input_was_tokenized: context.input_was_tokenized,
       },
+      { request_id: context.request_id, phase: 'output', request },
     );
   }
 
@@ -372,6 +403,11 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
   private async evaluateInputFacts(
     facts: BaselineFacts,
     evidence: PolicyDecision['evidence'],
+    opts?: {
+      request_id?: string;
+      phase?: 'input' | 'simulate';
+      request?: Partial<PolicyEvaluationRequest>;
+    },
   ): Promise<PolicyDecision> {
     const meta = await this.resolveInputMeta();
     if (!meta) {
@@ -381,13 +417,18 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
     const overlays = this.repository.listActiveOverlays('input');
     const withOverlays = applyRegulatoryOverlays(result, facts, overlays);
     const decision = toEpaDecision(withOverlays, evidence);
-    this.persistEvaluation(decision, 'input');
+    this.persistEvaluation(decision, opts?.phase ?? 'input', opts?.request_id, opts?.request);
     return decision;
   }
 
   private async evaluateOutputFacts(
     facts: BaselineFacts,
     evidence: PolicyDecision['evidence'],
+    opts?: {
+      request_id?: string;
+      phase?: 'output';
+      request?: Partial<PolicyEvaluationRequest>;
+    },
   ): Promise<PolicyDecision> {
     const meta = await this.resolveOutputMeta();
     if (!meta) {
@@ -397,17 +438,23 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
     const overlays = this.repository.listActiveOverlays('output');
     const withOverlays = applyRegulatoryOverlays(result, facts, overlays);
     const decision = toEpaDecision(withOverlays, evidence);
-    this.persistEvaluation(decision, 'output');
+    this.persistEvaluation(decision, opts?.phase ?? 'output', opts?.request_id, opts?.request);
     return decision;
   }
 
   private persistEvaluation(
     decision: PolicyDecision,
     phase: 'input' | 'output' | 'simulate',
+    requestId?: string,
+    request?: Partial<PolicyEvaluationRequest>,
   ): void {
     if (!this.repository.recordEvaluation) return;
     void this.repository.recordEvaluation(
-      toEvaluationRecord(decision, { evaluation_phase: phase }),
+      toEvaluationRecord(decision, {
+        ...request,
+        evaluation_phase: phase,
+        request_id: requestId ?? request?.request_id,
+      }),
     );
   }
 }

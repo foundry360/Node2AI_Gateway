@@ -106,6 +106,12 @@ CREATE TABLE IF NOT EXISTS policy_evaluations (
   applicable_policies JSONB NOT NULL DEFAULT '[]'::jsonb,
   obligations       JSONB NOT NULL DEFAULT '[]'::jsonb,
   explanation       JSONB NOT NULL DEFAULT '{}'::jsonb,
+  // Human governance intervention; never overwrites machine decision.
+  human_resolution  JSONB,
+  -- Live REVIEW hold: minimal request snapshot for post-AUTHORIZE resume.
+  held_request      JSONB,
+  -- Resume lifecycle after AUTHORIZE (not a workflow engine).
+  execution         JSONB,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

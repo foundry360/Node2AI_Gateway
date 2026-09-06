@@ -92,6 +92,62 @@ export {
   type ResolutionExplanation,
 } from './policy-resolution.js';
 export { toEvaluationRecord, type PolicyEvaluationRecord } from './evaluation-record.js';
+export {
+  evaluationRecordToDecisionPayload,
+  deriveDecisionConsequence,
+  projectRequestContext,
+  recordMatchesPolicy,
+  rowToEvaluationRecord,
+  toEvaluationListItem,
+  type DecisionConsequence,
+  type ExecutionMode,
+  type PolicyEvaluationListItem,
+  type ProjectedRequestContext,
+} from './evaluation-query.js';
+export {
+  expectedActionFromDecision,
+  effectiveExpectedAction,
+  findAuditForEvaluation,
+  indexAuditsByRequestId,
+  projectEnforcementResult,
+  type EnforcementProjection,
+  type EnforcementStatus,
+  type ExpectedActionCode,
+} from './enforcement-projection.js';
+export {
+  buildHumanResolution,
+  isEligibleForHumanReview,
+  reviewStateForRecord,
+  withHumanResolution,
+  ResolveDecisionError,
+  type HumanDisposition,
+  type HumanResolution,
+  type ResolveDecisionInput,
+  type ResolutionStatus,
+  type ReviewState,
+} from './decision-resolution.js';
+export {
+  assertResumeEligible,
+  executionAfterAuthorize,
+  hasResumableHeldRequest,
+  markResumeFailed,
+  markResumeInProgress,
+  markResumed,
+  ResumeEvaluationError,
+  type EvaluationExecution,
+  type HeldRequestSnapshot,
+  type ResumeExecutionStatus,
+} from './decision-resume.js';
+export {
+  authorityTierLabel,
+  buildOperatorDecisionExplanation,
+  buildOperatorNarrative,
+  resolutionBasisLabel,
+  resolutionCategoryLabel,
+  withOperatorExplanation,
+  type OperatorContributionView,
+  type OperatorDecisionExplanation,
+} from './decision-explanation.js';
 export { HIPAA_PROVENANCE_GRAPH } from './packs/hipaa/compiled-bundle.js';
 export type {
   BaselineFacts,
@@ -100,5 +156,12 @@ export type {
   PackSnapshot,
 } from './packs/baseline.js';
 export type {
+  OperatorDecisionExplanationEvidence,
+  PolicyResolutionContributionEvidence,
   PolicyResolutionEvidence,
 } from './types.js';
+export {
+  simulatePolicy,
+  fixtureToRequestContext,
+  type PolicyTestFixture,
+} from './lifecycle.js';

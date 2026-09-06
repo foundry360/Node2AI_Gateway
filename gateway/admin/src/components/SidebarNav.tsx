@@ -6,6 +6,7 @@ import {
   AppWindow,
   Boxes,
   FileText,
+  Gavel,
   LayoutDashboard,
   ScrollText,
   Settings,
@@ -15,9 +16,22 @@ const primary: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: '/', label: 'Overview', icon: LayoutDashboard },
   { href: '/applications', label: 'Applications', icon: AppWindow },
   { href: '/policies', label: 'Policies', icon: FileText },
+  { href: '/decisions', label: 'Decisions', icon: Gavel },
   { href: '/models', label: 'Models', icon: Boxes },
   { href: '/audit', label: 'Audit', icon: ScrollText },
 ];
+
+function isNavActive(pathname: string, href: string): boolean {
+  if (href === '/') return pathname === '/';
+  if (href === '/decisions') {
+    return (
+      pathname === '/decisions' ||
+      pathname.startsWith('/decisions/') ||
+      pathname.startsWith('/evaluations/')
+    );
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -26,10 +40,7 @@ export function SidebarNav() {
     <>
       <nav className="nav">
         {primary.map((item) => {
-          const active =
-            item.href === '/'
-              ? pathname === '/'
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = isNavActive(pathname, item.href);
           const Icon = item.icon;
           return (
             <a

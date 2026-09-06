@@ -44,8 +44,11 @@ export function toInputEvaluationRequest(
   requestId?: string,
 ): PolicyEvaluationRequest {
   const classification = String(context.classification.sensitivity);
+  const regulatory = (context.classification.reason_codes ?? [])
+    .filter((c) => c.startsWith('REGULATORY_APPLICABILITY:'))
+    .map((c) => c.replace('REGULATORY_APPLICABILITY:', ''));
   return {
-    evaluation_phase: 'input',
+    evaluation_phase: context.evaluation_phase === 'simulate' ? 'simulate' : 'input',
     subject: {
       user_id: context.user.user_id,
       application_id: context.application.application_id,
@@ -72,6 +75,15 @@ export function toInputEvaluationRequest(
       tenant_id: context.application.organization_id,
       risk_level: context.classification.risk,
       application_environment: context.application.environment,
+      ...(context.purpose != null ? { purpose: context.purpose } : {}),
+      ...(context.recipient != null ? { recipient: context.recipient } : {}),
+      ...(context.source_system != null ? { source: context.source_system } : {}),
+      ...(context.processing_location != null
+        ? { processing_location: context.processing_location }
+        : {}),
+      ...(context.authorization_context != null
+        ? { authorization: context.authorization_context }
+        : {}),
     },
     ai_context: {
       requested_model: context.requestedModel,
@@ -91,8 +103,19 @@ export function toInputEvaluationRequest(
       entities: context.classification.entities?.map((e) => ({
         type: e.type,
       })),
+      ...(regulatory.length
+        ? {
+            classification_provenance: {
+              classification,
+              applicability: {
+                packs: regulatory,
+                basis: 'REQUEST_SUPPLIED' as const,
+              },
+            },
+          }
+        : {}),
     },
-    request_id: requestId,
+    request_id: requestId ?? context.request_id,
   };
 }
 
@@ -129,6 +152,11 @@ export function toOutputEvaluationRequest(
       tenant_id: context.application.organization_id,
       risk_level: context.request_classification.risk,
       application_environment: context.application.environment,
+      ...(context.purpose != null ? { purpose: context.purpose } : {}),
+      ...(context.recipient != null ? { recipient: context.recipient } : {}),
+      ...(context.authorization_context != null
+        ? { authorization: context.authorization_context }
+        : {}),
     },
     ai_context: {
       model_id: context.model_id,
@@ -260,6 +288,11 @@ export function fromLegacyResponseResult(result: PolicyResponseResult): EpaDecis
 }
 
 export function toLegacyRequestResult(decision: EpaDecision): PolicyEvaluationResult {
+  // SAFETY FALLBACK (not a governance DENY):
+  // Legacy Gateway PolicyDecision has no REVIEW. Mapping REVIEW → BLOCK causes a
+  // fail-closed hold so the request cannot proceed until human resolution.
+  // policy_evaluations.decision remains REVIEW; enforcement projection must treat
+  // the resulting audit BLOCK as REVIEW_REQUIRED / safety_fallback — not DENY.
   const legacyDecision: PolicyDecision =
     decision.decision === 'DENY' || decision.decision === 'REVIEW'
       ? 'BLOCK'
@@ -289,6 +322,9 @@ export function toLegacyRequestResult(decision: EpaDecision): PolicyEvaluationRe
               type: 'tokenize',
               targets: (o.parameters?.targets as string[]) ?? ['PII'],
             })),
+    evaluation_id: decision.evaluation_id,
+    /** EPA machine decision before legacy wire mapping (REVIEW stays REVIEW). */
+    machine_decision: decision.decision,
   };
 }
 
@@ -312,5 +348,6 @@ export function toLegacyResponseResult(decision: EpaDecision): PolicyResponseRes
     authorize_detokenization: decision.obligations.some(
       (o) => o.code === 'AUTHORIZE_DETOKENIZATION',
     ),
+    evaluation_id: decision.evaluation_id,
   };
 }

@@ -213,6 +213,8 @@ export function compileHipaaPack(): CompiledHipaaPack {
       scope_tier: 'regulatory',
       domain: 'hipaa',
       content_hash: 'sha256:hipaa_pack_v3_1',
+      pack_name: 'HIPAA',
+      pack_version: HIPAA_PACK_META.pack_version,
     },
     {
       policy_id: HIPAA_PACK_META.output_policy_id,
@@ -229,6 +231,8 @@ export function compileHipaaPack(): CompiledHipaaPack {
       scope_tier: 'regulatory',
       domain: 'hipaa',
       content_hash: 'sha256:hipaa_pack_v3_1_output',
+      pack_name: 'HIPAA',
+      pack_version: HIPAA_PACK_META.pack_version,
     },
   ];
 

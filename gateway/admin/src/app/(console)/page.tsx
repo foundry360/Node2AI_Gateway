@@ -61,8 +61,8 @@ export default async function OverviewPage() {
   return (
     <div>
       <PageHeader
-        title="Console"
-        lede="Gateway posture, policy readiness, and recent governance events."
+        title="Authority Console"
+        lede="What requires governance attention? Enigma governs AI actions from policy to proof."
       />
 
       {error ? (
@@ -193,6 +193,10 @@ export default async function OverviewPage() {
                     <h3>Quick links</h3>
                   </div>
                   <nav className="status-quick-links" aria-label="Quick links">
+                    <Link href="/decisions">
+                      <span>Recent decisions</span>
+                      <span aria-hidden>→</span>
+                    </Link>
                     <Link href="/applications">
                       <span>Manage applications</span>
                       <span aria-hidden>→</span>
@@ -203,10 +207,6 @@ export default async function OverviewPage() {
                     </Link>
                     <Link href="/audit">
                       <span>Audit trail</span>
-                      <span aria-hidden>→</span>
-                    </Link>
-                    <Link href="/system">
-                      <span>System & database</span>
                       <span aria-hidden>→</span>
                     </Link>
                   </nav>

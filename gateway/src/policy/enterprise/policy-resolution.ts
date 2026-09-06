@@ -48,8 +48,10 @@ export interface PrecedenceDeclaration {
 
 export interface PackEvaluationContribution {
   pack_id: string;
+  pack_name?: string;
   pack_version?: string;
   policy_id: string;
+  policy_name?: string;
   policy_version: number;
   decision: ResolutionDecision;
   reason_codes: string[];
@@ -615,7 +617,8 @@ export function contributionFromInterpretedResult(
     .map((r) => r.rule_id)
     .filter(Boolean);
   for (const m of newMatched) {
-    if (/^[A-Z0-9]+-R-/.test(m) || m.startsWith('MOCK-R-') || m.startsWith('HIPAA-R-')) {
+    // Generic rule-id patterns (e.g. HIPAA-R-*, PART2-R-*, MOCK-R-*)
+    if (/^[A-Z0-9]+-R-/.test(m) || m.startsWith('MOCK-R-')) {
       if (!rule_ids.includes(m)) rule_ids.push(m);
     }
   }
@@ -628,7 +631,10 @@ export function contributionFromInterpretedResult(
 
   return {
     pack_id: meta.pack_id,
+    pack_name: meta.pack_name,
+    pack_version: meta.pack_version,
     policy_id: meta.policy_id,
+    policy_name: meta.name,
     policy_version: meta.version,
     decision: after.decision,
     reason_codes: [...after.reason_codes],

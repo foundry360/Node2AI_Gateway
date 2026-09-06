@@ -81,6 +81,8 @@ export interface AdminContext {
   policyRepository?: PolicyRepository;
   /** Pack-backed PDP for simulate/validate (M3+). */
   packPdp?: PackBackedEnterprisePdp;
+  /** Live Gateway orchestrator — post-AUTHORIZE resume only. */
+  orchestrator?: import('./orchestrator.js').GatewayOrchestrator;
   db?: PgQueryable;
   checkDatabase?: () => Promise<DatabaseHealth>;
   checkLocalRuntime?: () => Promise<{
@@ -202,21 +204,37 @@ export function registerAdminRoutes(
     if (!(await requireAdmin(request.headers.authorization))) {
       return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
     }
-    const applications = await ctx.identityStore.listApplications();
-    return {
-      applications: applications.map((a) => ({
-        application_id: a.application_id,
-        organization_id: a.organization_id,
-        name: a.name,
-        type: a.type,
-        environment: a.environment,
-        status: a.status,
-        trust_level: a.trust_level,
-        allowed_models: a.allowed_models,
-        allowed_datasets: a.allowed_datasets,
-        allowed_operations: a.allowed_operations,
-      })),
-    };
+    try {
+      const applications = await ctx.identityStore.listApplications();
+      return {
+        applications: applications.map((a) => ({
+          application_id: a.application_id,
+          organization_id: a.organization_id,
+          name: a.name,
+          type: a.type,
+          environment: a.environment,
+          status: a.status,
+          trust_level: a.trust_level,
+          allowed_models: a.allowed_models,
+          allowed_datasets: a.allowed_datasets,
+          allowed_operations: a.allowed_operations,
+        })),
+      };
+    } catch (err) {
+      const code =
+        err && typeof err === 'object' && 'code' in err
+          ? String((err as { code: unknown }).code)
+          : '';
+      if (code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === '57P01') {
+        return reply.status(503).send({
+          status: 'error',
+          reason_code: 'DATABASE_UNAVAILABLE',
+          message:
+            'Identity store database is unreachable. Start Postgres (docker compose up -d postgres) or run the gateway without DATABASE_URL for memory mode.',
+        });
+      }
+      throw err;
+    }
   });
 
   app.get('/v1/admin/applications/:applicationId/activity', async (request, reply) => {
@@ -469,23 +487,436 @@ export function registerAdminRoutes(
       return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
     }
     const { policyId } = request.params as { policyId: string };
+    if (!ctx.policyRepository?.listEvaluations) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'EPA evaluation store unavailable',
+      });
+    }
+    const { toEvaluationListItem } = await import(
+      '../policy/enterprise/evaluation-query.js'
+    );
+    const { findAuditForEvaluation } = await import(
+      '../policy/enterprise/enforcement-projection.js'
+    );
+    const records = await Promise.resolve(
+      ctx.policyRepository.listEvaluations({ policyId, limit: 50 }),
+    );
     const events = await ctx.audit.list();
-    const evaluations = events
-      .filter((e) => (e.policy_ids ?? []).includes(policyId))
-      .reverse()
-      .slice(0, 50)
-      .map((e) => ({
-        audit_id: e.audit_id,
-        timestamp: e.timestamp,
-        request_id: e.request_id,
-        application_id: e.application_id,
-        operation: e.operation,
-        policy_decision: e.policy_decision,
-        response_decision: e.response_decision,
-        reason_codes: e.reason_codes,
-        data_classification: e.data_classification,
-      }));
-    return { policy_id: policyId, evaluations };
+    return {
+      policy_id: policyId,
+      source: 'policy_evaluations',
+      evaluations: records.map((r) =>
+        toEvaluationListItem(r, findAuditForEvaluation(r, events)),
+      ),
+    };
+  });
+
+  app.get('/v1/admin/evaluations', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    if (!ctx.policyRepository?.listEvaluations) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'EPA evaluation store unavailable',
+      });
+    }
+    const query = request.query as {
+      limit?: string;
+      filter?: string;
+    };
+    const limit = Math.min(Number(query.limit ?? 50) || 50, 200);
+    const filter = String(query.filter ?? 'all').toLowerCase();
+    const { toEvaluationListItem } = await import(
+      '../policy/enterprise/evaluation-query.js'
+    );
+    const { findAuditForEvaluation } = await import(
+      '../policy/enterprise/enforcement-projection.js'
+    );
+    const records = await Promise.resolve(
+      ctx.policyRepository.listEvaluations({ limit: Math.max(limit, 100) }),
+    );
+    const events = await ctx.audit.list();
+    const allItems = records.map((r) =>
+      toEvaluationListItem(r, findAuditForEvaluation(r, events)),
+    );
+    let items = allItems;
+    if (filter === 'review' || filter === 'pending_review') {
+      items = items.filter((e) => e.review_state === 'pending' || e.requires_review);
+    } else if (filter === 'resolved') {
+      items = items.filter((e) => e.review_state === 'resolved');
+    } else if (filter === 'allowed') {
+      items = items.filter((e) => {
+        const d = (e.final_decision ?? e.decision).toUpperCase();
+        return d === 'ALLOW' || d === 'TOKENIZE' || d === 'REDACT' || d === 'TRANSFORM';
+      });
+    } else if (filter === 'denied') {
+      items = items.filter((e) => {
+        const d = (e.final_decision ?? e.decision).toUpperCase();
+        return d === 'DENY' || d === 'BLOCK' || d === 'BLOCK_OUTPUT';
+      });
+    } else if (filter === 'conflicts') {
+      items = items.filter(
+        (e) =>
+          e.resolution_category === 'CONFLICT' ||
+          e.resolution_category === 'UNRESOLVED',
+      );
+    } else if (filter === 'controls') {
+      items = items.filter((e) => e.controls_applied);
+    }
+    items = items.slice(0, limit);
+    return {
+      source: 'policy_evaluations',
+      filter,
+      evaluations: items,
+      attention: {
+        review: allItems.filter((e) => e.review_state === 'pending').length,
+        pending_review: allItems.filter((e) => e.review_state === 'pending').length,
+        resolved: allItems.filter((e) => e.review_state === 'resolved').length,
+        denied: allItems.filter((e) => {
+          const d = e.decision.toUpperCase();
+          return d === 'DENY' || d === 'BLOCK' || d === 'BLOCK_OUTPUT';
+        }).length,
+        conflicts: allItems.filter(
+          (e) =>
+            (e.resolution_category === 'CONFLICT' ||
+              e.resolution_category === 'UNRESOLVED') &&
+            e.review_state === 'pending',
+        ).length,
+        controls_applied: allItems.filter((e) => e.controls_applied).length,
+      },
+    };
+  });
+
+  app.get('/v1/admin/evaluations/:evaluationId', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    if (!ctx.policyRepository?.getEvaluation) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'EPA evaluation store unavailable',
+      });
+    }
+    const { evaluationId } = request.params as { evaluationId: string };
+    const record = await Promise.resolve(
+      ctx.policyRepository.getEvaluation(evaluationId),
+    );
+    if (!record) {
+      return reply.status(404).send({ status: 'error', message: 'evaluation not found' });
+    }
+    const { evaluationRecordToDecisionPayload, deriveDecisionConsequence, projectRequestContext } =
+      await import('../policy/enterprise/evaluation-query.js');
+    const { projectEnforcementResult, findAuditForEvaluation } = await import(
+      '../policy/enterprise/enforcement-projection.js'
+    );
+    const { reviewStateForRecord, isEligibleForHumanReview } = await import(
+      '../policy/enterprise/decision-resolution.js'
+    );
+    const decision = evaluationRecordToDecisionPayload(record);
+    const review_state = reviewStateForRecord(record);
+    const effectiveDecision =
+      record.human_resolution?.final_decision ?? record.decision;
+    const consequence = deriveDecisionConsequence(
+      review_state === 'pending' ? 'REVIEW' : effectiveDecision,
+      record.explanation,
+      record.obligations,
+    );
+    if (review_state === 'pending') {
+      consequence.requires_review = true;
+      consequence.expected_action = 'HOLD';
+      consequence.action_summary = 'Hold for human review';
+    }
+    if (review_state === 'resolved') {
+      consequence.requires_review = false;
+    }
+    const audit = findAuditForEvaluation(record, await ctx.audit.list());
+    const enforcement = projectEnforcementResult(record, audit);
+    const request_context = projectRequestContext(record);
+    return {
+      source: 'policy_evaluations',
+      evaluation: record,
+      decision,
+      consequence,
+      enforcement,
+      request_context,
+      execution: {
+        mode: request_context.execution_mode,
+        phase: record.phase,
+        gateway_executed: request_context.execution_mode === 'live',
+        summary:
+          request_context.execution_mode === 'simulation'
+            ? 'Decision evaluated — Gateway action not executed'
+            : enforcement.verified
+              ? 'Decision evaluated — Gateway enforcement correlated and verified'
+              : enforcement.attempted
+                ? 'Decision evaluated — Gateway enforcement attempted'
+                : 'Decision evaluated — Gateway enforcement not yet correlated',
+        resume: record.execution ?? null,
+        held_request_present: Boolean(record.held_request),
+      },
+      review: {
+        eligible: isEligibleForHumanReview(record) || review_state === 'resolved',
+        review_state,
+        original_decision: record.decision,
+        human_resolution: record.human_resolution ?? null,
+        final_decision: record.human_resolution?.final_decision ?? null,
+      },
+    };
+  });
+
+  app.post('/v1/admin/evaluations/:evaluationId/resolve', async (request, reply) => {
+    if (!(await requireApprover(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    if (!ctx.policyRepository?.getEvaluation || !ctx.policyRepository.saveHumanResolution) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'EPA evaluation store unavailable',
+      });
+    }
+    const { evaluationId } = request.params as { evaluationId: string };
+    const body = (request.body ?? {}) as {
+      disposition?: string;
+      reason?: string;
+      actor?: string;
+    };
+    const record = await Promise.resolve(
+      ctx.policyRepository.getEvaluation(evaluationId),
+    );
+    if (!record) {
+      return reply.status(404).send({ status: 'error', message: 'evaluation not found' });
+    }
+
+    const {
+      buildHumanResolution,
+    } = await import('../policy/enterprise/decision-resolution.js');
+    const { deriveDecisionConsequence } = await import(
+      '../policy/enterprise/evaluation-query.js'
+    );
+    const { projectEnforcementResult, findAuditForEvaluation } = await import(
+      '../policy/enterprise/enforcement-projection.js'
+    );
+
+    let resolution;
+    try {
+      resolution = buildHumanResolution(record, {
+        disposition: String(body.disposition ?? '').toUpperCase() as 'AUTHORIZE' | 'DENY',
+        reason: String(body.reason ?? ''),
+        resolved_by: String(body.actor ?? 'approver'),
+      });
+    } catch (err) {
+      const code =
+        err && typeof err === 'object' && 'code' in err
+          ? String((err as { code: unknown }).code)
+          : null;
+      if (code) {
+        const status = code === 'ALREADY_RESOLVED' ? 409 : 400;
+        return reply.status(status).send({
+          status: 'error',
+          reason_code: code,
+          message: err instanceof Error ? err.message : 'Resolution failed',
+        });
+      }
+      throw err;
+    }
+
+    const machineDecision = record.decision;
+    const updated = await Promise.resolve(
+      ctx.policyRepository.saveHumanResolution(evaluationId, resolution),
+    );
+    if (!updated || updated.decision !== machineDecision) {
+      return reply.status(500).send({
+        status: 'error',
+        message: 'Failed to persist resolution without altering machine decision',
+      });
+    }
+
+    const { executionAfterAuthorize } = await import(
+      '../policy/enterprise/decision-resume.js'
+    );
+    let withExecution = updated;
+    const exec = executionAfterAuthorize(updated);
+    if (exec && ctx.policyRepository.saveExecution) {
+      withExecution =
+        (await Promise.resolve(
+          ctx.policyRepository.saveExecution(evaluationId, exec),
+        )) ?? updated;
+    }
+
+    const requestId =
+      withExecution.request_id ?? `req_resolve_${evaluationId.slice(-12)}`;
+    const authorized = resolution.human_disposition === 'AUTHORIZE';
+    await ctx.audit.record({
+      audit_id: `aud_eval_res_${randomBytes(6).toString('hex')}`,
+      timestamp: resolution.resolved_at,
+      user_id: resolution.resolved_by,
+      request_id: requestId,
+      correlation_id: `cor_eval_res_${randomBytes(4).toString('hex')}`,
+      operation: 'evaluation_resolve',
+      data_classification: 'Internal',
+      policy_decision: authorized ? 'ALLOW' : 'BLOCK',
+      response_decision: authorized ? 'RELEASE' : 'BLOCK',
+      reason_codes: [
+        authorized ? 'HUMAN_AUTHORIZE' : 'HUMAN_DENY',
+        'EVALUATION_RESOLVED',
+      ],
+      metadata: {
+        resolution: true,
+        evaluation_id: evaluationId,
+        original_decision: resolution.original_decision,
+        human_disposition: resolution.human_disposition,
+        final_decision: resolution.final_decision,
+        resolution_reason: resolution.resolution_reason,
+        resolved_by: resolution.resolved_by,
+        resume_eligible: Boolean(exec),
+      },
+    });
+
+    const audit = findAuditForEvaluation(withExecution, await ctx.audit.list());
+    const consequence = deriveDecisionConsequence(
+      resolution.final_decision,
+      withExecution.explanation,
+      withExecution.obligations,
+    );
+    consequence.requires_review = false;
+    const enforcement = projectEnforcementResult(withExecution, audit);
+
+    return {
+      status: 'resolved',
+      evaluation_id: evaluationId,
+      original_decision: machineDecision,
+      human_resolution: resolution,
+      final_decision: resolution.final_decision,
+      execution: withExecution.execution ?? null,
+      consequence,
+      enforcement,
+      request_id: requestId,
+    };
+  });
+
+  app.post('/v1/admin/evaluations/:evaluationId/resume', async (request, reply) => {
+    if (!(await requireApprover(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    if (
+      !ctx.policyRepository?.getEvaluation ||
+      !ctx.policyRepository.saveExecution ||
+      !ctx.orchestrator
+    ) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Resume unavailable',
+      });
+    }
+    const { evaluationId } = request.params as { evaluationId: string };
+    const record = await Promise.resolve(
+      ctx.policyRepository.getEvaluation(evaluationId),
+    );
+    if (!record) {
+      return reply.status(404).send({
+        status: 'error',
+        reason_code: 'NOT_FOUND',
+        message: 'evaluation not found',
+      });
+    }
+
+    const {
+      assertResumeEligible,
+      ResumeEvaluationError,
+      markResumeInProgress,
+      markResumed,
+      markResumeFailed,
+    } = await import('../policy/enterprise/decision-resume.js');
+    const { projectEnforcementResult, findAuditForEvaluation } = await import(
+      '../policy/enterprise/enforcement-projection.js'
+    );
+
+    try {
+      assertResumeEligible(record);
+    } catch (err) {
+      if (err instanceof ResumeEvaluationError) {
+        if (err.code === 'ALREADY_RESUMED') {
+          const audit = findAuditForEvaluation(record, await ctx.audit.list());
+          return {
+            status: 'already_resumed',
+            evaluation_id: evaluationId,
+            original_decision: record.decision,
+            final_decision: record.human_resolution?.final_decision,
+            execution: record.execution,
+            enforcement: projectEnforcementResult(record, audit),
+            request_id: record.request_id,
+          };
+        }
+        const status =
+          err.code === 'RESUME_IN_PROGRESS'
+            ? 409
+            : err.code === 'MISSING_HELD_REQUEST'
+              ? 409
+              : 400;
+        return reply.status(status).send({
+          status: 'error',
+          reason_code: err.code,
+          message: err.message,
+          execution: record.execution ?? null,
+        });
+      }
+      throw err;
+    }
+
+    const machineDecision = record.decision;
+    const inProgress = markResumeInProgress(record.execution);
+    let working =
+      (await Promise.resolve(
+        ctx.policyRepository.saveExecution(evaluationId, inProgress),
+      )) ?? record;
+    if (working.decision !== machineDecision) {
+      return reply.status(500).send({
+        status: 'error',
+        message: 'Failed to persist resume state without altering machine decision',
+      });
+    }
+
+    const result = await ctx.orchestrator.resumeAuthorizedEvaluation(working);
+    if (result.httpStatus === 200) {
+      const done = markResumed(working.execution, result.audit_id ?? '');
+      working =
+        (await Promise.resolve(
+          ctx.policyRepository.saveExecution(evaluationId, done),
+        )) ?? working;
+      const audit = findAuditForEvaluation(working, await ctx.audit.list());
+      return {
+        status: 'resumed',
+        evaluation_id: evaluationId,
+        original_decision: machineDecision,
+        final_decision: working.human_resolution?.final_decision,
+        execution: working.execution,
+        enforcement: projectEnforcementResult(working, audit),
+        request_id: working.request_id,
+        gateway: result.body,
+      };
+    }
+
+    const failed = markResumeFailed(
+      working.execution,
+      'reason_code' in result.body ? result.body.reason_code : 'RESUME_FAILED',
+    );
+    working =
+      (await Promise.resolve(
+        ctx.policyRepository.saveExecution(evaluationId, failed),
+      )) ?? working;
+    const audit = findAuditForEvaluation(working, await ctx.audit.list());
+    return reply.status(409).send({
+      status: 'resume_failed',
+      evaluation_id: evaluationId,
+      original_decision: machineDecision,
+      final_decision: working.human_resolution?.final_decision,
+      execution: working.execution,
+      enforcement: projectEnforcementResult(working, audit),
+      request_id: working.request_id,
+      gateway: result.body,
+    });
   });
 
   app.get('/v1/admin/policies/:policyId', async (request, reply) => {

@@ -1,10 +1,16 @@
 import type { ReactNode } from 'react';
-import { Grip, GripHorizontal, MoreHorizontal } from 'lucide-react';
-
-function formatStatusLabel(status: string) {
-  if (!status) return status;
-  return status.charAt(0).toUpperCase() + status.slice(1);
-}
+import {
+  Ban,
+  Check,
+  Clock,
+  Grip,
+  GripHorizontal,
+  HelpCircle,
+  MoreHorizontal,
+  Shield,
+  ShieldBan,
+} from 'lucide-react';
+import { formatFieldLabel } from '@/lib/field-label';
 
 function badgeKind(status: string): string {
   const s = status.toLowerCase();
@@ -15,6 +21,7 @@ function badgeKind(status: string): string {
     s === 'valid' ||
     s === 'approved' ||
     s === 'allow' ||
+    s === 'allowed' ||
     s === 'connected' ||
     s === 'ready'
   ) {
@@ -29,16 +36,21 @@ function badgeKind(status: string): string {
     s === 'block' ||
     s === 'blocked' ||
     s === 'unavailable' ||
-    s === 'degraded'
+    s === 'degraded' ||
+    s === 'failed'
   ) {
     return 'badge-bad';
   }
   if (
     s === 'draft' ||
     s === 'review' ||
+    s === 'review_required' ||
     s === 'warn' ||
     s === 'attention' ||
-    s === 'memory'
+    s === 'memory' ||
+    s === 'unknown' ||
+    s === 'not_executed' ||
+    s === 'controls_applied'
   ) {
     return 'badge-warn';
   }
@@ -53,6 +65,43 @@ function toneFromStatus(status: string): 'ok' | 'bad' | 'warn' | 'neutral' {
   return 'neutral';
 }
 
+function badgeIcon(status: string): ReactNode {
+  const s = status.toLowerCase();
+  const props = { size: 12, strokeWidth: 2.25, 'aria-hidden': true as const };
+
+  if (
+    s === 'allow' ||
+    s === 'allowed' ||
+    s === 'approved' ||
+    s === 'ok' ||
+    s === 'valid' ||
+    s === 'healthy' ||
+    s === 'active' ||
+    s === 'connected' ||
+    s === 'ready'
+  ) {
+    return <Check {...props} />;
+  }
+  if (s === 'deny' || s === 'block' || s === 'blocked') {
+    return <ShieldBan {...props} />;
+  }
+  if (
+    s === 'failed' ||
+    s === 'broken' ||
+    s === 'unavailable' ||
+    s === 'degraded'
+  ) {
+    return <Ban {...props} />;
+  }
+  if (s === 'controls_applied') {
+    return <Shield {...props} />;
+  }
+  if (s === 'review' || s === 'review_required' || s === 'attention' || s === 'warn') {
+    return <Clock {...props} />;
+  }
+  return <HelpCircle {...props} />;
+}
+
 export function StatusBadge({
   status,
   label: labelOverride,
@@ -65,11 +114,17 @@ export function StatusBadge({
   showLabel?: boolean;
   variant?: 'icon' | 'badge' | 'dot';
 }) {
+  const label = labelOverride ?? formatFieldLabel(status);
+
   if (variant === 'badge') {
-    return <span className={`badge ${badgeKind(status)}`}>{status}</span>;
+    return (
+      <span className={`badge ${badgeKind(status)}`} title={status}>
+        <span className="badge-icon">{badgeIcon(status)}</span>
+        {label}
+      </span>
+    );
   }
 
-  const label = labelOverride ?? formatStatusLabel(status);
   const tone = toneFromStatus(status);
 
   if (variant === 'dot') {

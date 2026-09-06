@@ -16,15 +16,19 @@ export function TopChrome({
     context ??
     (pathname.startsWith('/applications')
       ? 'Applications'
-      : pathname.startsWith('/policies')
-        ? 'Policies'
-        : pathname.startsWith('/models')
-          ? 'Models'
-          : pathname.startsWith('/audit')
-            ? 'Audit'
-            : pathname.startsWith('/system')
-              ? 'System'
-              : 'Console');
+      : pathname.startsWith('/decisions')
+        ? 'Decisions'
+        : pathname.startsWith('/evaluations')
+          ? 'Decisions'
+          : pathname.startsWith('/policies')
+            ? 'Policies'
+            : pathname.startsWith('/models')
+              ? 'Models'
+              : pathname.startsWith('/audit')
+                ? 'Audit'
+                : pathname.startsWith('/system')
+                  ? 'System'
+                  : 'Console');
 
   return (
     <header className="topchrome">

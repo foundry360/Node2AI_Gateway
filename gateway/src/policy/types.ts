@@ -36,6 +36,10 @@ export interface PolicyRequestContext {
   source_system?: string;
   processing_location?: string;
   authorization_context?: string;
+  /** Gateway request id — stamped onto policy_evaluations for enforcement join. */
+  request_id?: string;
+  /** When 'simulate', evaluation is recorded as not Gateway-executed. */
+  evaluation_phase?: 'input' | 'simulate';
 }
 
 export interface PolicyEvaluationResult {
@@ -45,6 +49,13 @@ export interface PolicyEvaluationResult {
   policy_ids: string[];
   policy_version: number;
   transforms: Array<{ type: string; targets: string[] }>;
+  /** EPA evaluation id when available — for Gateway audit correlation. */
+  evaluation_id?: string;
+  /**
+   * EPA machine decision before legacy wire mapping.
+   * REVIEW remains REVIEW here even when decision is BLOCK (safety hold).
+   */
+  machine_decision?: string;
 }
 
 export interface PolicyResponseContext {
@@ -61,6 +72,8 @@ export interface PolicyResponseContext {
   authorization_context?: string;
   /** Explicit Enigma release evaluation result when provided. */
   release_conditions_satisfied?: boolean;
+  /** Gateway request id — stamped onto policy_evaluations for enforcement join. */
+  request_id?: string;
 }
 
 export interface PolicyResponseResult {
@@ -71,6 +84,8 @@ export interface PolicyResponseResult {
   transforms: Array<{ type: string; targets: string[] }>;
   /** Detokenization is privileged — default false. */
   authorize_detokenization: boolean;
+  /** EPA evaluation id when available — for Gateway audit correlation. */
+  evaluation_id?: string;
 }
 
 export interface PolicyEngine {

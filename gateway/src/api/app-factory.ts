@@ -289,6 +289,8 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
     detokenizer,
     models,
     audit,
+    policyRepository: packRepo,
+    identityStore,
   });
 
   return {
@@ -326,6 +328,7 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
           policyStore,
           policyRepository: packRepo,
           packPdp,
+          orchestrator,
           db,
           checkDatabase: () => checkDatabase(config.databaseUrl),
           checkLocalRuntime: async () => {

@@ -26,9 +26,40 @@ export interface PolicyRepository {
   recordEvaluation?(record: import('./evaluation-record.js').PolicyEvaluationRecord): void | Promise<void>;
   getEvaluation?(
     evaluationId: string,
-  ): import('./evaluation-record.js').PolicyEvaluationRecord | undefined | Promise<
-    import('./evaluation-record.js').PolicyEvaluationRecord | undefined
-  >;
+  ):
+    | import('./evaluation-record.js').PolicyEvaluationRecord
+    | undefined
+    | Promise<import('./evaluation-record.js').PolicyEvaluationRecord | undefined>;
+  listEvaluations?(options?: {
+    policyId?: string;
+    limit?: number;
+  }):
+    | import('./evaluation-record.js').PolicyEvaluationRecord[]
+    | Promise<import('./evaluation-record.js').PolicyEvaluationRecord[]>;
+  /** Persist human resolution without overwriting machine decision. */
+  saveHumanResolution?(
+    evaluationId: string,
+    resolution: import('./decision-resolution.js').HumanResolution,
+  ):
+    | import('./evaluation-record.js').PolicyEvaluationRecord
+    | undefined
+    | Promise<import('./evaluation-record.js').PolicyEvaluationRecord | undefined>;
+  /** Retain live request payload for post-AUTHORIZE resume (REVIEW only). */
+  attachHeldRequest?(
+    evaluationId: string,
+    held: import('./decision-resume.js').HeldRequestSnapshot,
+  ):
+    | import('./evaluation-record.js').PolicyEvaluationRecord
+    | undefined
+    | Promise<import('./evaluation-record.js').PolicyEvaluationRecord | undefined>;
+  /** Persist resume execution state without mutating machine decision. */
+  saveExecution?(
+    evaluationId: string,
+    execution: import('./decision-resume.js').EvaluationExecution,
+  ):
+    | import('./evaluation-record.js').PolicyEvaluationRecord
+    | undefined
+    | Promise<import('./evaluation-record.js').PolicyEvaluationRecord | undefined>;
 }
 
 /**
@@ -184,8 +215,82 @@ export class PostgresPolicyRepository implements PolicyRepository {
     void this.persistEvaluationRow(record);
   }
 
-  getEvaluation(evaluationId: string) {
-    return this.memory.getEvaluation(evaluationId);
+  async getEvaluation(evaluationId: string) {
+    const cached = this.memory.getEvaluation(evaluationId);
+    if (cached) return cached;
+    try {
+      const res = await this.db.query(
+        `SELECT evaluation_id, request_id, phase, organization_id,
+                subject, resource, action, context, ai_context, evidence_in,
+                decision, reason, applicable_policies, obligations, explanation,
+                human_resolution, held_request, execution, created_at
+         FROM policy_evaluations
+         WHERE evaluation_id = $1`,
+        [evaluationId],
+      );
+      const row = res.rows[0];
+      if (!row) return undefined;
+      const { rowToEvaluationRecord } = await import('./evaluation-query.js');
+      const record = rowToEvaluationRecord(row as Record<string, unknown>);
+      this.memory.recordEvaluation(record);
+      return record;
+    } catch {
+      return undefined;
+    }
+  }
+
+  async listEvaluations(options: { policyId?: string; limit?: number } = {}) {
+    const limit = options.limit ?? 50;
+    try {
+      // Prefer Postgres as authoritative historical store.
+      const res = options.policyId
+        ? await this.db.query(
+            `SELECT evaluation_id, request_id, phase, organization_id,
+                    subject, resource, action, context, ai_context, evidence_in,
+                    decision, reason, applicable_policies, obligations, explanation,
+                    human_resolution, held_request, execution, created_at
+             FROM policy_evaluations
+             WHERE EXISTS (
+               SELECT 1
+               FROM jsonb_array_elements(applicable_policies) AS elem
+               WHERE elem->>'policy_id' = $1
+             )
+             ORDER BY created_at DESC
+             LIMIT $2`,
+            [options.policyId, limit],
+          )
+        : await this.db.query(
+            `SELECT evaluation_id, request_id, phase, organization_id,
+                    subject, resource, action, context, ai_context, evidence_in,
+                    decision, reason, applicable_policies, obligations, explanation,
+                    human_resolution, held_request, execution, created_at
+             FROM policy_evaluations
+             ORDER BY created_at DESC
+             LIMIT $1`,
+            [limit],
+          );
+      const { rowToEvaluationRecord } = await import('./evaluation-query.js');
+      const rows = res.rows.map((r) =>
+        rowToEvaluationRecord(r as Record<string, unknown>),
+      );
+      // Contains filter on JSONB array of objects is exact-element match;
+      // also include memory rows that mention policy_id in any applicable policy.
+      if (options.policyId) {
+        const fromMem = this.memory.listEvaluations({
+          policyId: options.policyId,
+          limit,
+        });
+        const seen = new Set(rows.map((r) => r.evaluation_id));
+        for (const m of fromMem) {
+          if (!seen.has(m.evaluation_id)) rows.push(m);
+        }
+        rows.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+        return rows.slice(0, limit);
+      }
+      return rows;
+    } catch {
+      return this.memory.listEvaluations(options);
+    }
   }
 
   private async persistEvaluationRow(
@@ -196,18 +301,22 @@ export class PostgresPolicyRepository implements PolicyRepository {
         `INSERT INTO policy_evaluations (
            evaluation_id, request_id, phase, organization_id,
            subject, resource, action, context, ai_context, evidence_in,
-           decision, reason, applicable_policies, obligations, explanation
+           decision, reason, applicable_policies, obligations, explanation,
+           human_resolution, created_at
          ) VALUES (
            $1, $2, $3, $4,
            $5::jsonb, $6::jsonb, $7, $8::jsonb, $9::jsonb, $10::jsonb,
-           $11, $12, $13::jsonb, $14::jsonb, $15::jsonb
+           $11, $12, $13::jsonb, $14::jsonb, $15::jsonb,
+           $16::jsonb, $17::timestamptz
          )
          ON CONFLICT (evaluation_id) DO UPDATE SET
            explanation = EXCLUDED.explanation,
            decision = EXCLUDED.decision,
            reason = EXCLUDED.reason,
            applicable_policies = EXCLUDED.applicable_policies,
-           obligations = EXCLUDED.obligations`,
+           obligations = EXCLUDED.obligations,
+           evidence_in = EXCLUDED.evidence_in,
+           human_resolution = COALESCE(EXCLUDED.human_resolution, policy_evaluations.human_resolution)`,
         [
           record.evaluation_id,
           record.request_id ?? null,
@@ -224,10 +333,159 @@ export class PostgresPolicyRepository implements PolicyRepository {
           JSON.stringify(record.applicable_policies),
           JSON.stringify(record.obligations),
           JSON.stringify(record.explanation),
+          record.human_resolution
+            ? JSON.stringify(record.human_resolution)
+            : null,
+          record.created_at,
         ],
       );
     } catch {
-      // best-effort — schema may be absent in some environments
+      // Fallback without human_resolution column (older schemas).
+      try {
+        await this.db.query(
+          `INSERT INTO policy_evaluations (
+             evaluation_id, request_id, phase, organization_id,
+             subject, resource, action, context, ai_context, evidence_in,
+             decision, reason, applicable_policies, obligations, explanation, created_at
+           ) VALUES (
+             $1, $2, $3, $4,
+             $5::jsonb, $6::jsonb, $7, $8::jsonb, $9::jsonb, $10::jsonb,
+             $11, $12, $13::jsonb, $14::jsonb, $15::jsonb, $16::timestamptz
+           )
+           ON CONFLICT (evaluation_id) DO UPDATE SET
+             explanation = EXCLUDED.explanation,
+             decision = EXCLUDED.decision,
+             reason = EXCLUDED.reason,
+             applicable_policies = EXCLUDED.applicable_policies,
+             obligations = EXCLUDED.obligations,
+             evidence_in = EXCLUDED.evidence_in`,
+          [
+            record.evaluation_id,
+            record.request_id ?? null,
+            record.phase,
+            record.organization_id ?? null,
+            JSON.stringify(record.subject),
+            JSON.stringify(record.resource),
+            record.action ?? null,
+            JSON.stringify(record.context),
+            JSON.stringify(record.ai_context),
+            JSON.stringify(record.evidence_in),
+            record.decision,
+            record.reason ?? null,
+            JSON.stringify(record.applicable_policies),
+            JSON.stringify(record.obligations),
+            JSON.stringify({
+              ...record.explanation,
+              ...(record.human_resolution
+                ? { human_resolution: record.human_resolution }
+                : {}),
+            }),
+            record.created_at,
+          ],
+        );
+      } catch {
+        // best-effort — schema may be absent in some environments
+      }
     }
+  }
+
+  async saveHumanResolution(
+    evaluationId: string,
+    resolution: import('./decision-resolution.js').HumanResolution,
+  ) {
+    const updated = this.memory.saveHumanResolution(evaluationId, resolution);
+    if (!updated) return undefined;
+    try {
+      await this.db.query(
+        `UPDATE policy_evaluations
+         SET human_resolution = $1::jsonb
+         WHERE evaluation_id = $2`,
+        [JSON.stringify(resolution), evaluationId],
+      );
+    } catch {
+      // Fallback: nest under explanation without touching decision.
+      try {
+        await this.db.query(
+          `UPDATE policy_evaluations
+           SET explanation = jsonb_set(
+             COALESCE(explanation, '{}'::jsonb),
+             '{human_resolution}',
+             $1::jsonb,
+             true
+           )
+           WHERE evaluation_id = $2`,
+          [JSON.stringify(resolution), evaluationId],
+        );
+      } catch {
+        // memory still holds the resolution
+      }
+    }
+    return updated;
+  }
+
+  async attachHeldRequest(
+    evaluationId: string,
+    held: import('./decision-resume.js').HeldRequestSnapshot,
+  ) {
+    const updated = this.memory.attachHeldRequest(evaluationId, held);
+    if (!updated) return undefined;
+    try {
+      await this.db.query(
+        `UPDATE policy_evaluations
+         SET held_request = $1::jsonb
+         WHERE evaluation_id = $2`,
+        [JSON.stringify(held), evaluationId],
+      );
+    } catch {
+      try {
+        await this.db.query(
+          `UPDATE policy_evaluations
+           SET explanation = jsonb_set(
+             COALESCE(explanation, '{}'::jsonb),
+             '{_enigma_held_request}',
+             $1::jsonb,
+             true
+           )
+           WHERE evaluation_id = $2`,
+          [JSON.stringify(held), evaluationId],
+        );
+      } catch {
+        // memory retains the hold
+      }
+    }
+    return updated;
+  }
+
+  async saveExecution(
+    evaluationId: string,
+    execution: import('./decision-resume.js').EvaluationExecution,
+  ) {
+    const updated = this.memory.saveExecution(evaluationId, execution);
+    if (!updated) return undefined;
+    try {
+      await this.db.query(
+        `UPDATE policy_evaluations
+         SET execution = $1::jsonb
+         WHERE evaluation_id = $2`,
+        [JSON.stringify(execution), evaluationId],
+      );
+    } catch {
+      try {
+        await this.db.query(
+          `UPDATE policy_evaluations
+           SET explanation = jsonb_set(
+             COALESCE(explanation, '{}'::jsonb),
+             '{_enigma_execution}',
+             $1::jsonb,
+             true
+           )
+           WHERE evaluation_id = $2`,
+          [JSON.stringify(execution), evaluationId],
+        );
+      } catch {
+        // memory retains execution
+      }
+    }
+    return updated;
   }
 }

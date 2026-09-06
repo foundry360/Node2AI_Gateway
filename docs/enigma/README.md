@@ -20,6 +20,8 @@ This folder holds the **foundational architecture deliverables** required before
 | — | **Healthcare Policy Packs** (HIPAA + Part 2) | [../architecture/HEALTHCARE_POLICY_PACKS.md](../architecture/HEALTHCARE_POLICY_PACKS.md) |
 | — | **Healthcare Policy Domain** | [../architecture/HEALTHCARE_POLICY_DOMAIN.md](../architecture/HEALTHCARE_POLICY_DOMAIN.md) |
 | — | **Healthcare Policy Resolution v0.1** | [../architecture/HEALTHCARE_POLICY_RESOLUTION.md](../architecture/HEALTHCARE_POLICY_RESOLUTION.md) |
+| — | Multi-pack decision explanation (operator UX) | Policy Simulate → `DecisionExplanationView` |
+| — | **Product differentiation architecture** | [../architecture/ENIGMA_PRODUCT_DIFFERENTIATION.md](../architecture/ENIGMA_PRODUCT_DIFFERENTIATION.md) |
 | — | **Policy Pack Authoring Spec** | [../policy-packs/POLICY_PACK_AUTHORING_SPEC.md](../policy-packs/POLICY_PACK_AUTHORING_SPEC.md) |
 | — | HIPAA v3.1 → pack contract mapping | [../policy-packs/HIPAA_V3_REFERENCE_MAPPING.md](../policy-packs/HIPAA_V3_REFERENCE_MAPPING.md) |
 

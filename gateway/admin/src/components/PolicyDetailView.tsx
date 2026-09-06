@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import {
   LegacyRulesEditor,
@@ -9,7 +10,7 @@ import {
 import { EmptyState } from '@/components/EmptyState';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatDomainLabel } from '@/lib/domain-label';
-import { formatReasonCode, formatReasonCodes } from '@/lib/reason-codes';
+import { formatReasonCode } from '@/lib/reason-codes';
 
 type Definition = {
   description: string;
@@ -24,6 +25,20 @@ type Definition = {
   conditions: Array<{ id: string; statement: string }>;
   decisions: Array<{ when: string; decision: string; reason_codes: string[] }>;
   obligations: Array<{ code: string; when: string; description: string }>;
+};
+
+/** Summary row from policy_evaluations (not audit events). */
+export type PolicyEvaluationSummary = {
+  evaluation_id: string;
+  created_at: string;
+  decision: string;
+  phase: string;
+  status: string;
+  request_id?: string;
+  action?: string;
+  resolution_category?: string;
+  contributing_pack_ids: string[];
+  policy_ids?: string[];
 };
 
 export type PolicyDetail = {
@@ -58,17 +73,7 @@ export type PolicyDetail = {
     created_by: string | null;
     source: string;
   }>;
-  evaluations: Array<{
-    audit_id: string;
-    timestamp: string;
-    request_id: string;
-    application_id?: string;
-    operation?: string;
-    policy_decision?: string;
-    response_decision?: string;
-    reason_codes?: string[];
-    data_classification?: string;
-  }>;
+  evaluations: PolicyEvaluationSummary[];
   engine_mode: string;
 };
 
@@ -83,7 +88,7 @@ const TABS = [
   'Decisions',
   'Obligations',
   'Versions',
-  'Evidence',
+  'Evaluations',
   'Simulate',
 ] as const;
 
@@ -281,41 +286,57 @@ export function PolicyDetailView({ detail }: { detail: PolicyDetail }) {
             )
           ) : null}
 
-          {tab === 'Evidence' ? (
+          {tab === 'Evaluations' ? (
             evaluations.length === 0 ? (
               <EmptyState
-                title="No policy-linked evaluations yet"
-                description="Audit events that reference this policy_id will appear here."
+                title="No policy evaluations yet"
+                description="Historical decisions from policy_evaluations appear here. Operational activity remains on Audit."
               />
             ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Time</th>
-                    <th>Request</th>
-                    <th>Decision</th>
-                    <th>Classification</th>
-                    <th>Reasons</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {evaluations.map((e) => (
-                    <tr key={e.audit_id}>
-                      <td className="mono">{e.timestamp}</td>
-                      <td className="mono">{e.request_id}</td>
-                      <td>
-                        <StatusBadge
-                          status={e.policy_decision ?? e.response_decision ?? '—'}
-                        />
-                      </td>
-                      <td>{e.data_classification ?? '—'}</td>
-                      <td>
-                        {formatReasonCodes(e.reason_codes) || '—'}
-                      </td>
+              <div className="stack-tight">
+                <p className="muted">
+                  Policy evaluations record what Enigma decided and why. Audit events (separate)
+                  record what happened operationally.
+                </p>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Evaluation</th>
+                      <th>Decision</th>
+                      <th>Resolution</th>
+                      <th>Packs</th>
+                      <th>Status</th>
+                      <th>Request</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {evaluations.map((e) => (
+                      <tr key={e.evaluation_id}>
+                        <td className="mono">{e.created_at}</td>
+                        <td className="mono">
+                          <Link href={`/evaluations/${e.evaluation_id}`}>
+                            {e.evaluation_id}
+                          </Link>
+                        </td>
+                        <td>
+                          <StatusBadge status={e.decision} />
+                        </td>
+                        <td className="mono">{e.resolution_category ?? '—'}</td>
+                        <td className="mono">
+                          {e.contributing_pack_ids?.length
+                            ? e.contributing_pack_ids.join(', ')
+                            : '—'}
+                        </td>
+                        <td>
+                          <StatusBadge showLabel status={e.status} />
+                        </td>
+                        <td className="mono">{e.request_id ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )
           ) : null}
 

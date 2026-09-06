@@ -128,6 +128,7 @@ describe('Enigma EPA M3 admin lifecycle', () => {
       headers: auth,
     });
     expect(evaluations.statusCode).toBe(200);
+    expect(evaluations.json().source).toBe('policy_evaluations');
     expect(Array.isArray(evaluations.json().evaluations)).toBe(true);
   });
 

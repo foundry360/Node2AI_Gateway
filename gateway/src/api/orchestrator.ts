@@ -1,8 +1,12 @@
 import type { AuditEvent, AuditService } from '../audit/service.js';
 import type { IdentityService } from '../identity/service.js';
+import type { IdentityStore } from '../identity/store.js';
 import type { DataInterrogator } from '../interrogation/types.js';
 import { selectEligibleModel } from '../models/router.js';
 import type { ModelGateway, ModelMessage } from '../models/types.js';
+import type { PolicyRepository } from '../policy/enterprise/pg-repository.js';
+import type { PolicyEvaluationRecord } from '../policy/enterprise/evaluation-record.js';
+import type { HeldRequestSnapshot } from '../policy/enterprise/decision-resume.js';
 import type { PolicyEngine } from '../policy/types.js';
 import type { ResponseInspector } from '../response/inspector.js';
 import type { GatewayConfig } from '../shared/config.js';
@@ -52,6 +56,9 @@ export interface GatewayOrchestratorDeps {
   detokenizer: DetokenizationService;
   models: ModelGateway;
   audit: AuditService;
+  /** Optional — required for REVIEW hold + post-AUTHORIZE resume. */
+  policyRepository?: PolicyRepository;
+  identityStore?: IdentityStore;
 }
 
 /**
@@ -198,6 +205,7 @@ export class GatewayOrchestrator {
           environment: principal.application.environment,
           classification,
           deploymentMode: this.deps.config.deploymentMode,
+          request_id: requestId,
         });
       } catch {
         return block(
@@ -212,6 +220,50 @@ export class GatewayOrchestrator {
       }
 
       if (policyResult.decision === 'BLOCK' || policyResult.eligible_models.length === 0) {
+        if (
+          policyResult.machine_decision === 'REVIEW' &&
+          policyResult.evaluation_id &&
+          this.deps.policyRepository?.attachHeldRequest
+        ) {
+          const held: HeldRequestSnapshot = {
+            version: 1,
+            application_id: principal.application.application_id,
+            organization_id: principal.organization.organization_id,
+            user_id: user.user_id,
+            operation: body.operation,
+            model: body.model,
+            messages: body.messages.map((m) => ({
+              role: m.role,
+              content: m.content,
+            })),
+            correlation_id: correlationId,
+            classification: {
+              sensitivity: String(classification.sensitivity),
+              confidence: classification.confidence,
+              intent: classification.intent,
+              risk: classification.risk,
+              reason_codes: classification.reason_codes,
+              entities: classification.entities?.map((e) => ({
+                type: e.type,
+                start: e.start,
+                end: e.end,
+                preview: e.preview,
+              })),
+            },
+            allowed_models: [...principal.application.allowed_models],
+            available_models: this.deps.models.listAvailableModels(),
+          };
+          try {
+            await Promise.resolve(
+              this.deps.policyRepository.attachHeldRequest(
+                policyResult.evaluation_id,
+                held,
+              ),
+            );
+          } catch {
+            // Hold is best-effort; fail-closed block still returns.
+          }
+        }
         return block(
           403,
           policyResult.reason_codes[0] ?? 'POLICY_BLOCKED',
@@ -224,6 +276,10 @@ export class GatewayOrchestrator {
             metadata: {
               intent: classification.intent,
               entity_types: classification.entities?.map((e) => e.type) ?? [],
+              evaluation_id: policyResult.evaluation_id,
+              machine_decision: policyResult.machine_decision,
+              safety_hold:
+                policyResult.machine_decision === 'REVIEW' ? true : undefined,
             },
           },
         );
@@ -264,6 +320,7 @@ export class GatewayOrchestrator {
               data_classification: classification.sensitivity,
               input_transformation: 'failed',
               reason_codes: [...policyResult.reason_codes, 'TRANSFORM_FAILURE'],
+              metadata: { evaluation_id: policyResult.evaluation_id },
             },
           );
         }
@@ -334,6 +391,7 @@ export class GatewayOrchestrator {
           request_classification: classification,
           inspection,
           input_was_tokenized: inputTransformation === 'tokenize',
+          request_id: requestId,
         });
       } catch {
         return block(
@@ -348,6 +406,9 @@ export class GatewayOrchestrator {
             data_classification: classification.sensitivity,
             response_decision: 'BLOCK',
             reason_codes: ['POLICY_ENGINE_FAILURE', 'RESPONSE_POLICY_FAILURE'],
+            metadata: {
+              evaluation_id: policyResult.evaluation_id,
+            },
           },
         );
       }
@@ -368,6 +429,8 @@ export class GatewayOrchestrator {
           metadata: {
             intent: classification.intent,
             response_sensitivity: inspection.sensitivity,
+            evaluation_id: policyResult.evaluation_id,
+            response_evaluation_id: responsePolicy.evaluation_id,
           },
         });
         return {
@@ -474,6 +537,8 @@ export class GatewayOrchestrator {
           response_sensitivity: inspection.sensitivity,
           authorize_detokenization: responsePolicy.authorize_detokenization,
           entity_types: classification.entities?.map((e) => e.type) ?? [],
+          evaluation_id: policyResult.evaluation_id,
+          response_evaluation_id: responsePolicy.evaluation_id,
           __response_content: responseContent,
         },
       });
@@ -518,6 +583,338 @@ export class GatewayOrchestrator {
       return block(403, 'INTERNAL_ERROR', 'Request blocked by policy.', {
         errors: { reason_code: 'INTERNAL_ERROR' },
       });
+    }
+  }
+
+  /**
+   * Resume a held REVIEW request after human AUTHORIZE.
+   * Does not re-run input PDP — original machine decision stays REVIEW;
+   * execution proceeds under final ALLOW with original obligations.
+   */
+  async resumeAuthorizedEvaluation(
+    record: PolicyEvaluationRecord,
+  ): Promise<CompletionResult & { audit_id?: string }> {
+    const held = record.held_request;
+    if (!held || !this.deps.identityStore) {
+      return {
+        httpStatus: 500,
+        body: {
+          request_id: record.request_id ?? 'req_missing',
+          correlation_id: held?.correlation_id ?? 'cor_missing',
+          status: 'blocked',
+          reason_code: 'INTERNAL_ERROR',
+          message: 'Resume dependencies unavailable.',
+        },
+      };
+    }
+
+    const started = Date.now();
+    const requestId = record.request_id ?? newRequestId();
+    const correlationId = held.correlation_id || newCorrelationId();
+    const organizationId = held.organization_id;
+    const applicationId = held.application_id;
+    const userId = held.user_id;
+    const operation = held.operation;
+
+    const auditBase = () => ({
+      audit_id: newAuditId(),
+      timestamp: new Date().toISOString(),
+      organization_id: organizationId,
+      application_id: applicationId,
+      user_id: userId,
+      request_id: requestId,
+      correlation_id: correlationId,
+      operation,
+      latency_ms: Date.now() - started,
+    });
+
+    const fail = async (
+      reason_code: string,
+      extra: Record<string, unknown> = {},
+    ): Promise<CompletionResult & { audit_id?: string }> => {
+      const audited = await this.writeAudit({
+        ...auditBase(),
+        policy_decision: 'ALLOW',
+        response_decision: 'BLOCK',
+        reason_codes: [reason_code, 'RESUME_FAILED'],
+        ...extra,
+        metadata: {
+          ...((extra.metadata as Record<string, unknown>) ?? {}),
+          evaluation_id: record.evaluation_id,
+          resume: true,
+          original_machine_decision: record.decision,
+          final_decision: record.human_resolution?.final_decision,
+          __response_content: '',
+        },
+      });
+      return {
+        httpStatus: 403,
+        body: {
+          request_id: requestId,
+          correlation_id: correlationId,
+          status: 'blocked',
+          reason_code,
+          message: 'Request blocked by policy.',
+        },
+        audit_id: audited.event?.audit_id,
+      };
+    };
+
+    try {
+      const application = await this.deps.identityStore.getApplication(applicationId);
+      if (!application || application.status !== 'active') {
+        return fail('APPLICATION_INACTIVE');
+      }
+      const user = await this.deps.identity.resolveUser(organizationId, userId);
+
+      const classification = {
+        sensitivity: held.classification.sensitivity,
+        confidence: held.classification.confidence,
+        intent: held.classification.intent,
+        risk: held.classification.risk,
+        reason_codes: held.classification.reason_codes,
+        entities: held.classification.entities,
+      };
+
+      const obligationCodes = new Set(
+        (record.obligations ?? [])
+          .map((o) =>
+            o && typeof o === 'object' && 'code' in o
+              ? String((o as { code: unknown }).code)
+              : '',
+          )
+          .filter(Boolean),
+      );
+
+      let eligibleModels = held.allowed_models.filter((m) =>
+        held.available_models.includes(m),
+      );
+      if (eligibleModels.length === 0) {
+        eligibleModels = [...held.allowed_models];
+      }
+      if (obligationCodes.has('LOCAL_MODEL_ONLY')) {
+        eligibleModels = eligibleModels.filter((m) => m.startsWith('local-'));
+      }
+      if (eligibleModels.length === 0) {
+        return fail('NO_ELIGIBLE_MODEL', {
+          policy_ids: (record.applicable_policies ?? [])
+            .map((p) =>
+              p && typeof p === 'object' && 'policy_id' in p
+                ? String((p as { policy_id: unknown }).policy_id)
+                : '',
+            )
+            .filter(Boolean),
+          data_classification: classification.sensitivity,
+        });
+      }
+
+      const corpus = held.messages.map((m) => m.content).join('\n');
+      let messagesForModel: ModelMessage[] = held.messages.map((m) => ({
+        role: m.role as ModelMessage['role'],
+        content: m.content,
+      }));
+      let inputTransformation = 'none';
+
+      const needsTokenize = obligationCodes.has('TOKENIZE_PII');
+      if (needsTokenize) {
+        try {
+          const transformed = await this.deps.transform.apply({
+            organization_id: organizationId,
+            request_id: requestId,
+            correlation_id: correlationId,
+            text: corpus,
+            entities: (classification.entities ?? []).map((e) => ({
+              type: e.type as never,
+              preview: e.preview ?? '[redacted]',
+              start: e.start,
+              end: e.end,
+              source: 'deterministic' as const,
+            })),
+            decision: 'TOKENIZE',
+            transforms: [{ type: 'tokenize', targets: ['PII'] }],
+          });
+          inputTransformation = transformed.action;
+          messagesForModel = [{ role: 'user', content: transformed.transformed_text }];
+        } catch {
+          return fail('TRANSFORM_FAILURE', {
+            input_transformation: 'failed',
+            data_classification: classification.sensitivity,
+          });
+        }
+      }
+
+      const selectedModel = selectEligibleModel({
+        eligibleModels,
+        requestedModel: held.model,
+      });
+
+      let execution;
+      try {
+        execution = await this.deps.models.executeApproved({
+          request_id: requestId,
+          correlation_id: correlationId,
+          model_id: selectedModel,
+          messages: messagesForModel,
+          operation,
+          eligible_models: eligibleModels,
+        });
+      } catch (err) {
+        const ge = gatewayErrorFromUnknown(err) ?? (isGatewayError(err) ? err : null);
+        return fail(ge?.reasonCode ?? 'INTERNAL_ERROR', {
+          model_selected: selectedModel,
+          data_classification: classification.sensitivity,
+        });
+      }
+
+      let inspection;
+      try {
+        inspection = await this.deps.responseInspector.inspect({
+          content: execution.message.content,
+          model_id: execution.model_id,
+          operation,
+        });
+      } catch {
+        return fail('INSPECTION_FAILURE', {
+          model_selected: execution.model_id,
+          data_classification: classification.sensitivity,
+        });
+      }
+
+      let responsePolicy;
+      try {
+        responsePolicy = await this.deps.policy.evaluateResponse({
+          user,
+          application,
+          operation,
+          model_id: execution.model_id,
+          request_classification: classification as never,
+          inspection,
+          input_was_tokenized: inputTransformation === 'tokenize',
+          request_id: requestId,
+        });
+      } catch {
+        return fail('POLICY_ENGINE_FAILURE', {
+          model_selected: execution.model_id,
+          data_classification: classification.sensitivity,
+        });
+      }
+
+      if (responsePolicy.decision === 'BLOCK') {
+        return fail(responsePolicy.reason_codes[0] ?? 'POLICY_BLOCKED', {
+          policy_ids: responsePolicy.policy_ids,
+          model_selected: execution.model_id,
+          provider: execution.provider,
+          data_classification: classification.sensitivity,
+          input_transformation: inputTransformation,
+          metadata: {
+            response_evaluation_id: responsePolicy.evaluation_id,
+          },
+        });
+      }
+
+      let responseContent = execution.message.content;
+      let responseTransformation = 'none';
+      if (
+        responsePolicy.decision === 'REDACT' ||
+        responsePolicy.decision === 'TRANSFORM'
+      ) {
+        // Keep content as-is when no output transform service path needed for stub;
+        // mirror completions() for detokenize authorization below.
+        responseTransformation = String(responsePolicy.decision).toLowerCase();
+      }
+
+      if (responsePolicy.authorize_detokenization) {
+        try {
+          const detok = await this.deps.detokenizer.detokenize({
+            organization_id: organizationId,
+            text: responseContent,
+            authorized: true,
+          });
+          responseContent = detok.text;
+          if (detok.restored > 0) {
+            responseTransformation =
+              responseTransformation === 'none'
+                ? 'detokenize'
+                : `${responseTransformation}+detokenize`;
+          }
+        } catch {
+          return fail('DETOKENIZE_FAILURE');
+        }
+      } else {
+        const denied = await this.deps.detokenizer.detokenize({
+          organization_id: organizationId,
+          text: responseContent,
+          authorized: false,
+        });
+        responseContent = denied.text;
+      }
+
+      const policyIds = [
+        ...(record.applicable_policies ?? [])
+          .map((p) =>
+            p && typeof p === 'object' && 'policy_id' in p
+              ? String((p as { policy_id: unknown }).policy_id)
+              : '',
+          )
+          .filter(Boolean),
+        ...responsePolicy.policy_ids,
+      ];
+
+      const audited = await this.writeAudit({
+        ...auditBase(),
+        data_classification: classification.sensitivity,
+        policy_ids: policyIds,
+        policy_decision: 'ALLOW',
+        model_selected: execution.model_id,
+        provider: execution.provider,
+        input_transformation: inputTransformation,
+        response_transformation: responseTransformation,
+        response_decision: 'RELEASE',
+        usage: execution.usage,
+        reason_codes: [
+          'HUMAN_AUTHORIZE_RESUME',
+          'FINAL_ALLOW',
+          ...responsePolicy.reason_codes,
+        ],
+        metadata: {
+          intent: classification.intent,
+          response_sensitivity: inspection.sensitivity,
+          authorize_detokenization: responsePolicy.authorize_detokenization,
+          evaluation_id: record.evaluation_id,
+          response_evaluation_id: responsePolicy.evaluation_id,
+          resume: true,
+          original_machine_decision: record.decision,
+          final_decision: 'ALLOW',
+          __response_content: responseContent,
+        },
+      });
+
+      if (!audited.ok && this.deps.config.failClosedOnAuditError) {
+        return fail('INTERNAL_ERROR', { errors: { audit: 'write_failed' } });
+      }
+
+      return {
+        httpStatus: 200,
+        body: {
+          request_id: requestId,
+          correlation_id: correlationId,
+          status: 'approved',
+          model: execution.model_id,
+          response: {
+            message: { role: 'assistant', content: responseContent },
+          },
+          usage: execution.usage,
+          integrity: {
+            response_hash: audited.event?.response_hash ?? '',
+            event_hash: audited.event?.event_hash ?? '',
+            prev_event_hash: audited.event?.prev_event_hash ?? '',
+          },
+        },
+        audit_id: audited.event?.audit_id,
+      };
+    } catch (err) {
+      const mapped = gatewayErrorFromUnknown(err);
+      return fail(mapped?.reasonCode ?? 'INTERNAL_ERROR');
     }
   }
 

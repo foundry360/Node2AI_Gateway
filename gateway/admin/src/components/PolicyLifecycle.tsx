@@ -1,21 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { proxyJson } from '@/lib/client-api';
-import { formatReasonCodes } from '@/lib/reason-codes';
-import { StatusBadge } from '@/components/StatusBadge';
-
-type Decision = {
-  decision?: string;
-  reason?: string;
-  reason_codes?: string[];
-  obligations?: Array<{ code: string; parameters?: Record<string, unknown> }>;
-  explanation?: string;
-  evidence?: unknown;
-  applicable_policies?: string[];
-  eligible_models?: string[];
-};
+import { DecisionExplanationView } from '@/components/DecisionExplanationView';
+import type { DecisionExplanationPayload } from '@/lib/decision-explanation';
 
 export function PolicyLifecycleActions({
   policyId,
@@ -142,37 +132,122 @@ export function PolicyLifecycleActions({
   );
 }
 
+/** Fixture presets — data only; UI remains pack-agnostic. */
+const SIM_SCENARIOS: Array<{
+  id: string;
+  label: string;
+  body: Record<string, unknown>;
+}> = [
+  {
+    id: 'default',
+    label: 'Default (classification + model)',
+    body: {},
+  },
+  {
+    id: 'agreement_deny',
+    label: 'Multi-pack agreement (write / both deny)',
+    body: {
+      classification: 'PHI',
+      action: 'write',
+      requested_model: 'local-general-v1',
+      regulatory_applicability: ['HIPAA', 'PART2'],
+      purpose: 'treatment',
+      application_type: 'clinical',
+      roles: ['clinician'],
+    },
+  },
+  {
+    id: 'complementary',
+    label: 'Multi-pack complementary (allow + controls)',
+    body: {
+      classification: 'PHI',
+      action: 'summarize',
+      requested_model: 'local-general-v1',
+      regulatory_applicability: ['HIPAA', 'PART2'],
+      purpose: 'treatment',
+      authorization_context: 'part2_consent',
+      application_type: 'clinical',
+      roles: ['clinician'],
+    },
+  },
+  {
+    id: 'restrictive',
+    label: 'Multi-pack restrictive (unknown consent)',
+    body: {
+      classification: 'PHI',
+      action: 'summarize',
+      requested_model: 'local-general-v1',
+      regulatory_applicability: ['HIPAA', 'PART2'],
+      purpose: 'treatment',
+      authorization_context: 'unknown',
+      application_type: 'clinical',
+      roles: ['clinician'],
+    },
+  },
+  {
+    id: 'unresolved',
+    label: 'Multi-pack unresolved conflict → REVIEW',
+    body: {
+      classification: 'PHI',
+      action: 'summarize',
+      requested_model: 'local-general-v1',
+      regulatory_applicability: ['HIPAA', 'PART2'],
+      purpose: 'treatment',
+      application_type: 'clinical',
+      roles: ['clinician'],
+    },
+  },
+];
+
 export function PolicySimulatePanel({ policyId }: { policyId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [simClass, setSimClass] = useState('PHI');
   const [simModel, setSimModel] = useState('cloud-public-gpt');
-  const [simResult, setSimResult] = useState<Decision | null>(null);
+  const [scenarioId, setScenarioId] = useState('default');
+  const [simResult, setSimResult] = useState<DecisionExplanationPayload | null>(null);
 
   return (
     <div className="stack-tight">
       <p className="muted">
-        What-if evaluation against the pack-backed PDP. No model is executed.
+        What-if evaluation against the pack-backed PDP. Explains the machine decision, contributing
+        policies, resolution, provenance, and Enigma controls. No model is executed; enforcement is
+        NOT_EXECUTED.
       </p>
       <div className="form-grid" style={{ padding: 0 }}>
         <label>
-          Classification
-          <select value={simClass} onChange={(e) => setSimClass(e.target.value)}>
-            <option value="Internal">Internal</option>
-            <option value="PII">PII</option>
-            <option value="PHI">PHI</option>
-            <option value="Credential">Credential</option>
-            <option value="FINANCIAL">FINANCIAL</option>
-            <option value="LEGAL">LEGAL</option>
+          Scenario
+          <select value={scenarioId} onChange={(e) => setScenarioId(e.target.value)}>
+            {SIM_SCENARIOS.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
           </select>
         </label>
-        <label>
-          Requested model
-          <select value={simModel} onChange={(e) => setSimModel(e.target.value)}>
-            <option value="local-general-v1">local-general-v1</option>
-            <option value="cloud-public-gpt">cloud-public-gpt</option>
-          </select>
-        </label>
+        {scenarioId === 'default' ? (
+          <>
+            <label>
+              Classification
+              <select value={simClass} onChange={(e) => setSimClass(e.target.value)}>
+                <option value="Internal">Internal</option>
+                <option value="PII">PII</option>
+                <option value="PHI">PHI</option>
+                <option value="Credential">Credential</option>
+                <option value="FINANCIAL">FINANCIAL</option>
+                <option value="LEGAL">LEGAL</option>
+                <option value="PART2">PART2</option>
+              </select>
+            </label>
+            <label>
+              Requested model
+              <select value={simModel} onChange={(e) => setSimModel(e.target.value)}>
+                <option value="local-general-v1">local-general-v1</option>
+                <option value="cloud-public-gpt">cloud-public-gpt</option>
+              </select>
+            </label>
+          </>
+        ) : null}
         <button
           type="button"
           className="btn"
@@ -181,12 +256,23 @@ export function PolicySimulatePanel({ policyId }: { policyId: string }) {
             setBusy(true);
             setError(null);
             try {
-              const result = (await proxyJson(`policies/${policyId}/simulate`, 'POST', {
-                classification: simClass,
-                requested_model: simModel,
-                application_type: 'clinical',
-                roles: ['clinician'],
-              })) as { decision?: Decision };
+              const scenario = SIM_SCENARIOS.find((s) => s.id === scenarioId);
+              const body =
+                scenarioId === 'default'
+                  ? {
+                      classification: simClass,
+                      requested_model: simModel,
+                      application_type: 'clinical',
+                      roles: ['clinician'],
+                    }
+                  : {
+                      application_type: 'clinical',
+                      roles: ['clinician'],
+                      ...(scenario?.body ?? {}),
+                    };
+              const result = (await proxyJson(`policies/${policyId}/simulate`, 'POST', body)) as {
+                decision?: DecisionExplanationPayload;
+              };
               setSimResult(result.decision ?? null);
             } catch (err) {
               setError(err instanceof Error ? err.message : 'Failed');
@@ -199,39 +285,16 @@ export function PolicySimulatePanel({ policyId }: { policyId: string }) {
         </button>
       </div>
       {simResult ? (
-        <div className="decision-card">
-          <div className="decision-row">
-            <strong>Decision</strong>
-            <StatusBadge status={simResult.decision ?? '—'} />
-          </div>
-          {simResult.reason ? <p className="muted">{simResult.reason}</p> : null}
-          <div>
-            <div className="muted" style={{ marginBottom: '0.35rem' }}>
-              Reason codes
-            </div>
-            <div>
-              {formatReasonCodes(simResult.reason_codes) || '—'}
-            </div>
-          </div>
-          <div>
-            <div className="muted" style={{ marginBottom: '0.35rem' }}>
-              Obligations
-            </div>
-            {(simResult.obligations ?? []).length === 0 ? (
-              <span className="muted">None</span>
-            ) : (
-              <ul style={{ margin: 0, paddingLeft: '1.1rem' }}>
-                {(simResult.obligations ?? []).map((o, i) => (
-                  <li key={`${o.code}-${i}`} className="mono">
-                    {o.code}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          {simResult.explanation ? (
-            <p className="muted">{simResult.explanation}</p>
+        <div className="stack-tight">
+          {simResult.evaluation_id ? (
+            <p className="muted">
+              Recorded as decision{' '}
+              <Link href={`/evaluations/${simResult.evaluation_id}`} className="table-link">
+                {simResult.evaluation_id}
+              </Link>
+            </p>
           ) : null}
+          <DecisionExplanationView decision={simResult} />
         </div>
       ) : null}
       {error ? <div className="error">{error}</div> : null}

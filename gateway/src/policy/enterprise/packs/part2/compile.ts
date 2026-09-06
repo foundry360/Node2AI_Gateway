@@ -157,6 +157,8 @@ export function compilePart2Pack(): CompiledPart2Pack {
       scope_tier: 'regulatory',
       domain: 'healthcare',
       content_hash: 'sha256:part2_pack_v1',
+      pack_name: '42 CFR Part 2',
+      pack_version: PART2_PACK_META.pack_version,
     },
     {
       policy_id: PART2_PACK_META.output_policy_id,
@@ -173,6 +175,8 @@ export function compilePart2Pack(): CompiledPart2Pack {
       scope_tier: 'regulatory',
       domain: 'healthcare',
       content_hash: 'sha256:part2_pack_v1_output',
+      pack_name: '42 CFR Part 2',
+      pack_version: PART2_PACK_META.pack_version,
     },
   ];
 

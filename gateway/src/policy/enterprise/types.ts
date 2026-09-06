@@ -229,6 +229,8 @@ export interface PolicyExplanation {
   provenance?: PolicyExplanationProvenance;
   /** Multi-pack resolution summary (when multiple packs contributed). */
   resolution?: PolicyResolutionEvidence;
+  /** Derived operator narrative / view model (pack-agnostic). */
+  operator?: OperatorDecisionExplanationEvidence;
 }
 
 export interface PolicyConflictRecord {
@@ -255,6 +257,21 @@ export interface PolicyConflictRecord {
   resolution_basis?: string;
 }
 
+export interface PolicyResolutionContributionEvidence {
+  pack_id: string;
+  pack_name?: string;
+  pack_version?: string;
+  policy_id: string;
+  policy_name?: string;
+  policy_version: number;
+  decision: string;
+  rule_ids: string[];
+  obligation_ids: string[];
+  obligations?: string[];
+  controls?: Array<{ control_id: string; control_type?: string }>;
+  reason_codes?: string[];
+}
+
 export interface PolicyResolutionEvidence {
   category:
     | 'NONE'
@@ -274,14 +291,47 @@ export interface PolicyResolutionEvidence {
     category: string;
     detail: string;
   }>;
-  contributions?: Array<{
+  contributions?: PolicyResolutionContributionEvidence[];
+}
+
+/** Pack-agnostic operator-facing explanation derived from structured evaluation data. */
+export interface OperatorDecisionExplanationEvidence {
+  final_decision: string;
+  resolution_category?: PolicyResolutionEvidence['category'];
+  resolution_basis?: string;
+  resolution_label: string;
+  basis_label: string;
+  narrative: string;
+  contributing_pack_ids: string[];
+  contributions: Array<{
     pack_id: string;
+    pack_name: string;
+    pack_version?: string;
     policy_id: string;
+    policy_name?: string;
     policy_version: number;
     decision: string;
     rule_ids: string[];
     obligation_ids: string[];
+    obligations: string[];
+    controls: Array<{ control_id: string; control_type?: string }>;
+    reason_codes: string[];
+    has_provenance: boolean;
   }>;
+  authorities: Array<{
+    source_id: string;
+    authority: string;
+    citation?: string;
+    authority_tier?: number;
+    authority_type?: string;
+    legal_authority?: boolean;
+    pack_ids: string[];
+  }>;
+  enforcement_controls: Array<{ control_id: string; control_type?: string }>;
+  enforcement_actions: string[];
+  enigma_obligations: string[];
+  flow: string[];
+  conflict_detail?: string;
 }
 
 export interface PolicyDecision {

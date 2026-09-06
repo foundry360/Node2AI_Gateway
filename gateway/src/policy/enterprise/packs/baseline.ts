@@ -66,6 +66,10 @@ export interface PackPolicyMeta {
   scope_tier?: string;
   domain?: string;
   content_hash?: string;
+  /** Display name of the contributing pack (catalog). */
+  pack_name?: string;
+  /** Pack semantic version when known. */
+  pack_version?: string;
   /**
    * Declared policy precedence for multi-pack conflict resolution.
    * Distinct from source authority_tier — never inferred from citations alone.
