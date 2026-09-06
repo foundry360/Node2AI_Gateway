@@ -7,11 +7,11 @@ VALUES
 (
   'pol_phase2_core',
   'org_demo',
-  'Request governance',
+  'Enterprise AI request governance',
   'active',
   2,
   '{
-    "summary": "Application trust, operation allowlists, PHI local-only, PII tokenize, credential block.",
+    "summary": "Checks that only trusted, active applications can call AI; protects credentials, PHI, PII, and financial input.",
     "request": {
       "untrusted_app": "BLOCK",
       "credential": "BLOCK",
@@ -24,11 +24,11 @@ VALUES
 (
   'pol_phase5_response',
   'org_demo',
-  'Response governance',
+  'Enterprise AI response governance',
   'active',
   5,
   '{
-    "summary": "Block PHI/credentials/tool calls in outputs; redact PII; detokenize only when authorized.",
+    "summary": "Reviews model responses before release; blocks PHI and credentials; redacts PII; detokenizes only when authorized.",
     "response": {
       "tool_or_action": "BLOCK",
       "credential": "BLOCK",

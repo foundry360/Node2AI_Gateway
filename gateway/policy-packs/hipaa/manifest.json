@@ -22,7 +22,7 @@
       "policy_id": "pol_hipaa_release",
       "version": 2,
       "phase": "output",
-      "name": "HIPAA-informed Enigma output/release governance"
+      "name": "HIPAA output and release governance"
     }
   ],
   "classification_profile_id": "hipaa_class_profile_v3",

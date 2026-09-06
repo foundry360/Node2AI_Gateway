@@ -151,7 +151,7 @@ export function compilePart2Pack(): CompiledPart2Pack {
       status: 'active',
       interpreter: PART2_PACK_META.input_interpreter,
       description:
-        '42 CFR Part 2 pack v1 input — SUD record confidentiality with consent gates. Does not certify Part 2 compliance.',
+        'Applies 42 CFR Part 2 confidentiality controls when substance use disorder (SUD) records are in scope. Consent evidence gates processing, and unauthorized external paths or write/export actions are denied. Does not certify Part 2 compliance.',
       owner: 'compliance',
       priority: 210,
       scope_tier: 'regulatory',
@@ -164,12 +164,12 @@ export function compilePart2Pack(): CompiledPart2Pack {
       policy_id: PART2_PACK_META.output_policy_id,
       version: PART2_PACK_META.output_version,
       pack_id: PART2_PACK_META.pack_id,
-      name: 'Part 2 redisclosure / release governance',
+      name: 'Part 2 redisclosure and release governance',
       phase: 'output',
       status: 'active',
       interpreter: PART2_PACK_META.output_interpreter,
       description:
-        'Part 2-informed output/redisclosure evaluation; Enigma release authorizes detokenization.',
+        'Evaluates model output and redisclosure for Part 2 SUD records. Blocks unauthorized residual plaintext and allows Enigma release to authorize detokenization only when redisclosure conditions are satisfied.',
       owner: 'compliance',
       priority: 210,
       scope_tier: 'regulatory',

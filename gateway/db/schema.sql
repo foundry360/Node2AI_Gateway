@@ -160,12 +160,17 @@ CREATE TABLE audit_events (
   response_hash         TEXT,
   prev_event_hash       TEXT,
   event_hash            TEXT,
-  integrity_signature   TEXT
+  integrity_signature   TEXT,
+  -- Cryptographic Decision binding (null when event has no policy evaluation)
+  evaluation_id         TEXT,
+  decision_hash         TEXT
 );
 
 CREATE INDEX audit_events_request_id_idx ON audit_events(request_id);
 CREATE INDEX audit_events_correlation_id_idx ON audit_events(correlation_id);
 CREATE INDEX audit_events_timestamp_idx ON audit_events(timestamp DESC);
+CREATE INDEX audit_events_evaluation_id_idx ON audit_events(evaluation_id)
+  WHERE evaluation_id IS NOT NULL;
 
 -- Append-only: block UPDATE/DELETE on audit_events
 CREATE OR REPLACE FUNCTION forbid_audit_mutation()

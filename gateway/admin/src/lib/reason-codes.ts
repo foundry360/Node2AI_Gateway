@@ -1,3 +1,5 @@
+import { formatFieldLabel } from '@/lib/field-label';
+
 /** Turn POLICY_REASON_CODE into a human label. */
 export function formatReasonCode(code: string): string {
   const key = code.trim();
@@ -23,16 +25,18 @@ export function formatReasonCode(code: string): string {
     CONFIDENTIAL_LANGUAGE: 'Confidential language',
     SEMANTIC_HEURISTIC: 'Semantic heuristic',
     SEMANTIC_NO_ELEVATION: 'No semantic elevation',
+    HIPAA_PHI_EXTERNAL_CONTROLS_NOT_SATISFIED:
+      'HIPAA PHI external controls not satisfied',
+    HIPAA_PHI_PROCESSING_CONTROLS_SATISFIED:
+      'HIPAA PHI processing controls satisfied',
+    HIPAA_PHI_INSUFFICIENT_EVIDENCE_FOR_PROCESSING:
+      'HIPAA PHI insufficient evidence for processing',
+    HIPAA_PHI_OUTPUT_NOT_AUTHORIZED: 'HIPAA PHI output not authorized',
   };
 
   if (known[key]) return known[key];
 
-  return key
-    .toLowerCase()
-    .split('_')
-    .filter(Boolean)
-    .map((part, i) => (i === 0 ? part.charAt(0).toUpperCase() + part.slice(1) : part))
-    .join(' ');
+  return formatFieldLabel(key);
 }
 
 export function formatReasonCodes(codes: string[] | undefined | null): string {

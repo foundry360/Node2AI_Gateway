@@ -31,7 +31,7 @@ function titleCaseAppName(value: string) {
 
 function formatApplicationLabel(e: BlockedEvent) {
   if (e.application_name?.trim()) return titleCaseAppName(e.application_name);
-  if (!e.application_id) return '—';
+  if (!e.application_id) return '-';
   const raw = e.application_id.replace(/^app[_-]?/i, '');
   return titleCaseAppName(raw || e.application_id);
 }
@@ -45,7 +45,7 @@ function formatStage(e: BlockedEvent): string {
   const policy = (e.policy_decision ?? '').toUpperCase();
   if (response === 'BLOCK') return 'Response';
   if (policy === 'BLOCK' || policy === 'DENY') return 'Policy';
-  return '—';
+  return '-';
 }
 
 function blockedDateKey(timestamp: string): string | null {
@@ -210,7 +210,7 @@ export function ConsoleTriagePanel() {
             <tr key={e.request_id + e.timestamp}>
               <td className="mono">{e.request_id}</td>
               <td>{formatApplicationLabel(e)}</td>
-              <td>{formatReasonCodes(e.reason_codes) || '—'}</td>
+              <td>{formatReasonCodes(e.reason_codes) || '-'}</td>
               <td>{formatStage(e)}</td>
               <td className="mono">{e.timestamp}</td>
             </tr>

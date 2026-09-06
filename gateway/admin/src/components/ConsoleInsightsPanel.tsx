@@ -6,7 +6,6 @@ import { TopActionItemsCard } from '@/components/TopActionItemsCard';
 import { RiskClassificationCard } from '@/components/RiskClassificationCard';
 import { ComplianceScoreCard } from '@/components/ComplianceScoreCard';
 import { GovernanceAttentionPanel } from '@/components/GovernanceAttentionPanel';
-import { CollapsiblePanel } from '@/components/CollapsiblePanel';
 import { useConsoleTimeframe } from '@/components/ConsoleTabs';
 import { proxyJson } from '@/lib/client-api';
 
@@ -142,24 +141,18 @@ export function ConsoleInsightsPanel({
 
   return (
     <div className={`stack${pending ? ' is-refreshing' : ''}`}>
-      <GovernanceAttentionPanel leadLeft={microcards} />
-
-      <CollapsiblePanel
-        label="Show posture heuristics (non-authoritative)"
-        defaultOpen={false}
-      >
-        <div className="panel-pad stack-tight">
-          <p className="muted">
-            Risk and compliance heuristics are context only. They do not define Enigma
-            governance and are not authoritative policy decisions.
-          </p>
-          <div className="console-banner-scores">
-            <RiskClassificationCard />
-            <ComplianceScoreCard />
+      <GovernanceAttentionPanel
+        leadLeft={microcards}
+        beforeRecent={
+          <div className="stack-tight">
+            <div className="console-banner-scores">
+              <RiskClassificationCard />
+              <ComplianceScoreCard />
+            </div>
+            <TopActionItemsCard />
           </div>
-          <TopActionItemsCard />
-        </div>
-      </CollapsiblePanel>
+        }
+      />
     </div>
   );
 }

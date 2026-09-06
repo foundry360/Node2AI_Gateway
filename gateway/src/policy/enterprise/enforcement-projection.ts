@@ -345,7 +345,7 @@ export function projectEnforcementResult(
           safety_fallback: true,
           action_attempted: 'HOLD',
           summary:
-            'Prior safety hold still visible; human AUTHORIZE recorded — resume Gateway to verify',
+            'Prior safety hold still visible; human AUTHORIZE recorded - resume Gateway to verify',
         };
       }
       return {
@@ -368,7 +368,7 @@ export function projectEnforcementResult(
         attempted: false,
         expected_action: 'HOLD',
         request_id: requestId,
-        summary: 'Pending human review — Gateway not executed (simulate)',
+        summary: 'Pending human review - Gateway not executed (simulate)',
       };
     }
     if (!audit) {
@@ -378,7 +378,7 @@ export function projectEnforcementResult(
         attempted: false,
         expected_action: 'HOLD',
         request_id: requestId,
-        summary: 'Pending human review — no Gateway hold record linked',
+        summary: 'Pending human review - no Gateway hold record linked',
       };
     }
     if (isBlockAudit(audit)) {
@@ -394,7 +394,7 @@ export function projectEnforcementResult(
         occurred_at: audit.timestamp,
         safety_fallback: true,
         summary:
-          'Safety hold pending human review — not a policy DENY',
+          'Safety hold pending human review - not a policy DENY',
       };
     }
     return {
@@ -417,7 +417,7 @@ export function projectEnforcementResult(
       attempted: false,
       expected_action: expected,
       request_id: requestId,
-      summary: 'Simulation only — Gateway enforcement was not executed',
+      summary: 'Simulation only - Gateway enforcement was not executed',
     };
   }
 

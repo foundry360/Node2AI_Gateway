@@ -37,8 +37,8 @@ VALUES
   'pol_phase2_core',
   'pack_enterprise_baseline',
   NULL,
-  'Request governance',
-  'Input governance baseline (migrated from DeterministicPolicyEngine).',
+  'Enterprise AI request governance',
+  'Checks that only trusted, active applications can call AI, limits them to allowed operations, and protects sensitive input.',
   'enigma',
   'enterprise',
   'seed'
@@ -47,8 +47,8 @@ VALUES
   'pol_phase5_response',
   'pack_response_governance',
   NULL,
-  'Response governance',
-  'Output governance baseline (migrated from DeterministicPolicyEngine).',
+  'Enterprise AI response governance',
+  'Reviews model responses before release: blocks PHI, credentials, and tool suggestions; redacts PII or financial content.',
   'enigma',
   'enterprise',
   'seed'
@@ -225,8 +225,8 @@ VALUES
   'pol_financial_tokenize',
   'pack_financial',
   NULL,
-  'Financial tokenize (framework)',
-  'M4 framework — suspended until activated.',
+  'Financial data input governance',
+  'Protects financial data in AI requests; write, export, and sharing stay controlled unless human approval allows them.',
   'enigma',
   'financial',
   'seed'
@@ -235,8 +235,8 @@ VALUES
   'pol_legal_no_external',
   'pack_legal',
   NULL,
-  'Legal no external models (framework)',
-  'M4 framework — suspended until activated.',
+  'Legal content input governance',
+  'Keeps privileged legal content off external models and blocks export or sharing.',
   'enigma',
   'legal',
   'seed'

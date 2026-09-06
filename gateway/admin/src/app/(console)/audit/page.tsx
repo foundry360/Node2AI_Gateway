@@ -8,6 +8,8 @@ type AuditResponse = {
     audit_id: string;
     timestamp: string;
     request_id: string;
+    correlation_id?: string;
+    organization_id?: string;
     application_id?: string;
     user_id?: string;
     operation?: string;
@@ -16,10 +18,16 @@ type AuditResponse = {
     response_decision?: string;
     model_selected?: string;
     provider?: string;
+    input_transformation?: string;
+    response_transformation?: string;
     reason_codes?: string[];
     latency_ms?: number;
     response_hash?: string;
     event_hash?: string;
+    prev_event_hash?: string;
+    evaluation_id?: string | null;
+    decision_hash?: string | null;
+    integrity_signature?: string;
   }>;
 };
 
@@ -37,15 +45,19 @@ function formatIntegrityReason(reason?: string): string {
   if (!reason) return 'Unknown integrity failure';
   const known: Record<string, string> = {
     signature_invalid:
-      'Signature invalid — audit signing key may have changed since this event was sealed',
-    event_hash_mismatch: 'Event hash mismatch — event payload may have been altered',
-    prev_hash_mismatch: 'Previous hash mismatch — chain order or linkage may be broken',
+      'Signature invalid - audit signing key may have changed since this event was sealed',
+    event_hash_mismatch: 'Event hash mismatch - event payload may have been altered',
+    prev_hash_mismatch: 'Previous hash mismatch - chain order or linkage may be broken',
     missing_integrity_fields: 'Missing integrity fields on a sealed-chain event',
   };
   return known[reason] ?? reason.replace(/_/g, ' ');
 }
 
-export default async function AuditPage() {
+export default async function AuditPage({
+  searchParams,
+}: {
+  searchParams?: { audit_id?: string; request_id?: string };
+}) {
   let data: AuditResponse | null = null;
   let integrity: IntegrityResponse | null = null;
   let error: string | null = null;
@@ -60,7 +72,7 @@ export default async function AuditPage() {
     <div>
       <PageHeader
         title="Audit"
-        lede="Tamper-evident decision trail. Released responses are hashed; events are hash-chained and HMAC-signed."
+        lede="Tamper-evident operational trail. Select a row for identity, integrity hashes, and Decision binding."
       />
       {error ? <div className="error">{error}</div> : null}
       {integrity ? (
@@ -107,7 +119,13 @@ export default async function AuditPage() {
           </div>
         </div>
       ) : null}
-      {data ? <AuditTable events={data.events} /> : null}
+      {data ? (
+        <AuditTable
+          events={data.events}
+          focusAuditId={searchParams?.audit_id}
+          focusRequestId={searchParams?.request_id}
+        />
+      ) : null}
     </div>
   );
 }

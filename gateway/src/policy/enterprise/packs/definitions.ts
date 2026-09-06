@@ -21,7 +21,7 @@ export interface PolicyDefinition {
 
 const BASELINE_INPUT: PolicyDefinition = {
   description:
-    'Application trust, operation allowlists, PHI local-only, PII tokenize, credential block.',
+    'Checks that only trusted, active applications can call AI, limits them to allowed operations, and protects sensitive input - credentials are blocked, PHI stays on local models for authorized clinical use, and PII or financial data must be tokenized before a model runs.',
   owner: 'security',
   priority: 100,
   scope_tier: 'enterprise',
@@ -66,6 +66,11 @@ const BASELINE_INPUT: PolicyDefinition = {
       effect: 'allow_if_listed',
       description: 'Operation must be on the application allowlist.',
     },
+    {
+      action: 'write|export|share|transmit',
+      effect: 'restrict',
+      description: 'Mutating and outbound operations remain subject to classification overlays.',
+    },
   ],
   ai_context: [
     {
@@ -79,6 +84,10 @@ const BASELINE_INPUT: PolicyDefinition = {
     {
       key: 'available_models',
       constraint: 'Intersected with application allowed_models',
+    },
+    {
+      key: 'classification',
+      constraint: 'Credential / PHI / PII / Financial drive deny, local-only, or tokenize paths',
     },
   ],
   conditions: [
@@ -143,7 +152,7 @@ const BASELINE_INPUT: PolicyDefinition = {
 
 const BASELINE_OUTPUT: PolicyDefinition = {
   description:
-    'Block PHI/credentials/tool calls in outputs; redact PII; detokenize only when authorized.',
+    'Reviews model responses before release: blocks PHI, credentials, and tool suggestions; redacts PII or financial content; and allows detokenization only for trusted, authorized callers.',
   owner: 'security',
   priority: 90,
   scope_tier: 'enterprise',
@@ -153,6 +162,11 @@ const BASELINE_OUTPUT: PolicyDefinition = {
       type: 'application',
       match: 'trust_level = trusted (for detokenize)',
       description: 'Detokenization requires trusted application.',
+    },
+    {
+      type: 'caller',
+      match: 'authorized release recipient',
+      description: 'Response release and detokenize apply to the requesting application context.',
     },
   ],
   resources: [
@@ -171,6 +185,11 @@ const BASELINE_OUTPUT: PolicyDefinition = {
       classification: 'PII|Financial',
       description: 'PII/Financial in responses is redacted.',
     },
+    {
+      type: 'model_response',
+      classification: 'tool_or_action',
+      description: 'Tool/action suggestions embedded in responses are treated as blocked output.',
+    },
   ],
   actions: [
     {
@@ -183,6 +202,11 @@ const BASELINE_OUTPUT: PolicyDefinition = {
       effect: 'allow',
       description: 'Clean responses may be released to the caller.',
     },
+    {
+      action: 'detokenize',
+      effect: 'allow_if_authorized',
+      description: 'Detokenize only when input was tokenized and the caller is trusted/authorized.',
+    },
   ],
   ai_context: [
     {
@@ -192,6 +216,10 @@ const BASELINE_OUTPUT: PolicyDefinition = {
     {
       key: 'contains_tokens',
       constraint: 'Detokenize only when input was tokenized and authorized',
+    },
+    {
+      key: 'trust_level',
+      constraint: 'Trusted application required for AUTHORIZE_DETOKENIZATION',
     },
   ],
   conditions: [
@@ -242,7 +270,7 @@ const BASELINE_OUTPUT: PolicyDefinition = {
 
 const HIPAA: PolicyDefinition = {
   description:
-    'HIPAA pack v3: PHI regulatory applicability with Enigma controls. health-sensitive ≠ PHI. LOCAL/PRIVATE ≠ HIPAA compliant. TOKENIZE/detokenize are Enigma implementation options. Not a HIPAA compliance certification.',
+    'Applies extra safeguards when true PHI is in scope under HIPAA. It can deny external processing when controls are missing, require stronger evidence before allowing work to continue, and keep processing inside approved control boundaries. Local or private hosting and tokenization are Enigma controls - not a HIPAA compliance certification, and health-sensitive content alone is not treated as PHI.',
   owner: 'compliance',
   priority: 200,
   scope_tier: 'regulatory',
@@ -251,14 +279,30 @@ const HIPAA: PolicyDefinition = {
     {
       type: 'application',
       match: 'any (when regulatory PHI / HIPAA applicability)',
-      description: 'Applies when classification is PHI and HIPAA is applicable — not mere health-sensitive context.',
+      description:
+        'Applies when classification is PHI and HIPAA is applicable - not mere health-sensitive context.',
+    },
+    {
+      type: 'role',
+      match: 'clinician / covered-entity workflow',
+      description: 'PHI processing expects an authorized clinical or covered-entity subject context.',
+    },
+    {
+      type: 'organization',
+      match: 'HIPAA applicability asserted',
+      description: 'Regulatory pack engages only when HIPAA applicability is in scope for the request.',
     },
   ],
   resources: [
     {
       type: 'prompt_content',
       classification: 'PHI',
-      description: 'Protected health information (regulatory).',
+      description: 'Protected health information on the input path (regulatory).',
+    },
+    {
+      type: 'processing_environment',
+      classification: 'PHI',
+      description: 'Local/private vs external processing context for PHI.',
     },
   ],
   actions: [
@@ -277,6 +321,14 @@ const HIPAA: PolicyDefinition = {
       key: 'purpose',
       constraint: 'Explicit unknown purpose does not silently become approved',
     },
+    {
+      key: 'authorization_context',
+      constraint: 'Insufficient evidence yields REVIEW rather than silent allow',
+    },
+    {
+      key: 'deployment_mode',
+      constraint: 'LOCAL/PRIVATE supports controls; it is not itself a HIPAA compliance claim',
+    },
   ],
   conditions: [
     {
@@ -292,11 +344,6 @@ const HIPAA: PolicyDefinition = {
     {
       id: 'HIPAA-R-INPUT-INSUFFICIENT-EVIDENCE',
       statement: 'IF PHI AND evidence_insufficient THEN REVIEW',
-    },
-    {
-      id: 'HIPAA-R-OUT-RELEASE-EVAL',
-      statement:
-        'IF tokens AND release_conditions_satisfied THEN ENIGMA AUTHORIZED_DETOKENIZATION',
     },
   ],
   decisions: [
@@ -315,17 +362,12 @@ const HIPAA: PolicyDefinition = {
       decision: 'REVIEW',
       reason_codes: ['HIPAA_PHI_INSUFFICIENT_EVIDENCE_FOR_PROCESSING'],
     },
-    {
-      when: 'Unauthorized residual PHI in output',
-      decision: 'BLOCK_OUTPUT',
-      reason_codes: ['HIPAA_PHI_OUTPUT_NOT_AUTHORIZED'],
-    },
   ],
   obligations: [
     {
       code: 'LOCAL_MODEL_ONLY',
       when: 'Enigma implementation option for PHI path',
-      description: 'Enigma control — not a HIPAA mandate.',
+      description: 'Enigma control - not a HIPAA mandate.',
     },
     {
       code: 'NO_EXTERNAL_TRANSMISSION',
@@ -337,17 +379,266 @@ const HIPAA: PolicyDefinition = {
       when: 'optional Enigma control on non-trusted entity spans',
       description: 'TOKENIZE is Enigma enforcement, not a HIPAA mandate.',
     },
+  ],
+};
+
+const HIPAA_OUTPUT: PolicyDefinition = {
+  description:
+    'Evaluates model output and release for PHI under HIPAA-informed controls. Blocks unauthorized residual PHI, and allows Enigma release to authorize detokenization only when release conditions are satisfied. Does not certify HIPAA compliance.',
+  owner: 'compliance',
+  priority: 200,
+  scope_tier: 'regulatory',
+  domain: 'hipaa',
+  subjects: [
+    {
+      type: 'application',
+      match: 'any (when regulatory PHI / HIPAA applicability)',
+      description: 'Applies on the output/release path when HIPAA PHI applicability is in scope.',
+    },
+    {
+      type: 'caller',
+      match: 'authorized release recipient',
+      description: 'Release and detokenize decisions apply to the requesting application context.',
+    },
+  ],
+  resources: [
+    {
+      type: 'model_response',
+      classification: 'PHI',
+      description: 'Residual PHI in model output is evaluated for authorized release.',
+    },
+  ],
+  actions: [
+    {
+      action: 'release|detokenize',
+      effect: 'allow_if_controls',
+      description: 'Release/detokenize only when Enigma release conditions are satisfied.',
+    },
+  ],
+  ai_context: [
+    {
+      key: 'contains_tokens',
+      constraint: 'Detokenize only when release conditions are satisfied',
+    },
+    {
+      key: 'release_conditions_satisfied',
+      constraint: 'Enigma release policy decides; gateway enforces',
+    },
+  ],
+  conditions: [
+    {
+      id: 'HIPAA-R-OUT-RELEASE-EVAL',
+      statement:
+        'IF tokens AND release_conditions_satisfied THEN ENIGMA AUTHORIZED_DETOKENIZATION',
+    },
+    {
+      id: 'HIPAA-R-OUT-PHI-BLOCK',
+      statement: 'IF residual PHI AND NOT release_authorized THEN BLOCK_OUTPUT',
+    },
+  ],
+  decisions: [
+    {
+      when: 'Unauthorized residual PHI in output',
+      decision: 'BLOCK_OUTPUT',
+      reason_codes: ['HIPAA_PHI_OUTPUT_NOT_AUTHORIZED'],
+    },
+    {
+      when: 'Release conditions satisfied for tokenized PHI',
+      decision: 'ALLOW',
+      reason_codes: ['HIPAA_PHI_PROCESSING_CONTROLS_SATISFIED'],
+    },
+  ],
+  obligations: [
     {
       code: 'AUTHORIZE_DETOKENIZATION',
       when: 'Enigma release policy when release conditions satisfied',
       description: 'Enigma release decides; gateway enforces. HIPAA does not issue detokenize.',
+    },
+    {
+      code: 'LOG_GOVERNANCE_EVENT',
+      when: 'always',
+      description: 'Emit a governance audit event for HIPAA output/release decisions.',
+    },
+  ],
+};
+
+const PART2_INPUT: PolicyDefinition = {
+  description:
+    'Applies 42 CFR Part 2 confidentiality controls when substance use disorder (SUD) records are in scope. Consent evidence gates processing, and unauthorized external paths or write/export actions are denied. Does not certify Part 2 compliance.',
+  owner: 'compliance',
+  priority: 210,
+  scope_tier: 'regulatory',
+  domain: 'healthcare',
+  subjects: [
+    {
+      type: 'application',
+      match: 'any (when Part 2 SUD records apply)',
+      description: 'Applies when Part 2 regulatory applicability is asserted for SUD records.',
+    },
+    {
+      type: 'role',
+      match: 'authorized Part 2 recipient / program context',
+      description: 'Processing expects an authorized program or recipient context with consent evidence.',
+    },
+  ],
+  resources: [
+    {
+      type: 'prompt_content',
+      classification: 'PART2',
+      description: 'Substance use disorder records protected under 42 CFR Part 2.',
+    },
+    {
+      type: 'processing_environment',
+      classification: 'PART2',
+      description: 'External vs controlled processing path for Part 2 records.',
+    },
+  ],
+  actions: [
+    {
+      action: '*',
+      effect: 'restrict',
+      description: 'Never weaken a prior DENY; may further restrict models and release.',
+    },
+    {
+      action: 'write|export|share|transmit',
+      effect: 'deny',
+      description: 'Write/export/share without consent evidence are denied.',
+    },
+  ],
+  ai_context: [
+    {
+      key: 'authorization_context',
+      constraint: 'Consent evidence required; unknown does not silently become approved',
+    },
+    {
+      key: 'requested_model',
+      constraint: 'Unauthorized external processing denied without consent path',
+    },
+  ],
+  conditions: [
+    {
+      id: 'PART2-R-INPUT-EXTERNAL-DENY',
+      statement: 'IF PART2 AND unauthorized_external AND NOT consent THEN DENY',
+    },
+    {
+      id: 'PART2-R-INPUT-WRITE-DENY',
+      statement: 'IF PART2 AND operation IN (write,export,share,transmit) AND NOT consent THEN DENY',
+    },
+    {
+      id: 'PART2-R-INPUT-INSUFFICIENT-EVIDENCE',
+      statement: 'IF PART2 AND consent_evidence_insufficient THEN REVIEW',
+    },
+  ],
+  decisions: [
+    {
+      when: 'Part 2 without consent on external or write path',
+      decision: 'DENY',
+      reason_codes: ['PART2_CONSENT_REQUIRED'],
+    },
+    {
+      when: 'Insufficient Part 2 consent evidence',
+      decision: 'REVIEW',
+      reason_codes: ['PART2_INSUFFICIENT_CONSENT_EVIDENCE'],
+    },
+    {
+      when: 'Part 2 controls and consent satisfied',
+      decision: 'ALLOW',
+      reason_codes: ['PART2_PROCESSING_CONTROLS_SATISFIED'],
+    },
+  ],
+  obligations: [
+    {
+      code: 'NO_EXTERNAL_TRANSMISSION',
+      when: 'Part 2 record path without authorized external consent',
+      description: 'Block external transmission of Part 2 SUD content.',
+    },
+    {
+      code: 'LOG_GOVERNANCE_EVENT',
+      when: 'always',
+      description: 'Emit a governance audit event for Part 2 input decisions.',
+    },
+    {
+      code: 'TOKENIZE_PII',
+      when: 'optional Enigma control on Part 2 entity spans',
+      description: 'TOKENIZE is Enigma enforcement, not a Part 2 mandate.',
+    },
+  ],
+};
+
+const PART2_OUTPUT: PolicyDefinition = {
+  description:
+    'Evaluates model output and redisclosure for Part 2 SUD records. Blocks unauthorized residual plaintext and allows Enigma release to authorize detokenization only when redisclosure conditions are satisfied.',
+  owner: 'compliance',
+  priority: 210,
+  scope_tier: 'regulatory',
+  domain: 'healthcare',
+  subjects: [
+    {
+      type: 'application',
+      match: 'any (when Part 2 SUD records apply)',
+      description: 'Applies on the output/redisclosure path when Part 2 applicability is in scope.',
+    },
+  ],
+  resources: [
+    {
+      type: 'model_response',
+      classification: 'PART2',
+      description: 'Residual Part 2 content in model output is evaluated for redisclosure.',
+    },
+  ],
+  actions: [
+    {
+      action: 'release|detokenize|redisclose',
+      effect: 'allow_if_controls',
+      description: 'Release/detokenize only when Part 2 redisclosure conditions are satisfied.',
+    },
+  ],
+  ai_context: [
+    {
+      key: 'release_conditions_satisfied',
+      constraint: 'Enigma release decides redisclosure authorization; gateway enforces',
+    },
+  ],
+  conditions: [
+    {
+      id: 'PART2-R-OUT-REDISCLOSURE',
+      statement: 'IF PART2 residual AND NOT redisclosure_authorized THEN BLOCK_OUTPUT',
+    },
+    {
+      id: 'PART2-R-OUT-DETOK',
+      statement:
+        'IF tokens AND release_conditions_satisfied THEN ENIGMA AUTHORIZED_DETOKENIZATION',
+    },
+  ],
+  decisions: [
+    {
+      when: 'Unauthorized Part 2 residual in output',
+      decision: 'BLOCK_OUTPUT',
+      reason_codes: ['PART2_REDISCLOSURE_NOT_AUTHORIZED'],
+    },
+    {
+      when: 'Redisclosure conditions satisfied',
+      decision: 'ALLOW',
+      reason_codes: ['PART2_PROCESSING_CONTROLS_SATISFIED'],
+    },
+  ],
+  obligations: [
+    {
+      code: 'AUTHORIZE_DETOKENIZATION',
+      when: 'Enigma release when Part 2 redisclosure conditions satisfied',
+      description: 'Enigma release decides; gateway enforces.',
+    },
+    {
+      code: 'LOG_GOVERNANCE_EVENT',
+      when: 'always',
+      description: 'Emit a governance audit event for Part 2 output/release decisions.',
     },
   ],
 };
 
 const FINANCIAL: PolicyDefinition = {
   description:
-    'Financial overlay: tokenize financial data; block write/export/share without approval.',
+    'Protects financial data in AI requests: sensitive fields are safeguarded before processing, and write, export, and sharing actions stay controlled unless human approval allows them.',
   owner: 'compliance',
   priority: 180,
   scope_tier: 'regulatory',
@@ -358,25 +649,58 @@ const FINANCIAL: PolicyDefinition = {
       match: 'any (when FINANCIAL)',
       description: 'Applies when classification is FINANCIAL/Financial.',
     },
+    {
+      type: 'role',
+      match: 'finance_operator (preferred)',
+      description: 'Write/export paths expect a finance-capable operator role when approval is sought.',
+    },
+    {
+      type: 'application',
+      match: 'trust_level != untrusted',
+      description: 'Untrusted applications cannot process financial data.',
+    },
   ],
   resources: [
     {
       type: 'prompt_content',
       classification: 'FINANCIAL',
-      description: 'Financial regulated data.',
+      description: 'Financial account numbers, balances, statements, and similar regulated fields.',
+    },
+    {
+      type: 'model_response',
+      classification: 'FINANCIAL',
+      description: 'Financial data residual in model output remains governed by the same controls.',
+    },
+    {
+      type: 'derived_artifact',
+      classification: 'FINANCIAL',
+      description: 'Exports, shares, and transmitted copies of financial content.',
     },
   ],
   actions: [
     {
+      action: 'summarize|generate|read|*',
+      effect: 'allow_with_controls',
+      description: 'Read/analysis paths may proceed when financial fields are tokenized.',
+    },
+    {
       action: 'write|export|share|transmit',
       effect: 'deny',
-      description: 'Mutating/export financial ops require human approval (denied in overlay).',
+      description: 'Mutating and outbound financial operations are denied without human approval.',
     },
   ],
   ai_context: [
     {
       key: 'operation',
       constraint: 'write/export/share/transmit blocked for financial data',
+    },
+    {
+      key: 'classification',
+      constraint: 'FINANCIAL/Financial triggers overlay regardless of application domain',
+    },
+    {
+      key: 'requested_model',
+      constraint: 'Eligible models still subject to tokenize and transmission controls',
     },
   ],
   conditions: [
@@ -388,35 +712,60 @@ const FINANCIAL: PolicyDefinition = {
       id: 'c_fin_tok',
       statement: 'IF FINANCIAL THEN TOKENIZE',
     },
+    {
+      id: 'c_fin_trust',
+      statement: 'IF FINANCIAL AND trust_level = untrusted THEN DENY',
+    },
+    {
+      id: 'c_fin_approval',
+      statement:
+        'IF FINANCIAL AND operation IN (write,export,share,transmit) AND NOT human_approved THEN DENY',
+    },
   ],
   decisions: [
     {
-      when: 'Financial write/export',
+      when: 'Financial write/export/share/transmit',
       decision: 'DENY',
       reason_codes: ['FINANCIAL_WRITE_REQUIRES_APPROVAL'],
     },
     {
-      when: 'Financial read path',
+      when: 'Financial read/analysis path',
       decision: 'TOKENIZE',
       reason_codes: ['FINANCIAL_REQUIRES_TOKENIZE'],
+    },
+    {
+      when: 'Untrusted application with financial data',
+      decision: 'DENY',
+      reason_codes: ['UNTRUSTED_APPLICATION'],
     },
   ],
   obligations: [
     {
       code: 'REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION',
-      when: 'financial write path',
-      description: 'Human approval required for financial mutation.',
+      when: 'financial write/export/share/transmit path',
+      description: 'Human approval required before mutating or releasing financial data.',
     },
     {
       code: 'TOKENIZE_PII',
-      when: 'financial data',
-      description: 'Tokenize financial fields.',
+      when: 'financial data present',
+      description: 'Tokenize financial fields before model execution.',
+    },
+    {
+      code: 'LOG_GOVERNANCE_EVENT',
+      when: 'always',
+      description: 'Emit a governance audit event for financial overlay decisions.',
+    },
+    {
+      code: 'NO_EXTERNAL_TRANSMISSION',
+      when: 'raw financial fields would leave the trust boundary',
+      description: 'Block external transmission of raw financial content.',
     },
   ],
 };
 
 const LEGAL: PolicyDefinition = {
-  description: 'Legal overlay: no external models; block export/share of legal data.',
+  description:
+    'Keeps privileged legal content off external models and blocks export or sharing so confidential counsel material stays inside approved local or private processing paths.',
   owner: 'compliance',
   priority: 170,
   scope_tier: 'regulatory',
@@ -427,25 +776,58 @@ const LEGAL: PolicyDefinition = {
       match: 'any (when LEGAL)',
       description: 'Applies when classification is LEGAL/Legal.',
     },
+    {
+      type: 'role',
+      match: 'legal_counsel (preferred)',
+      description: 'Privileged legal workflows expect an authorized legal role.',
+    },
+    {
+      type: 'application',
+      match: 'trust_level != untrusted',
+      description: 'Untrusted applications cannot process legal content.',
+    },
   ],
   resources: [
     {
       type: 'prompt_content',
       classification: 'LEGAL',
-      description: 'Legal privileged or regulated content.',
+      description: 'Legal privileged, litigation, or regulated counsel content.',
+    },
+    {
+      type: 'model_response',
+      classification: 'LEGAL',
+      description: 'Legal content residual in responses remains governed by local-only and export controls.',
+    },
+    {
+      type: 'derived_artifact',
+      classification: 'LEGAL',
+      description: 'Exports, shares, and transmitted copies of legal content.',
     },
   ],
   actions: [
     {
+      action: 'summarize|generate|read|*',
+      effect: 'allow_with_controls',
+      description: 'Analysis paths may proceed only on eligible local/private models.',
+    },
+    {
       action: 'export|share|transmit',
       effect: 'deny',
-      description: 'Export/share of legal data is denied.',
+      description: 'Export and share of legal data are denied.',
     },
   ],
   ai_context: [
     {
       key: 'requested_model',
       constraint: 'External/cloud models denied for legal data',
+    },
+    {
+      key: 'operation',
+      constraint: 'export/share/transmit blocked for legal data',
+    },
+    {
+      key: 'deployment_mode',
+      constraint: 'Prefer local/private runtimes for privileged legal content',
     },
   ],
   conditions: [
@@ -457,10 +839,14 @@ const LEGAL: PolicyDefinition = {
       id: 'c_legal_cloud',
       statement: 'IF LEGAL AND cloud model THEN DENY',
     },
+    {
+      id: 'c_legal_trust',
+      statement: 'IF LEGAL AND trust_level = untrusted THEN DENY',
+    },
   ],
   decisions: [
     {
-      when: 'Legal export/share',
+      when: 'Legal export/share/transmit',
       decision: 'DENY',
       reason_codes: ['LEGAL_EXPORT_BLOCKED'],
     },
@@ -468,6 +854,11 @@ const LEGAL: PolicyDefinition = {
       when: 'Legal with external model',
       decision: 'DENY',
       reason_codes: ['LEGAL_EXTERNAL_MODEL_BLOCKED'],
+    },
+    {
+      when: 'Legal on eligible local path',
+      decision: 'ALLOW',
+      reason_codes: ['POLICY_ALLOW'],
     },
   ],
   obligations: [
@@ -481,6 +872,11 @@ const LEGAL: PolicyDefinition = {
       when: 'legal data',
       description: 'No external transmission of legal content.',
     },
+    {
+      code: 'LOG_GOVERNANCE_EVENT',
+      when: 'always',
+      description: 'Emit a governance audit event for legal overlay decisions.',
+    },
   ],
 };
 
@@ -488,7 +884,9 @@ const BY_POLICY_ID: Record<string, PolicyDefinition> = {
   pol_phase2_core: BASELINE_INPUT,
   pol_phase5_response: BASELINE_OUTPUT,
   pol_hipaa_phi_local: HIPAA,
-  pol_hipaa_release: HIPAA,
+  pol_hipaa_release: HIPAA_OUTPUT,
+  pol_part2_sud_records: PART2_INPUT,
+  pol_part2_redisclosure: PART2_OUTPUT,
   pol_financial_tokenize: FINANCIAL,
   pol_legal_no_external: LEGAL,
 };
@@ -498,9 +896,11 @@ const BY_INTERPRETER: Record<string, PolicyDefinition> = {
   baseline_output_v5: BASELINE_OUTPUT,
   hipaa_overlay_v1: HIPAA,
   hipaa_pack_v2: HIPAA,
-  hipaa_pack_v2_output: HIPAA,
+  hipaa_pack_v2_output: HIPAA_OUTPUT,
   hipaa_pack_v3: HIPAA,
-  hipaa_pack_v3_output: HIPAA,
+  hipaa_pack_v3_output: HIPAA_OUTPUT,
+  part2_pack_v1: PART2_INPUT,
+  part2_pack_v1_output: PART2_OUTPUT,
   financial_overlay_v1: FINANCIAL,
   legal_overlay_v1: LEGAL,
 };

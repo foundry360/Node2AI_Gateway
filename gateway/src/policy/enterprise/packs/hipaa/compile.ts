@@ -207,7 +207,7 @@ export function compileHipaaPack(): CompiledHipaaPack {
       status: 'active',
       interpreter: HIPAA_PACK_META.input_interpreter,
       description:
-        'HIPAA pack v3.1 input — PHI regulatory applicability with Enigma controls and end-to-end provenance. Does not certify HIPAA compliance.',
+        'Applies extra safeguards when true PHI is in scope under HIPAA. It can deny external processing when controls are missing, require stronger evidence before allowing work to continue, and evaluate whether residual PHI in an output may be released. Local or private hosting and tokenization are Enigma controls - not a HIPAA compliance certification, and health-sensitive content alone is not treated as PHI.',
       owner: 'compliance',
       priority: 200,
       scope_tier: 'regulatory',
@@ -220,12 +220,12 @@ export function compileHipaaPack(): CompiledHipaaPack {
       policy_id: HIPAA_PACK_META.output_policy_id,
       version: HIPAA_PACK_META.output_version,
       pack_id: HIPAA_PACK_META.pack_id,
-      name: 'HIPAA-informed Enigma output/release governance',
+      name: 'HIPAA output and release governance',
       phase: 'output',
       status: 'active',
       interpreter: HIPAA_PACK_META.output_interpreter,
       description:
-        'Output/release evaluation informed by HIPAA obligations; Enigma release policy authorizes detokenization; provenance preserved.',
+        'Evaluates model output and release for PHI under HIPAA-informed controls. Blocks unauthorized residual PHI, and allows Enigma release to authorize detokenization only when release conditions are satisfied. Does not certify HIPAA compliance.',
       owner: 'compliance',
       priority: 200,
       scope_tier: 'regulatory',

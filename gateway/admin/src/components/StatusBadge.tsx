@@ -22,6 +22,10 @@ function badgeKind(status: string): string {
     s === 'approved' ||
     s === 'allow' ||
     s === 'allowed' ||
+    s === 'allow_if_listed' ||
+    s === 'allow_if_authorized' ||
+    s === 'allow_if_controls' ||
+    s === 'allow_with_controls' ||
     s === 'connected' ||
     s === 'ready'
   ) {
@@ -35,6 +39,7 @@ function badgeKind(status: string): string {
     s === 'deny' ||
     s === 'block' ||
     s === 'blocked' ||
+    s === 'block_output' ||
     s === 'unavailable' ||
     s === 'degraded' ||
     s === 'failed'
@@ -50,9 +55,15 @@ function badgeKind(status: string): string {
     s === 'memory' ||
     s === 'unknown' ||
     s === 'not_executed' ||
-    s === 'controls_applied'
+    s === 'controls_applied' ||
+    s === 'tokenize' ||
+    s === 'redact' ||
+    s === 'restrict'
   ) {
     return 'badge-warn';
+  }
+  if (s === 'release') {
+    return 'badge-ok';
   }
   return 'badge-neutral';
 }
@@ -72,6 +83,10 @@ function badgeIcon(status: string): ReactNode {
   if (
     s === 'allow' ||
     s === 'allowed' ||
+    s === 'allow_if_listed' ||
+    s === 'allow_if_authorized' ||
+    s === 'allow_if_controls' ||
+    s === 'allow_with_controls' ||
     s === 'approved' ||
     s === 'ok' ||
     s === 'valid' ||
@@ -82,7 +97,12 @@ function badgeIcon(status: string): ReactNode {
   ) {
     return <Check {...props} />;
   }
-  if (s === 'deny' || s === 'block' || s === 'blocked') {
+  if (
+    s === 'deny' ||
+    s === 'block' ||
+    s === 'blocked' ||
+    s === 'block_output'
+  ) {
     return <ShieldBan {...props} />;
   }
   if (
@@ -93,7 +113,7 @@ function badgeIcon(status: string): ReactNode {
   ) {
     return <Ban {...props} />;
   }
-  if (s === 'controls_applied') {
+  if (s === 'controls_applied' || s === 'tokenize' || s === 'redact' || s === 'restrict') {
     return <Shield {...props} />;
   }
   if (s === 'review' || s === 'review_required' || s === 'attention' || s === 'warn') {
@@ -117,10 +137,13 @@ export function StatusBadge({
   const label = labelOverride ?? formatFieldLabel(status);
 
   if (variant === 'badge') {
+    const kind = badgeKind(status);
+    const controlsApplied =
+      status.toLowerCase() === 'controls_applied' ? ' badge-controls-applied' : '';
     return (
-      <span className={`badge ${badgeKind(status)}`} title={status}>
+      <span className={`badge ${kind}${controlsApplied}`} title={status}>
         <span className="badge-icon">{badgeIcon(status)}</span>
-        {label}
+        <span className="badge-label">{label}</span>
       </span>
     );
   }

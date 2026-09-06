@@ -8,7 +8,19 @@ export function hashResponseContent(content: string): string {
   return createHash('sha256').update(content, 'utf8').digest('hex');
 }
 
-/** Canonical payload used for the event hash (excludes signature). */
+function nonEmpty(value: string | null | undefined): string | undefined {
+  if (value == null) return undefined;
+  const s = String(value).trim();
+  return s.length > 0 ? s : undefined;
+}
+
+/**
+ * Canonical payload used for the event hash (excludes signature).
+ *
+ * evaluation_id / decision_hash are included only when present (non-empty).
+ * Historical events without Decision binding remain verifiable unchanged.
+ * New Decision-bound events seal both fields into event_hash.
+ */
 export function canonicalEventPayload(event: {
   audit_id: string;
   timestamp: string;
@@ -23,10 +35,12 @@ export function canonicalEventPayload(event: {
   model_selected?: string;
   provider?: string;
   reason_codes?: string[];
+  evaluation_id?: string | null;
+  decision_hash?: string | null;
   response_hash: string;
   prev_event_hash: string;
 }): string {
-  return JSON.stringify({
+  const body: Record<string, unknown> = {
     audit_id: event.audit_id,
     timestamp: event.timestamp,
     request_id: event.request_id,
@@ -42,7 +56,12 @@ export function canonicalEventPayload(event: {
     reason_codes: event.reason_codes ?? [],
     response_hash: event.response_hash,
     prev_event_hash: event.prev_event_hash,
-  });
+  };
+  const evaluationId = nonEmpty(event.evaluation_id ?? undefined);
+  const decisionHash = nonEmpty(event.decision_hash ?? undefined);
+  if (evaluationId !== undefined) body.evaluation_id = evaluationId;
+  if (decisionHash !== undefined) body.decision_hash = decisionHash;
+  return JSON.stringify(body);
 }
 
 export function computeEventHash(payload: string): string {
@@ -124,6 +143,8 @@ export function verifyAuditChain(
       model_selected: e.model_selected,
       provider: e.provider,
       reason_codes: e.reason_codes,
+      evaluation_id: e.evaluation_id,
+      decision_hash: e.decision_hash,
       response_hash: e.response_hash,
       prev_event_hash: e.prev_event_hash,
     });

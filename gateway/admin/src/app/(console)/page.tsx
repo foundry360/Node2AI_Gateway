@@ -100,7 +100,7 @@ export default async function OverviewPage() {
                     <div className="status-kv-row">
                       <span className="status-kv-label">Engine</span>
                       <span className="status-kv-value mono">
-                        {packs?.engine_mode ?? '—'}
+                        {packs?.engine_mode ?? '-'}
                       </span>
                     </div>
                     <div className="status-kv-row">
@@ -111,7 +111,7 @@ export default async function OverviewPage() {
                             data.models.local_runtime.mode === 'ollama'
                             ? 'local llm'
                             : data.models.local_runtime.active_runtime
-                          : '—'}
+                          : '-'}
                       </span>
                     </div>
                     <div className="status-kv-row">
@@ -138,7 +138,7 @@ export default async function OverviewPage() {
                     </div>
                     <div className="status-kv-row">
                       <span className="status-kv-label">Policy packs</span>
-                      <span className="status-kv-value">{packs?.packs.length ?? '—'}</span>
+                      <span className="status-kv-value">{packs?.packs.length ?? '-'}</span>
                     </div>
                     <div className="status-kv-row">
                       <span className="status-kv-label">Active models</span>

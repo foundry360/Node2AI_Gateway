@@ -1,12 +1,12 @@
-import Link from 'next/link';
 import { adminFetch } from '@/lib/api';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
-import { PageHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DecisionExplanationView } from '@/components/DecisionExplanationView';
 import { DecisionConsequencePanel } from '@/components/DecisionConsequencePanel';
 import { DecisionReviewPanel } from '@/components/DecisionReviewPanel';
 import { DecisionRequestContextPanel } from '@/components/DecisionRequestContextPanel';
+import { formatDisplayDateTime } from '@/lib/display-datetime';
+import { formatFieldLabel } from '@/lib/field-label';
 import type { DecisionExplanationPayload } from '@/lib/decision-explanation';
 
 type Consequence = {
@@ -94,6 +94,10 @@ type EvaluationDetailResponse = {
   };
 };
 
+function capitalize(value: string) {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+}
+
 export default async function EvaluationDetailPage({
   params,
 }: {
@@ -131,6 +135,13 @@ export default async function EvaluationDetailPage({
     decision?.explanation?.operator?.enigma_obligations ??
     [];
 
+  const machineDecision = decision?.decision ?? record?.decision ?? '-';
+  const finalDecision = review?.final_decision ?? machineDecision;
+  const executionMode =
+    requestContext?.execution_mode === 'simulation' ? 'Simulation' : 'Live';
+  const phaseLabel = formatFieldLabel(record?.phase ?? requestContext?.phase) || '-';
+  const recordedAt = formatDisplayDateTime(record?.created_at ?? null);
+
   return (
     <div className="stack">
       <Breadcrumbs
@@ -139,83 +150,136 @@ export default async function EvaluationDetailPage({
           { label: evaluationId },
         ]}
       />
-      <PageHeader
-        title="Decision"
-        lede={
-          record
-            ? `${record.evaluation_id} · ${
-                requestContext?.execution_mode === 'simulation' ? 'simulation' : 'live'
-              } · ${record.phase} · recorded ${record.created_at}`
-            : evaluationId
-        }
-        actions={
-          review?.final_decision || decision?.decision ? (
-            <span className="stack-tight" style={{ alignItems: 'flex-end' }}>
-              <span className="muted" style={{ fontSize: '0.75rem' }}>
-                {review?.final_decision ? 'Final decision' : 'Machine decision'}
-              </span>
-              <StatusBadge
-                variant="badge"
-                status={review?.final_decision ?? decision?.decision ?? ''}
-              />
-            </span>
-          ) : undefined
-        }
-      />
+
+      <div className="meridian-top">
+        <div className="meridian-header">
+          <div className="meridian-header-text">
+            <div className="policy-detail-title-row">
+              <h1 className="meridian-title">Decision</h1>
+              <StatusBadge variant="badge" status={finalDecision} />
+            </div>
+          </div>
+        </div>
+
+        {record ? (
+          <div className="meridian-panel">
+            <div className="meridian-panel-left">
+              <div className="meridian-card-head">
+                <h2 className="meridian-card-title">Decision Identity</h2>
+                <span className="meridian-pill">Authoritative</span>
+              </div>
+              <div className="leader-rows">
+                <div className="leader-row">
+                  <span className="leader-label">Machine</span>
+                  <span className="leader-dots" aria-hidden />
+                  <span className="leader-value">
+                    <StatusBadge variant="badge" status={machineDecision} />
+                  </span>
+                </div>
+                <div className="leader-row">
+                  <span className="leader-label">Final</span>
+                  <span className="leader-dots" aria-hidden />
+                  <span className="leader-value">
+                    <StatusBadge variant="badge" status={finalDecision} />
+                  </span>
+                </div>
+                <div className="leader-row">
+                  <span className="leader-label">Phase</span>
+                  <span className="leader-dots" aria-hidden />
+                  <span className="leader-value">{phaseLabel}</span>
+                </div>
+                <div className="leader-row">
+                  <span className="leader-label">Mode</span>
+                  <span className="leader-dots" aria-hidden />
+                  <span className="leader-value">{executionMode}</span>
+                </div>
+                {review?.review_state ? (
+                  <div className="leader-row">
+                    <span className="leader-label">Review</span>
+                    <span className="leader-dots" aria-hidden />
+                    <span className="leader-value">
+                      {formatFieldLabel(review.review_state)}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="meridian-panel-right">
+              <div className="meridian-attr">
+                <span className="meridian-attr-label">Evaluation ID</span>
+                <span className="meridian-attr-value mono">
+                  {record.evaluation_id}
+                </span>
+              </div>
+              <div className="meridian-attr">
+                <span className="meridian-attr-label">Request ID</span>
+                <span className="meridian-attr-value mono">
+                  {record.request_id ?? requestContext?.request_id ?? '-'}
+                </span>
+              </div>
+              <div className="meridian-attr">
+                <span className="meridian-attr-label">Action</span>
+                <span className="meridian-attr-value mono">
+                  {record.action ?? requestContext?.action ?? '-'}
+                </span>
+              </div>
+              <div className="meridian-attr">
+                <span className="meridian-attr-label">Recorded</span>
+                <span className="meridian-attr-value mono">{recordedAt}</span>
+              </div>
+              <div className="meridian-attr">
+                <span className="meridian-attr-label">Source</span>
+                <span className="meridian-attr-value">
+                  {data?.source === 'policy_evaluations' ? 'EPA' : capitalize(data?.source ?? '-')}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       {error ? <div className="error">{error}</div> : null}
-      {data?.source === 'policy_evaluations' ? (
-        <p className="muted">
-          Governance journey from <code className="mono">policy_evaluations</code> (what Enigma
-          decided and why). Human resolution is a separate intervention. Gateway/audit is operational
-          evidence — not decision authority. See{' '}
-          <Link href="/audit">Audit</Link>.
-        </p>
-      ) : null}
 
-      <DecisionRequestContextPanel
-        context={requestContext}
-        executionSummary={execution?.summary}
-      />
-
-      {decision ? (
-        <section aria-labelledby="governance-heading">
-          <h3 id="governance-heading" className="section-title" style={{ marginBottom: '0.5rem' }}>
-            2. Governance &amp; provenance
-          </h3>
-          <DecisionExplanationView decision={decision} />
-        </section>
-      ) : null}
-
-      {showReview ? (
-        <DecisionReviewPanel
-          evaluationId={evaluationId}
-          review={review}
-          decision={decision?.decision ?? record?.decision}
-          resolutionCategory={decision?.explanation?.resolution?.category}
-          contributingPacks={
-            decision?.explanation?.resolution?.contributing_pack_ids ??
-            decision?.explanation?.operator?.contributing_pack_ids
-          }
-          conflictDetail={
-            decision?.explanation?.resolution?.detail ??
-            decision?.explanation?.operator?.conflict_detail
-          }
-          execution={execution?.resume}
-          heldRequestPresent={execution?.held_request_present}
+      <div className="decision-detail-stack">
+        <DecisionRequestContextPanel
+          context={requestContext}
+          executionSummary={execution?.summary}
         />
-      ) : null}
 
-      {consequence ? (
-        <DecisionConsequencePanel
-          decision={decision?.decision ?? record?.decision}
-          finalDecision={review?.final_decision ?? undefined}
-          humanDisposition={review?.human_resolution?.human_disposition}
-          consequence={consequence}
-          enforcement={enforcement}
-          requiredControls={requiredControls}
-          executionMode={requestContext?.execution_mode ?? execution?.mode}
-        />
-      ) : null}
+        {decision ? <DecisionExplanationView decision={decision} /> : null}
+
+        {showReview ? (
+          <DecisionReviewPanel
+            evaluationId={evaluationId}
+            review={review}
+            decision={decision?.decision ?? record?.decision}
+            resolutionCategory={decision?.explanation?.resolution?.category}
+            contributingPacks={
+              decision?.explanation?.resolution?.contributing_pack_ids ??
+              decision?.explanation?.operator?.contributing_pack_ids
+            }
+            conflictDetail={
+              decision?.explanation?.resolution?.detail ??
+              decision?.explanation?.operator?.conflict_detail
+            }
+            execution={execution?.resume}
+            heldRequestPresent={execution?.held_request_present}
+          />
+        ) : null}
+
+        {consequence ? (
+          <DecisionConsequencePanel
+            decision={decision?.decision ?? record?.decision}
+            finalDecision={review?.final_decision ?? undefined}
+            humanDisposition={review?.human_resolution?.human_disposition}
+            consequence={consequence}
+            enforcement={enforcement}
+            requiredControls={requiredControls}
+            executionMode={requestContext?.execution_mode ?? execution?.mode}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -84,7 +84,7 @@ export function ApplicationDetailView({
                 <span className="leader-label">Trust level</span>
                 <span className="leader-dots" aria-hidden />
                 <span className="leader-value">
-                  {app.trust_level ? capitalize(app.trust_level) : '—'}
+                  {app.trust_level ? capitalize(app.trust_level) : '-'}
                 </span>
               </div>
               <div className="leader-row">
@@ -118,7 +118,7 @@ export function ApplicationDetailView({
             <div className="meridian-attr">
               <span className="meridian-attr-label">Organization</span>
               <span className="meridian-attr-value mono">
-                {app.organization_id ?? '—'}
+                {app.organization_id ?? '-'}
               </span>
             </div>
             <div className="meridian-attr">
@@ -159,19 +159,19 @@ export function ApplicationDetailView({
             <div className="meridian-attr">
               <span className="meridian-attr-label">Trust</span>
               <span className="meridian-attr-value">
-                {app.trust_level ? capitalize(app.trust_level) : '—'}
+                {app.trust_level ? capitalize(app.trust_level) : '-'}
               </span>
             </div>
             <div className="meridian-attr">
               <span className="meridian-attr-label">Datasets</span>
               <span className="meridian-attr-value mono">
-                {app.allowed_datasets.join(', ') || '—'}
+                {app.allowed_datasets.join(', ') || '-'}
               </span>
             </div>
             <div className="meridian-attr">
               <span className="meridian-attr-label">Operations</span>
               <span className="meridian-attr-value mono">
-                {app.allowed_operations.join(', ') || '—'}
+                {app.allowed_operations.join(', ') || '-'}
               </span>
             </div>
           </div>

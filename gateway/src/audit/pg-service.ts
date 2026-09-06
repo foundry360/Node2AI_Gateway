@@ -17,14 +17,16 @@ export class PostgresAuditService implements AuditService {
          policy_decision, model_selected, provider, input_transformation,
          response_transformation, response_decision, latency_ms, usage,
          reason_codes, errors, metadata,
-         response_hash, prev_event_hash, event_hash, integrity_signature
+         response_hash, prev_event_hash, event_hash, integrity_signature,
+         evaluation_id, decision_hash
        ) VALUES (
          $1, $2::timestamptz, $3, $4, $5,
          $6, $7, $8, $9, $10::jsonb,
          $11, $12, $13, $14,
          $15, $16, $17, $18::jsonb,
          $19::jsonb, $20::jsonb, $21::jsonb,
-         $22, $23, $24, $25
+         $22, $23, $24, $25,
+         $26, $27
        )`,
       [
         event.audit_id,
@@ -52,6 +54,8 @@ export class PostgresAuditService implements AuditService {
         event.prev_event_hash ?? null,
         event.event_hash ?? null,
         event.integrity_signature ?? null,
+        event.evaluation_id ?? null,
+        event.decision_hash ?? null,
       ],
     );
     return event;
@@ -64,7 +68,8 @@ export class PostgresAuditService implements AuditService {
               policy_decision, model_selected, provider, input_transformation,
               response_transformation, response_decision, latency_ms, usage,
               reason_codes, errors, metadata,
-              response_hash, prev_event_hash, event_hash, integrity_signature
+              response_hash, prev_event_hash, event_hash, integrity_signature,
+              evaluation_id, decision_hash
        FROM audit_events
        ORDER BY timestamp ASC, audit_id ASC`,
     );
@@ -113,6 +118,8 @@ export class PostgresAuditService implements AuditService {
       integrity_signature: row.integrity_signature
         ? String(row.integrity_signature)
         : undefined,
+      evaluation_id: row.evaluation_id ? String(row.evaluation_id) : null,
+      decision_hash: row.decision_hash ? String(row.decision_hash) : null,
     }));
   }
 }

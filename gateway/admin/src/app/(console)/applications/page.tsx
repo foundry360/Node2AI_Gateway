@@ -22,7 +22,7 @@ type KeysResponse = {
   }>;
 };
 
-/** Applications directory — card/list console for governed apps. */
+/** Applications directory - card/list console for governed apps. */
 export default async function ApplicationsPage() {
   let apps: AppsResponse['applications'] = [];
   let keys: KeysResponse['api_keys'] = [];

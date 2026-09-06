@@ -1,4 +1,5 @@
 import type { AuditEvent, AuditService } from '../audit/service.js';
+import { decisionBindingFromRecord } from '../audit/decision-binding.js';
 import type { IdentityService } from '../identity/service.js';
 import type { IdentityStore } from '../identity/store.js';
 import type { DataInterrogator } from '../interrogation/types.js';
@@ -922,10 +923,68 @@ export class GatewayOrchestrator {
     event: AuditEvent,
   ): Promise<{ ok: boolean; event?: AuditEvent }> {
     try {
-      const sealed = await this.deps.audit.record(event);
+      const sealed = await this.deps.audit.record(
+        await this.withDecisionBinding(event),
+      );
       return { ok: true, event: sealed };
     } catch {
       return { ok: false };
+    }
+  }
+
+  /**
+   * Bind operational audit to the authoritative Decision fingerprint when known.
+   * Resume events bind to the authorizing evaluation (not a response-phase eval).
+   * Normal RELEASE prefers response evaluation when present.
+   */
+  private async withDecisionBinding(event: AuditEvent): Promise<AuditEvent> {
+    if (event.evaluation_id && event.decision_hash) return event;
+
+    const meta = event.metadata ?? {};
+    const isResume = meta.resume === true;
+    const responseEvalId =
+      typeof meta.response_evaluation_id === 'string'
+        ? meta.response_evaluation_id
+        : undefined;
+    const inputEvalId =
+      typeof event.evaluation_id === 'string' && event.evaluation_id
+        ? event.evaluation_id
+        : typeof meta.evaluation_id === 'string'
+          ? meta.evaluation_id
+          : undefined;
+
+    const preferred = isResume
+      ? inputEvalId ?? responseEvalId
+      : event.response_decision === 'RELEASE' && responseEvalId
+        ? responseEvalId
+        : inputEvalId ?? responseEvalId;
+
+    if (!preferred) {
+      return {
+        ...event,
+        evaluation_id: event.evaluation_id ?? null,
+        decision_hash: event.decision_hash ?? null,
+      };
+    }
+
+    const repo = this.deps.policyRepository;
+    if (!repo?.getEvaluation) {
+      return { ...event, evaluation_id: preferred, decision_hash: null };
+    }
+
+    try {
+      const record = await Promise.resolve(repo.getEvaluation(preferred));
+      if (!record) {
+        return { ...event, evaluation_id: preferred, decision_hash: null };
+      }
+      const binding = decisionBindingFromRecord(record);
+      return {
+        ...event,
+        evaluation_id: binding.evaluation_id,
+        decision_hash: binding.decision_hash,
+      };
+    } catch {
+      return { ...event, evaluation_id: preferred, decision_hash: null };
     }
   }
 }

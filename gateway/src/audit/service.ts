@@ -20,6 +20,16 @@ export interface AuditEvent {
   reason_codes?: string[];
   errors?: unknown;
   metadata?: Record<string, unknown>;
+  /**
+   * Authoritative policy_evaluations id this operational event enforces.
+   * Null/omitted when the event has no associated Decision.
+   */
+  evaluation_id?: string | null;
+  /**
+   * SHA-256 of the canonical Decision Evidence Payload for evaluation_id.
+   * Derived from policy_evaluations — never from the audit row itself.
+   */
+  decision_hash?: string | null;
   /** SHA-256 of released response content (empty string hashed if blocked). */
   response_hash?: string;
   /** Previous event_hash in the appliance chain (GENESIS for first). */

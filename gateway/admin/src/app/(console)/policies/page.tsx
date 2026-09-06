@@ -37,7 +37,7 @@ export default async function PoliciesPage() {
     <div>
       <PageHeader
         title="Policies"
-        lede="Enterprise policy packs. Open a policy to validate, simulate, approve, activate, suspend, or retire. Binding decisions come from the pack-backed PDP."
+        lede="Define and manage the policies that govern AI actions."
       />
       {error ? <div className="error">{error}</div> : null}
       {packs ? (

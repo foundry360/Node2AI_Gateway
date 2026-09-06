@@ -104,7 +104,7 @@ export default async function SystemPage() {
                         <th>Cache hit</th>
                         <td className="mono">
                           {data.database.stats.cache_hit_pct === null
-                            ? '—'
+                            ? '-'
                             : `${data.database.stats.cache_hit_pct}%`}
                         </td>
                       </tr>
@@ -128,8 +128,8 @@ export default async function SystemPage() {
                     <th>Mode</th>
                     <td className="muted">
                       {data.persistence === 'postgres'
-                        ? 'PostgreSQL — applications, policies, audit, and vault persist across restarts.'
-                        : 'In-memory — data resets when the gateway process restarts. Set DATABASE_URL to connect Postgres.'}
+                        ? 'PostgreSQL - applications, policies, audit, and vault persist across restarts.'
+                        : 'In-memory - data resets when the gateway process restarts. Set DATABASE_URL to connect Postgres.'}
                     </td>
                   </tr>
                 </tbody>
@@ -183,7 +183,7 @@ export default async function SystemPage() {
                   </tr>
                   <tr>
                     <th>External provider URL</th>
-                    <td className="mono">{data.external_provider_base_url || '—'}</td>
+                    <td className="mono">{data.external_provider_base_url || '-'}</td>
                   </tr>
                   <tr>
                     <th>Air-gap require Ollama</th>
@@ -191,7 +191,7 @@ export default async function SystemPage() {
                   </tr>
                   <tr>
                     <th>CORS origins</th>
-                    <td className="mono">{data.cors_origins.join(', ') || '—'}</td>
+                    <td className="mono">{data.cors_origins.join(', ') || '-'}</td>
                   </tr>
                 </tbody>
               </table>

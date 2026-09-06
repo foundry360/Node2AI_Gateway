@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { StatusBadge } from '@/components/StatusBadge';
+import { formatDisplayDateTime } from '@/lib/display-datetime';
 import { proxyJson } from '@/lib/client-api';
 
 type HumanResolution = {
@@ -29,7 +31,7 @@ type ResumeExecution = {
 };
 
 /**
- * Human review — machine decision stays immutable.
+ * Human review - machine decision stays immutable.
  * Expected action / Gateway verification live in DecisionConsequencePanel.
  */
 export function DecisionReviewPanel({
@@ -105,52 +107,62 @@ export function DecisionReviewPanel({
       execution?.status === 'RESUME_FAILED');
 
   return (
-    <section className="panel panel-pad" aria-labelledby="review-heading">
-      <h3 id="review-heading" className="section-title">
-        4. Human review
-      </h3>
-      <p className="muted">
+    <section className="section-card" aria-labelledby="review-heading">
+      <div className="section-card-header">
+        <h3 id="review-heading">Human Review</h3>
+        {state !== 'not_applicable' ? (
+          <StatusBadge variant="badge" status={state} />
+        ) : null}
+      </div>
+      <p className="muted decision-panel-lede">
         REVIEW is not DENY. Machine decision stays immutable; human resolution sets final
-        enforceable intent. AUTHORIZE is not Gateway success — resume executes the held request.
-        Actor is claimed identity — not a full identity system.
+        enforceable intent. AUTHORIZE is not Gateway success - resume executes the held request.
+        Actor is claimed identity - not a full identity system.
       </p>
 
       <dl className="definition-list">
         <div>
-          <dt>Machine decision</dt>
-          <dd className="mono">
-            {review?.original_decision ?? decision ?? '—'}
+          <dt>Machine Decision</dt>
+          <dd>
+            <StatusBadge
+              variant="badge"
+              status={review?.original_decision ?? decision ?? '-'}
+            />
           </dd>
         </div>
         {resolutionCategory ? (
           <div>
-            <dt>Pack resolution</dt>
+            <dt>Pack Resolution</dt>
             <dd className="mono">{resolutionCategory}</dd>
           </div>
         ) : null}
         {contributingPacks && contributingPacks.length > 0 ? (
           <div>
-            <dt>Contributing packs</dt>
+            <dt>Contributing Packs</dt>
             <dd className="mono">{contributingPacks.join(', ')}</dd>
           </div>
         ) : null}
         {conflictDetail ? (
           <div>
-            <dt>Conflict / uncertainty</dt>
+            <dt>Conflict / Uncertainty</dt>
             <dd>{conflictDetail}</dd>
           </div>
         ) : null}
       </dl>
 
       {state === 'resolved' && resolution ? (
-        <dl className="definition-list" style={{ marginTop: '1rem' }}>
+        <dl className="definition-list decision-review-resolved">
           <div>
-            <dt>Human resolution</dt>
-            <dd className="mono">{resolution.human_disposition}</dd>
+            <dt>Human Resolution</dt>
+            <dd>
+              <StatusBadge variant="badge" status={resolution.human_disposition} />
+            </dd>
           </div>
           <div>
-            <dt>Final decision</dt>
-            <dd className="mono">{resolution.final_decision}</dd>
+            <dt>Final Decision</dt>
+            <dd>
+              <StatusBadge variant="badge" status={resolution.final_decision} />
+            </dd>
           </div>
           <div>
             <dt>Authorization</dt>
@@ -165,27 +177,30 @@ export function DecisionReviewPanel({
             </div>
           ) : null}
           <div>
-            <dt>Resolved by</dt>
+            <dt>Resolved By</dt>
             <dd>{resolution.resolved_by}</dd>
           </div>
           <div>
-            <dt>Resolved at</dt>
-            <dd className="mono">{resolution.resolved_at}</dd>
+            <dt>Resolved At</dt>
+            <dd className="mono">
+              {formatDisplayDateTime(resolution.resolved_at)}
+            </dd>
           </div>
           <div>
-            <dt>Resolution reason</dt>
+            <dt>Resolution Reason</dt>
             <dd>{resolution.resolution_reason}</dd>
           </div>
         </dl>
       ) : null}
 
       {canResume ? (
-        <div className="stack-tight" style={{ marginTop: '1rem' }}>
+        <div className="stack-tight decision-review-actions">
           <p className="muted">
-            Final decision is ALLOW. Resume the original held request through Gateway (idempotent).
+            Final decision is ALLOW. Resume the original held request through Gateway
+            (idempotent).
           </p>
           <button type="button" className="btn" disabled={busy} onClick={() => resume()}>
-            Resume original request
+            Resume Original Request
           </button>
           {execution?.error ? (
             <p className="error">Previous resume error: {execution.error}</p>
@@ -194,13 +209,13 @@ export function DecisionReviewPanel({
       ) : null}
 
       {state === 'pending' ? (
-        <div className="stack-tight" style={{ marginTop: '1rem' }}>
+        <div className="stack-tight decision-review-actions">
           <p className="muted">
             Resolve with a reason. AUTHORIZE → final ALLOW; DENY → final DENY. Machine stays
             REVIEW.
           </p>
           <label>
-            Resolution reason
+            Resolution Reason
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -209,7 +224,7 @@ export function DecisionReviewPanel({
               placeholder="Why authorize or deny this decision?"
             />
           </label>
-          <div className="btn-row" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div className="btn-row">
             <button
               type="button"
               className="btn"

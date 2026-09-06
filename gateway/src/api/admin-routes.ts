@@ -647,12 +647,12 @@ export function registerAdminRoutes(
         gateway_executed: request_context.execution_mode === 'live',
         summary:
           request_context.execution_mode === 'simulation'
-            ? 'Decision evaluated — Gateway action not executed'
+            ? 'Decision evaluated - Gateway action not executed'
             : enforcement.verified
-              ? 'Decision evaluated — Gateway enforcement correlated and verified'
+              ? 'Decision evaluated - Gateway enforcement correlated and verified'
               : enforcement.attempted
-                ? 'Decision evaluated — Gateway enforcement attempted'
-                : 'Decision evaluated — Gateway enforcement not yet correlated',
+                ? 'Decision evaluated - Gateway enforcement attempted'
+                : 'Decision evaluated - Gateway enforcement not yet correlated',
         resume: record.execution ?? null,
         held_request_present: Boolean(record.held_request),
       },
@@ -748,6 +748,10 @@ export function registerAdminRoutes(
     const requestId =
       withExecution.request_id ?? `req_resolve_${evaluationId.slice(-12)}`;
     const authorized = resolution.human_disposition === 'AUTHORIZE';
+    const { decisionBindingFromRecord } = await import(
+      '../audit/decision-binding.js'
+    );
+    const binding = decisionBindingFromRecord(withExecution);
     await ctx.audit.record({
       audit_id: `aud_eval_res_${randomBytes(6).toString('hex')}`,
       timestamp: resolution.resolved_at,
@@ -762,6 +766,8 @@ export function registerAdminRoutes(
         authorized ? 'HUMAN_AUTHORIZE' : 'HUMAN_DENY',
         'EVALUATION_RESOLVED',
       ],
+      evaluation_id: binding.evaluation_id,
+      decision_hash: binding.decision_hash,
       metadata: {
         resolution: true,
         evaluation_id: evaluationId,
@@ -1401,6 +1407,8 @@ export function registerAdminRoutes(
           response_hash: e.response_hash,
           event_hash: e.event_hash,
           prev_event_hash: e.prev_event_hash,
+          evaluation_id: e.evaluation_id ?? null,
+          decision_hash: e.decision_hash ?? null,
           integrity_signature: e.integrity_signature
             ? `${e.integrity_signature.slice(0, 12)}…`
             : undefined,

@@ -68,6 +68,8 @@ export class IntegrityAuditService implements AuditService {
       model_selected: event.model_selected,
       provider: event.provider,
       reason_codes: event.reason_codes,
+      evaluation_id: event.evaluation_id,
+      decision_hash: event.decision_hash,
       response_hash,
       prev_event_hash,
     });
@@ -77,6 +79,8 @@ export class IntegrityAuditService implements AuditService {
     const sealed: AuditEvent = {
       ...event,
       metadata,
+      evaluation_id: event.evaluation_id ?? null,
+      decision_hash: event.decision_hash ?? null,
       response_hash,
       prev_event_hash,
       event_hash,

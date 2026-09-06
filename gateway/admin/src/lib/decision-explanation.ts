@@ -1,6 +1,6 @@
 /**
  * Client-side types + tiny helpers for pack-agnostic decision explanation UX.
- * Mirrors gateway PolicyDecision.explanation shapes — no regulatory branches.
+ * Mirrors gateway PolicyDecision.explanation shapes - no regulatory branches.
  */
 
 export type ProvenanceRule = {
@@ -117,12 +117,12 @@ export type DecisionExplanationPayload = {
 };
 
 const TIER_LABELS: Record<number, string> = {
-  1: 'Tier 1 — Primary legal authority',
-  2: 'Tier 2 — Official regulatory guidance',
-  3: 'Tier 3 — Federal guidance',
-  4: 'Tier 4 — Implementation guidance',
-  5: 'Tier 5 — Recognized standard',
-  6: 'Tier 6 — Secondary',
+  1: 'Tier 1 - Primary legal authority',
+  2: 'Tier 2 - Official regulatory guidance',
+  3: 'Tier 3 - Federal guidance',
+  4: 'Tier 4 - Implementation guidance',
+  5: 'Tier 5 - Recognized standard',
+  6: 'Tier 6 - Secondary',
 };
 
 export function authorityTierLabel(tier: number | undefined): string {

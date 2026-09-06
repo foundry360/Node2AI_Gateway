@@ -215,6 +215,22 @@ describe('Post-AUTHORIZE request resume', () => {
     expect(saved.decision).toBe('REVIEW');
     expect(saved.explanation.provenance?.matched_rules?.length).toBe(2);
 
+    const { computeDecisionHash } = await import('../../src/audit/decision-binding.js');
+    const expectedHash = computeDecisionHash(saved);
+    const events = await gw.audit.list();
+    const resolveEvt = events.find((e) => e.operation === 'evaluation_resolve');
+    const resumeEvt = events.find(
+      (e) => e.metadata?.resume === true || e.operation === 'evaluation_resume',
+    );
+    expect(resolveEvt?.evaluation_id).toBe(seeded.evaluation_id);
+    expect(resolveEvt?.decision_hash).toBe(expectedHash);
+    expect(resumeEvt?.evaluation_id).toBe(seeded.evaluation_id);
+    expect(resumeEvt?.decision_hash).toBe(expectedHash);
+    // Resume reuses the same evaluation — no second Decision record
+    expect(
+      events.filter((e) => e.evaluation_id === seeded.evaluation_id).length,
+    ).toBeGreaterThanOrEqual(2);
+
     const again = await server.inject({
       method: 'POST',
       url: `/v1/admin/evaluations/${seeded.evaluation_id}/resume`,

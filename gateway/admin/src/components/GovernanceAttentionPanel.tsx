@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { useConsoleTimeframe } from '@/components/ConsoleTabs';
 import { proxyJson } from '@/lib/client-api';
 import { formatFieldLabel } from '@/lib/field-label';
+import { formatDisplayDateTime } from '@/lib/display-datetime';
 
 type EvaluationRow = {
   evaluation_id: string;
@@ -39,9 +40,12 @@ type EvaluationsResponse = {
 
 export function GovernanceAttentionPanel({
   leadLeft,
+  beforeRecent,
 }: {
   /** Optional left column (e.g. overview microcards) paired with the attention card. */
   leadLeft?: ReactNode;
+  /** Optional content rendered above Recent decisions (always shown when provided). */
+  beforeRecent?: ReactNode;
 } = {}) {
   const days = useConsoleTimeframe();
   const [data, setData] = useState<EvaluationsResponse | null>(null);
@@ -119,7 +123,7 @@ export function GovernanceAttentionPanel({
         e.resolution_category === 'UNRESOLVED') &&
       (e.review_state === 'pending' || e.requires_review),
   );
-  const recent = rows.slice(0, 8);
+  const recent = rows.slice(0, 10);
   const pendingCount = data.attention?.pending_review ?? reviewRows.length;
   const conflictCount = data.attention?.conflicts ?? conflictRows.length;
 
@@ -183,7 +187,7 @@ export function GovernanceAttentionPanel({
             <table>
               <thead>
                 <tr>
-                  <th>Time</th>
+                  <th>Date</th>
                   <th>Decision</th>
                   <th>Resolution</th>
                   <th>Enforcement</th>
@@ -199,11 +203,11 @@ export function GovernanceAttentionPanel({
                   .slice(0, 6)
                   .map((e) => (
                     <tr key={e.evaluation_id}>
-                      <td className="mono">{e.created_at}</td>
+                      <td className="mono">{formatDisplayDateTime(e.created_at)}</td>
                       <td>
                         <StatusBadge variant="badge" status={e.decision} />
                       </td>
-                      <td className="mono">{e.resolution_category ?? '—'}</td>
+                      <td className="mono">{e.resolution_category ?? '-'}</td>
                       <td>
                         <StatusBadge
                           variant="badge"
@@ -225,6 +229,8 @@ export function GovernanceAttentionPanel({
         </div>
       )}
 
+      {beforeRecent}
+
       <div className="section-card">
         <div className="section-card-header">
           <h3>Recent decisions</h3>
@@ -241,7 +247,7 @@ export function GovernanceAttentionPanel({
           <table>
             <thead>
               <tr>
-                <th>Time</th>
+                <th>Date</th>
                 <th>Machine</th>
                 <th>Packs</th>
                 <th>Expected action</th>
@@ -252,14 +258,14 @@ export function GovernanceAttentionPanel({
             <tbody>
               {recent.map((e) => (
                 <tr key={e.evaluation_id}>
-                  <td className="mono">{e.created_at}</td>
+                  <td className="mono">{formatDisplayDateTime(e.created_at)}</td>
                   <td>
                     <StatusBadge variant="badge" status={e.decision} />
                   </td>
                   <td className="mono">
                     {e.contributing_pack_ids?.length
                       ? e.contributing_pack_ids.join(', ')
-                      : '—'}
+                      : '-'}
                   </td>
                   <td>{formatFieldLabel(e.expected_action ?? e.action_summary)}</td>
                   <td>

@@ -44,24 +44,24 @@ const DEFAULT_POLICIES: StoredPolicy[] = [
   {
     policy_id: 'pol_phase2_core',
     organization_id: 'org_demo',
-    name: 'Request governance',
+    name: 'Enterprise AI request governance',
     status: 'active',
     version: 2,
     rules: {
       summary:
-        'Application trust, operation allowlists, PHI local-only, PII tokenize, credential block.',
+        'Checks that only trusted, active applications can call AI; protects credentials, PHI, PII, and financial input.',
     },
     created_by: 'seed',
   },
   {
     policy_id: 'pol_phase5_response',
     organization_id: 'org_demo',
-    name: 'Response governance',
+    name: 'Enterprise AI response governance',
     status: 'active',
     version: 5,
     rules: {
       summary:
-        'Block PHI/credentials/tool calls in outputs; redact PII; detokenize only when authorized.',
+        'Reviews model responses before release; blocks PHI and credentials; redacts PII; detokenizes only when authorized.',
     },
     created_by: 'seed',
   },

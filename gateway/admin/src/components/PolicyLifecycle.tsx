@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { MoreHorizontal } from 'lucide-react';
 import { proxyJson } from '@/lib/client-api';
 import { DecisionExplanationView } from '@/components/DecisionExplanationView';
 import type { DecisionExplanationPayload } from '@/lib/decision-explanation';
@@ -10,13 +11,13 @@ import type { DecisionExplanationPayload } from '@/lib/decision-explanation';
 export function PolicyLifecycleActions({
   policyId,
   status,
-  interpreter,
 }: {
   policyId: string;
   status: string;
-  interpreter?: string;
 }) {
   const router = useRouter();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -31,8 +32,25 @@ export function PolicyLifecycleActions({
   const canSuspend = status === 'active' || status === 'approved';
   const canRetire = status === 'suspended' || status === 'disabled' || status === 'draft';
 
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
   async function run(label: string, fn: () => Promise<unknown>) {
     setBusy(true);
+    setOpen(false);
     setError(null);
     setInfo(null);
     try {
@@ -49,82 +67,92 @@ export function PolicyLifecycleActions({
   }
 
   return (
-    <div className="stack-tight">
-      <div className="action-row">
+    <div className="stack-tight policy-lifecycle-actions">
+      <div className="card-menu" ref={rootRef}>
         <button
           type="button"
-          className="btn btn-secondary"
+          className="icon-btn overflow-menu-trigger"
+          aria-label="Policy actions"
+          aria-expanded={open}
           disabled={busy}
-          onClick={async () => {
-            const result = (await run('Validate', () =>
-              proxyJson(`policies/${policyId}/validate`, 'POST', {}),
-            )) as Record<string, unknown> | null;
-            if (result) setValidateResult(result);
-          }}
+          onClick={() => setOpen((v) => !v)}
         >
-          Validate
+          <MoreHorizontal size={18} strokeWidth={1.75} />
         </button>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          disabled={busy || !canApprove || status === 'retired'}
-          onClick={() =>
-            run('Approve', () =>
-              proxyJson(`policies/${policyId}/approve`, 'POST', {}),
-            )
-          }
-        >
-          Approve
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={busy || !canActivate}
-          onClick={() =>
-            run('Activate', () =>
-              proxyJson(`policies/${policyId}/activate`, 'POST', {}),
-            )
-          }
-        >
-          Activate
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          disabled={busy || !canSuspend}
-          onClick={() =>
-            run('Suspend', () =>
-              proxyJson(`policies/${policyId}/suspend`, 'POST', {}),
-            )
-          }
-        >
-          Suspend
-        </button>
-        <button
-          type="button"
-          className="btn btn-danger"
-          disabled={busy || !canRetire}
-          onClick={() =>
-            run('Retire', () =>
-              proxyJson(`policies/${policyId}/retire`, 'POST', {}),
-            )
-          }
-        >
-          Retire
-        </button>
+        {open ? (
+          <div className="card-menu-dropdown" role="menu">
+            <button
+              type="button"
+              role="menuitem"
+              disabled={busy}
+              onClick={async () => {
+                const result = (await run('Validate', () =>
+                  proxyJson(`policies/${policyId}/validate`, 'POST', {}),
+                )) as Record<string, unknown> | null;
+                if (result) setValidateResult(result);
+              }}
+            >
+              Validate
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={busy || !canApprove || status === 'retired'}
+              onClick={() =>
+                run('Approve', () =>
+                  proxyJson(`policies/${policyId}/approve`, 'POST', {}),
+                )
+              }
+            >
+              Approve
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={busy || !canActivate}
+              onClick={() =>
+                run('Activate', () =>
+                  proxyJson(`policies/${policyId}/activate`, 'POST', {}),
+                )
+              }
+            >
+              Activate
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={busy || !canSuspend}
+              onClick={() =>
+                run('Suspend', () =>
+                  proxyJson(`policies/${policyId}/suspend`, 'POST', {}),
+                )
+              }
+            >
+              Suspend
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="card-menu-item-danger"
+              disabled={busy || !canRetire}
+              onClick={() =>
+                run('Retire', () =>
+                  proxyJson(`policies/${policyId}/retire`, 'POST', {}),
+                )
+              }
+            >
+              Retire
+            </button>
+          </div>
+        ) : null}
       </div>
       {validateResult ? (
         <div className="info-banner">
           Validate: {validateResult.ok ? 'ok' : 'failed'}
           {Array.isArray(validateResult.errors) && validateResult.errors.length
-            ? ` — ${(validateResult.errors as string[]).join('; ')}`
+            ? ` - ${(validateResult.errors as string[]).join('; ')}`
             : ''}
         </div>
-      ) : null}
-      {interpreter ? (
-        <p className="muted">
-          Interpreter: <code className="mono">{interpreter}</code>
-        </p>
       ) : null}
       {info ? <div className="info-banner">{info}</div> : null}
       {error ? <div className="error">{error}</div> : null}
@@ -132,7 +160,7 @@ export function PolicyLifecycleActions({
   );
 }
 
-/** Fixture presets — data only; UI remains pack-agnostic. */
+/** Fixture presets - data only; UI remains pack-agnostic. */
 const SIM_SCENARIOS: Array<{
   id: string;
   label: string;
@@ -302,7 +330,7 @@ export function PolicySimulatePanel({ policyId }: { policyId: string }) {
   );
 }
 
-/** @deprecated Legacy rules JSON editor — metadata only, not EPA architecture. */
+/** @deprecated Legacy rules JSON editor - metadata only, not EPA architecture. */
 export function LegacyRulesEditor({
   policyId,
   rulesJson,
