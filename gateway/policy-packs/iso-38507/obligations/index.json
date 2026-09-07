@@ -1,0 +1,136 @@
+{
+  "obligations": [
+    {
+      "obligation_id": "ISO-38507-OBL-ACCOUNTABILITY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 38507:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 38507:2022 — governing body accountability"
+      ],
+      "source_ids": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO-38507-OBL-EXECUTIVE",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 38507:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 38507:2022 — executive responsibility"
+      ],
+      "source_ids": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO-38507-OBL-DIRECTION",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 38507:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 38507:2022 — governance direction"
+      ],
+      "source_ids": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO-38507-OBL-ALIGNMENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 38507:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 38507:2022 — strategic alignment"
+      ],
+      "source_ids": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO-38507-OBL-DECISION-RIGHTS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 38507:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 38507:2022 — decision rights"
+      ],
+      "source_ids": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO-38507-OBL-OVERSIGHT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 38507:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 38507:2022 — oversight"
+      ],
+      "source_ids": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO-38507-OBL-STAKEHOLDER",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 38507:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 38507:2022 — stakeholders"
+      ],
+      "source_ids": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO-38507-OBL-STAKEHOLDER-IMPACT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 38507:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 38507:2022 — stakeholder considerations"
+      ],
+      "source_ids": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO-38507-OBL-HUMAN-ACCOUNTABILITY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 38507:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 38507:2022 — human accountability"
+      ],
+      "source_ids": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO-38507-OBL-ESCALATION",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 38507:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 38507:2022 — escalation"
+      ],
+      "source_ids": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO-38507-OBL-MONITORING",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 38507:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 38507:2022 — governance effectiveness"
+      ],
+      "source_ids": [
+        "src_iso_38507_2022"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "pack_id": "pack_nist_csf_2",
+  "name": "NIST CSF 2.0",
+  "domain": "ai_risk",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "authority_id": "auth_nist_csf_2",
+  "scope": "CYBERSECURITY_GOVERNANCE",
+  "not": "NIST_CSF_CERTIFICATION_OR_SIEM_OR_SCORE_OR_ASSESSMENT",
+  "description": "Focused NIST CSF 2.0 pack. Operationalizes CSF Function evidence gates (GOVERN/IDENTIFY/PROTECT/DETECT/RESPOND/RECOVER) as Enigma controls. Framework — not legal authority, not a certification, not a SIEM, not a cybersecurity score.",
+  "interpreters": {
+    "input": "nist_csf_2_pack_v1",
+    "output": "nist_csf_2_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_nist_csf_2_input",
+      "version": 1,
+      "phase": "input",
+      "name": "NIST CSF 2.0 input governance"
+    },
+    {
+      "policy_id": "pol_nist_csf_2_output",
+      "version": 1,
+      "phase": "output",
+      "name": "NIST CSF 2.0 output governance"
+    }
+  ],
+  "semantic_notes": [
+    "NIST CSF 2.0 is FRAMEWORK — treatsAsLegalAuthority === false",
+    "Uses governance_context.cybersecurity — generic nested CSF Functions",
+    "Applicability is opt-in via REGULATORY_APPLICABILITY:NIST_CSF_2",
+    "No SIEM, vulnerability scanning, score, maturity model, or CSF dashboard"
+  ],
+  "deliberately_not_implemented": [
+    "Vulnerability / CVE scanning",
+    "SIEM ingestion / threat detection",
+    "CSF maturity scoring / heatmaps",
+    "Certification / compliance assessment"
+  ]
+}

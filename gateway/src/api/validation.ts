@@ -107,6 +107,384 @@ export const completionRequestSchema = z
           })
           .strict()
           .optional(),
+        assurance: z
+          .object({
+            control_environment_documented: z.boolean().optional(),
+            access_controls_verified: z.boolean().optional(),
+            change_management_controls_verified: z.boolean().optional(),
+            logical_access_controls_verified: z.boolean().optional(),
+            data_protection_controls_verified: z.boolean().optional(),
+            system_monitoring_controls_verified: z.boolean().optional(),
+            incident_response_controls_verified: z.boolean().optional(),
+            availability_controls_verified: z.boolean().optional(),
+            processing_integrity_controls_verified: z.boolean().optional(),
+            confidentiality_controls_verified: z.boolean().optional(),
+            privacy_category_applicable: z.boolean().optional(),
+            privacy_controls_verified: z.boolean().optional(),
+          })
+          .strict()
+          .optional(),
+        cybersecurity: z
+          .object({
+            govern: z
+              .object({
+                accountability_documented: z.boolean().optional(),
+                cybersecurity_roles_defined: z.boolean().optional(),
+                cybersecurity_policy_documented: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            identify: z
+              .object({
+                assets_identified: z.boolean().optional(),
+                dependencies_identified: z.boolean().optional(),
+                cybersecurity_risk_identified: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            protect: z
+              .object({
+                access_controls_documented: z.boolean().optional(),
+                safeguards_implemented: z.boolean().optional(),
+                data_protection_documented: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            detect: z
+              .object({
+                monitoring_established: z.boolean().optional(),
+                anomalous_activity_detection: z.boolean().optional(),
+                cybersecurity_events_logged: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            respond: z
+              .object({
+                response_plan_documented: z.boolean().optional(),
+                incident_response_process: z.boolean().optional(),
+                communication_process: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            recover: z
+              .object({
+                recovery_plan_documented: z.boolean().optional(),
+                recovery_process: z.boolean().optional(),
+                lessons_learned_process: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+          })
+          .strict()
+          .optional(),
+        organizational_governance: z
+          .object({
+            accountability: z
+              .object({
+                governing_body_accountable: z.boolean().optional(),
+                executive_accountability_defined: z.boolean().optional(),
+                ai_responsibilities_defined: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            direction: z
+              .object({
+                ai_governance_policy_defined: z.boolean().optional(),
+                strategic_alignment_documented: z.boolean().optional(),
+                acceptable_use_direction_defined: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            oversight: z
+              .object({
+                ai_oversight_established: z.boolean().optional(),
+                reporting_path_defined: z.boolean().optional(),
+                decision_rights_defined: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            stakeholder: z
+              .object({
+                relevant_stakeholders_identified: z.boolean().optional(),
+                stakeholder_impacts_considered: z.boolean().optional(),
+                stakeholder_communication_defined: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            decision_governance: z
+              .object({
+                human_accountability_defined: z.boolean().optional(),
+                escalation_path_defined: z.boolean().optional(),
+                significant_ai_decisions_reviewed: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            organizational_effectiveness: z
+              .object({
+                ai_use_objectives_defined: z.boolean().optional(),
+                performance_monitoring_established: z.boolean().optional(),
+                governance_review_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+          })
+          .strict()
+          .optional(),
+        information_security: z
+          .object({
+            isms: z
+              .object({
+                scope_defined: z.boolean().optional(),
+                context_established: z.boolean().optional(),
+                interested_parties_identified: z.boolean().optional(),
+                information_security_objectives_defined: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            risk: z
+              .object({
+                risk_process_established: z.boolean().optional(),
+                risks_identified: z.boolean().optional(),
+                risks_assessed: z.boolean().optional(),
+                risk_treatment_defined: z.boolean().optional(),
+                risk_treatment_implemented: z.boolean().optional(),
+                residual_risk_reviewed: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            information_assets: z
+              .object({
+                assets_identified: z.boolean().optional(),
+                information_classification_defined: z.boolean().optional(),
+                asset_ownership_defined: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            access: z
+              .object({
+                access_control_defined: z.boolean().optional(),
+                identity_management_established: z.boolean().optional(),
+                privileged_access_controlled: z.boolean().optional(),
+                access_review_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            operations: z
+              .object({
+                operational_controls_established: z.boolean().optional(),
+                change_management_established: z.boolean().optional(),
+                logging_monitoring_established: z.boolean().optional(),
+                backup_recovery_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            supplier_security: z
+              .object({
+                supplier_risk_controls_established: z.boolean().optional(),
+                third_party_security_requirements_defined: z.boolean().optional(),
+                supplier_monitoring_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            incident: z
+              .object({
+                incident_management_established: z.boolean().optional(),
+                incident_response_defined: z.boolean().optional(),
+                incident_learning_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            continuity: z
+              .object({
+                business_continuity_security_defined: z.boolean().optional(),
+                resilience_controls_established: z.boolean().optional(),
+                recovery_capability_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            people: z
+              .object({
+                security_roles_defined: z.boolean().optional(),
+                security_awareness_established: z.boolean().optional(),
+                personnel_security_controls_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            monitoring: z
+              .object({
+                security_performance_monitored: z.boolean().optional(),
+                internal_review_established: z.boolean().optional(),
+                management_review_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            improvement: z
+              .object({
+                nonconformities_managed: z.boolean().optional(),
+                corrective_actions_managed: z.boolean().optional(),
+                continual_improvement_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+          })
+          .strict()
+          .optional(),
+        privacy: z
+          .object({
+            processing_role: z
+              .enum([
+                'controller',
+                'processor',
+                'joint_controller',
+                'other_defined_role',
+                'unknown',
+              ])
+              .optional(),
+            purpose_status: z
+              .enum(['specified', 'documented', 'authorized', 'unknown'])
+              .optional(),
+            nist_pf: z
+              .object({
+                identify: z
+                  .object({
+                    processing_context_documented: z.boolean().optional(),
+                    privacy_risk_identified: z.boolean().optional(),
+                    data_actions_documented: z.boolean().optional(),
+                  })
+                  .strict()
+                  .optional(),
+                govern: z
+                  .object({
+                    policies_documented: z.boolean().optional(),
+                    roles_documented: z.boolean().optional(),
+                    risk_governance_documented: z.boolean().optional(),
+                  })
+                  .strict()
+                  .optional(),
+                control: z
+                  .object({
+                    data_actions_controlled: z.boolean().optional(),
+                    individual_choice_addressed: z.boolean().optional(),
+                  })
+                  .strict()
+                  .optional(),
+                communicate: z
+                  .object({
+                    transparency_documented: z.boolean().optional(),
+                    expectations_documented: z.boolean().optional(),
+                  })
+                  .strict()
+                  .optional(),
+                protect: z
+                  .object({
+                    privacy_risk_mitigation_documented: z.boolean().optional(),
+                  })
+                  .strict()
+                  .optional(),
+              })
+              .strict()
+              .optional(),
+            pims: z
+              .object({
+                scope_defined: z.boolean().optional(),
+                privacy_context_established: z.boolean().optional(),
+                roles_responsibilities_defined: z.boolean().optional(),
+                privacy_objectives_defined: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            pii_governance: z
+              .object({
+                pii_processing_inventory_established: z.boolean().optional(),
+                processing_purposes_defined: z.boolean().optional(),
+                processing_roles_defined: z.boolean().optional(),
+                controller_processor_role_defined: z.boolean().optional(),
+                processing_responsibilities_defined: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            privacy_risk: z
+              .object({
+                privacy_risk_process_established: z.boolean().optional(),
+                privacy_risks_identified: z.boolean().optional(),
+                privacy_risks_assessed: z.boolean().optional(),
+                privacy_risk_treatment_defined: z.boolean().optional(),
+                residual_privacy_risk_reviewed: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            privacy_impact: z
+              .object({
+                privacy_impact_assessment_established: z.boolean().optional(),
+                potential_impacts_identified: z.boolean().optional(),
+                affected_individuals_considered: z.boolean().optional(),
+                mitigations_defined: z.boolean().optional(),
+                residual_impact_reviewed: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            data_lifecycle: z
+              .object({
+                collection_governance_established: z.boolean().optional(),
+                use_governance_established: z.boolean().optional(),
+                sharing_governance_established: z.boolean().optional(),
+                retention_governance_established: z.boolean().optional(),
+                deletion_disposal_governance_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            rights: z
+              .object({
+                privacy_rights_process_established: z.boolean().optional(),
+                rights_request_handling_established: z.boolean().optional(),
+                identity_verification_for_rights_established: z.boolean().optional(),
+                response_process_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            transparency: z
+              .object({
+                privacy_information_provided: z.boolean().optional(),
+                processing_transparency_established: z.boolean().optional(),
+                notice_governance_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            third_party: z
+              .object({
+                processor_requirements_defined: z.boolean().optional(),
+                third_party_privacy_requirements_defined: z.boolean().optional(),
+                processor_monitoring_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            privacy_incident: z
+              .object({
+                privacy_incident_process_established: z.boolean().optional(),
+                privacy_breach_response_established: z.boolean().optional(),
+                notification_process_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            monitoring: z
+              .object({
+                privacy_performance_monitored: z.boolean().optional(),
+                privacy_review_established: z.boolean().optional(),
+                management_review_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            improvement: z
+              .object({
+                privacy_nonconformities_managed: z.boolean().optional(),
+                corrective_actions_managed: z.boolean().optional(),
+                continual_improvement_established: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+          })
+          .strict()
+          .optional(),
         regulatory: z
           .object({
             actor_role: z.string().min(1).optional(),

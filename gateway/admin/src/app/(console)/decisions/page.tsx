@@ -319,7 +319,7 @@ function DecisionsListView() {
             <div className="table-load-more">
               <button
                 type="button"
-                className="btn"
+                className="btn btn-secondary"
                 onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
               >
                 Load More

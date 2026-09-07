@@ -1,0 +1,137 @@
+{
+  "version": "1.0.0",
+  "obligations": [
+    {
+      "obligation_id": "SOC2-OBL-CONTROL-ENVIRONMENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "AICPA Trust Services Criteria",
+      "authority_tier": 4,
+      "citations": [
+        "TSP Section 100 — Common Criteria (control environment)"
+      ],
+      "source_ids": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "obligation_id": "SOC2-OBL-ACCESS-CONTROLS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "AICPA Trust Services Criteria",
+      "authority_tier": 4,
+      "citations": [
+        "TSP Section 100 — Common Criteria (access controls)"
+      ],
+      "source_ids": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "obligation_id": "SOC2-OBL-CHANGE-MANAGEMENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "AICPA Trust Services Criteria",
+      "authority_tier": 4,
+      "citations": [
+        "TSP Section 100 — Common Criteria (change management)"
+      ],
+      "source_ids": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "obligation_id": "SOC2-OBL-LOGICAL-ACCESS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "AICPA Trust Services Criteria",
+      "authority_tier": 4,
+      "citations": [
+        "TSP Section 100 — Common Criteria (logical access)"
+      ],
+      "source_ids": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "obligation_id": "SOC2-OBL-DATA-PROTECTION",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "AICPA Trust Services Criteria",
+      "authority_tier": 4,
+      "citations": [
+        "TSP Section 100 — Common Criteria (system operations / protection)"
+      ],
+      "source_ids": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "obligation_id": "SOC2-OBL-MONITORING",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "AICPA Trust Services Criteria",
+      "authority_tier": 4,
+      "citations": [
+        "TSP Section 100 — Common Criteria (monitoring activities)"
+      ],
+      "source_ids": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "obligation_id": "SOC2-OBL-INCIDENT-RESPONSE",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "AICPA Trust Services Criteria",
+      "authority_tier": 4,
+      "citations": [
+        "TSP Section 100 — Common Criteria (incident response)"
+      ],
+      "source_ids": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "obligation_id": "SOC2-OBL-AVAILABILITY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "AICPA Trust Services Criteria",
+      "authority_tier": 4,
+      "citations": [
+        "TSP Section 100 — Additional Criteria for Availability"
+      ],
+      "source_ids": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "obligation_id": "SOC2-OBL-PROCESSING-INTEGRITY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "AICPA Trust Services Criteria",
+      "authority_tier": 4,
+      "citations": [
+        "TSP Section 100 — Additional Criteria for Processing Integrity"
+      ],
+      "source_ids": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "obligation_id": "SOC2-OBL-CONFIDENTIALITY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "AICPA Trust Services Criteria",
+      "authority_tier": 4,
+      "citations": [
+        "TSP Section 100 — Additional Criteria for Confidentiality"
+      ],
+      "source_ids": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "obligation_id": "SOC2-OBL-PRIVACY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "AICPA Trust Services Criteria",
+      "authority_tier": 4,
+      "citations": [
+        "TSP Section 100 — Additional Criteria for Privacy"
+      ],
+      "source_ids": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    }
+  ]
+}

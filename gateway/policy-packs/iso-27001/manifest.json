@@ -1,0 +1,42 @@
+{
+  "pack_id": "pack_iso_27001",
+  "name": "ISO/IEC 27001",
+  "domain": "ai_risk",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "authority_id": "auth_iso_27001",
+  "scope": "INFORMATION_SECURITY_MANAGEMENT",
+  "not": "ISO_27001_CERTIFICATION_OR_SIEM_OR_ANNEX_A_SCORE_OR_ASSESSMENT",
+  "description": "Focused ISO/IEC 27001:2022 pack. Operationalizes ISMS information-security governance evidence gates as Enigma controls. Standard — not legal authority, not a certification, not a SIEM, not an Annex A score.",
+  "interpreters": {
+    "input": "iso_27001_pack_v1",
+    "output": "iso_27001_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_iso_27001_input",
+      "version": 1,
+      "phase": "input",
+      "name": "ISO/IEC 27001 input governance"
+    },
+    {
+      "policy_id": "pol_iso_27001_output",
+      "version": 1,
+      "phase": "output",
+      "name": "ISO/IEC 27001 output governance"
+    }
+  ],
+  "semantic_notes": [
+    "ISO/IEC 27001 is STANDARD — treatsAsLegalAuthority === false",
+    "Uses governance_context.information_security — distinct from cybersecurity, security_controls, assurance, management_system",
+    "Applicability is opt-in via REGULATORY_APPLICABILITY:ISO_27001",
+    "Residual risk review ≠ Enigma AUTHORIZE",
+    "Does not reproduce Annex A as a 93-item checklist"
+  ],
+  "deliberately_not_implemented": [
+    "Certification / compliance assessment",
+    "SIEM / vulnerability scanning",
+    "Annex A score / maturity model",
+    "Vendor risk / BCP / IAM platforms"
+  ]
+}

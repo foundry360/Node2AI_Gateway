@@ -44,6 +44,36 @@ import {
   applyIso42005PackV1Input,
   applyIso42005PackV1Output,
 } from './iso-42005/pack.js';
+import { compileSoc2Pack } from './soc2/compile.js';
+import {
+  applySoc2PackV1Input,
+  applySoc2PackV1Output,
+} from './soc2/pack.js';
+import { compileNistCsf2Pack } from './nist-csf-2/compile.js';
+import {
+  applyNistCsf2PackV1Input,
+  applyNistCsf2PackV1Output,
+} from './nist-csf-2/pack.js';
+import { compileIso38507Pack } from './iso-38507/compile.js';
+import {
+  applyIso38507PackV1Input,
+  applyIso38507PackV1Output,
+} from './iso-38507/pack.js';
+import { compileIso27001Pack } from './iso-27001/compile.js';
+import {
+  applyIso27001PackV1Input,
+  applyIso27001PackV1Output,
+} from './iso-27001/pack.js';
+import { compileIso27701Pack } from './iso-27701/compile.js';
+import {
+  applyIso27701PackV1Input,
+  applyIso27701PackV1Output,
+} from './iso-27701/pack.js';
+import { compileNistPrivacyFrameworkPack } from './nist-privacy-framework/compile.js';
+import {
+  applyNistPrivacyFrameworkPackV1Input,
+  applyNistPrivacyFrameworkPackV1Output,
+} from './nist-privacy-framework/pack.js';
 import {
   applyRegisteredOverlays,
   mergePackContributions,
@@ -269,6 +299,24 @@ export function ensureDefaultOverlayRegistry(): void {
   registerOverlayInterpreter('iso_23894_pack_v1_output', applyIso23894PackV1Output);
   registerOverlayInterpreter('iso_42005_pack_v1', applyIso42005PackV1Input);
   registerOverlayInterpreter('iso_42005_pack_v1_output', applyIso42005PackV1Output);
+  registerOverlayInterpreter('soc2_pack_v1', applySoc2PackV1Input);
+  registerOverlayInterpreter('soc2_pack_v1_output', applySoc2PackV1Output);
+  registerOverlayInterpreter('nist_csf_2_pack_v1', applyNistCsf2PackV1Input);
+  registerOverlayInterpreter('nist_csf_2_pack_v1_output', applyNistCsf2PackV1Output);
+  registerOverlayInterpreter('iso_38507_pack_v1', applyIso38507PackV1Input);
+  registerOverlayInterpreter('iso_38507_pack_v1_output', applyIso38507PackV1Output);
+  registerOverlayInterpreter('iso_27001_pack_v1', applyIso27001PackV1Input);
+  registerOverlayInterpreter('iso_27001_pack_v1_output', applyIso27001PackV1Output);
+  registerOverlayInterpreter('iso_27701_pack_v1', applyIso27701PackV1Input);
+  registerOverlayInterpreter('iso_27701_pack_v1_output', applyIso27701PackV1Output);
+  registerOverlayInterpreter(
+    'nist_privacy_framework_pack_v1',
+    applyNistPrivacyFrameworkPackV1Input,
+  );
+  registerOverlayInterpreter(
+    'nist_privacy_framework_pack_v1_output',
+    applyNistPrivacyFrameworkPackV1Output,
+  );
   registerOverlayInterpreter('financial_overlay_v1', applyFinancial);
   registerOverlayInterpreter('legal_overlay_v1', applyLegal);
   addPackToDomain('healthcare', 'pack_42_cfr_part_2');
@@ -278,6 +326,12 @@ export function ensureDefaultOverlayRegistry(): void {
   addPackToDomain('ai_risk', 'pack_iso_42001');
   addPackToDomain('ai_risk', 'pack_iso_23894');
   addPackToDomain('ai_risk', 'pack_iso_42005');
+  addPackToDomain('ai_risk', 'pack_soc2');
+  addPackToDomain('ai_risk', 'pack_nist_csf_2');
+  addPackToDomain('ai_risk', 'pack_iso_38507');
+  addPackToDomain('ai_risk', 'pack_iso_27001');
+  addPackToDomain('ai_risk', 'pack_iso_27701');
+  addPackToDomain('ai_risk', 'pack_nist_privacy_framework');
   defaultOverlaysRegistered = true;
 }
 
@@ -497,6 +551,108 @@ export function iso42005PackContribution(): PackContribution {
   };
 }
 
+/** SOC 2 / AICPA Trust Services Criteria pack contribution (Framework Pack #9). */
+export function soc2PackContribution(): PackContribution {
+  const soc2 = compileSoc2Pack();
+  return {
+    packs: [
+      {
+        pack_id: 'pack_soc2',
+        status: 'active',
+        name: 'SOC 2 / AICPA Trust Services Criteria',
+        domain: 'ai_risk',
+        authority_id: POLICY_AUTHORITY_IDS.soc2,
+      },
+    ],
+    policies: [...soc2.policies],
+  };
+}
+
+/** NIST CSF 2.0 pack contribution (Framework Pack #10). */
+export function nistCsf2PackContribution(): PackContribution {
+  const csf = compileNistCsf2Pack();
+  return {
+    packs: [
+      {
+        pack_id: 'pack_nist_csf_2',
+        status: 'active',
+        name: 'NIST CSF 2.0',
+        domain: 'ai_risk',
+        authority_id: POLICY_AUTHORITY_IDS.nistCsf2,
+      },
+    ],
+    policies: [...csf.policies],
+  };
+}
+
+/** ISO/IEC 38507 pack contribution (Standards Pack #11). */
+export function iso38507PackContribution(): PackContribution {
+  const iso38507 = compileIso38507Pack();
+  return {
+    packs: [
+      {
+        pack_id: 'pack_iso_38507',
+        status: 'active',
+        name: 'ISO/IEC 38507',
+        domain: 'ai_risk',
+        authority_id: POLICY_AUTHORITY_IDS.iso38507,
+      },
+    ],
+    policies: [...iso38507.policies],
+  };
+}
+
+/** ISO/IEC 27001 pack contribution (Standards Pack #12). */
+export function iso27001PackContribution(): PackContribution {
+  const iso27001 = compileIso27001Pack();
+  return {
+    packs: [
+      {
+        pack_id: 'pack_iso_27001',
+        status: 'active',
+        name: 'ISO/IEC 27001',
+        domain: 'ai_risk',
+        authority_id: POLICY_AUTHORITY_IDS.iso27001,
+      },
+    ],
+    policies: [...iso27001.policies],
+  };
+}
+
+/** ISO/IEC 27701 pack contribution (Standards Pack #13). */
+export function iso27701PackContribution(): PackContribution {
+  const iso27701 = compileIso27701Pack();
+  return {
+    packs: [
+      {
+        pack_id: 'pack_iso_27701',
+        status: 'active',
+        name: 'ISO/IEC 27701',
+        domain: 'ai_risk',
+        authority_id: POLICY_AUTHORITY_IDS.iso27701,
+      },
+    ],
+    policies: [...iso27701.policies],
+  };
+}
+
+/** NIST Privacy Framework pack contribution (Framework Pack #14). */
+export function nistPrivacyFrameworkPackContribution(): PackContribution {
+  const nistPf = compileNistPrivacyFrameworkPack();
+  return {
+    packs: [
+      {
+        pack_id: 'pack_nist_privacy_framework',
+        status: 'active',
+        name: 'NIST Privacy Framework',
+        domain: 'ai_risk',
+        authority_id: POLICY_AUTHORITY_IDS.nistPrivacyFramework,
+      },
+    ],
+    policies: [...nistPf.policies],
+  };
+}
+
 /**
  * Framework pack definitions for default EPA snapshot.
  * Contributions merge generically — add future packs via mergePackContributions.
@@ -512,6 +668,12 @@ export function regulatoryPackExtras(): Pick<PackSnapshot, 'packs' | 'policies'>
     iso42001PackContribution(),
     iso23894PackContribution(),
     iso42005PackContribution(),
+    soc2PackContribution(),
+    nistCsf2PackContribution(),
+    iso38507PackContribution(),
+    iso27001PackContribution(),
+    iso27701PackContribution(),
+    nistPrivacyFrameworkPackContribution(),
     financialPackContribution(),
     legalPackContribution(),
   );

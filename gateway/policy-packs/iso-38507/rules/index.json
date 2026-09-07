@@ -1,0 +1,430 @@
+{
+  "version": "1.0.0",
+  "rules": [
+    {
+      "rule_id": "ISO-38507-ACCOUNTABILITY-REVIEW",
+      "name": "Review when governing-body AI accountability evidence is missing",
+      "phase": "input",
+      "priority": 110,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "ISO/IEC 38507-informed organizational control — not ISO 38507 certification.",
+      "conditions": {
+        "regulatory_applicability": "ISO_38507",
+        "accountability": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO38507_ACCOUNTABILITY_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO-38507-OBL-ACCOUNTABILITY"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_38507_2022"
+      ],
+      "derived_from": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO-38507-EXECUTIVE-ACCOUNTABILITY-REVIEW",
+      "name": "Review when executive AI accountability evidence is missing",
+      "phase": "input",
+      "priority": 105,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_38507",
+        "executive_accountability": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO38507_EXECUTIVE_ACCOUNTABILITY_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO-38507-OBL-EXECUTIVE"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_38507_2022"
+      ],
+      "derived_from": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO-38507-GOVERNANCE-DIRECTION-REVIEW",
+      "name": "Review when AI governance direction evidence is missing",
+      "phase": "input",
+      "priority": 100,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_38507",
+        "governance_direction": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO38507_GOVERNANCE_DIRECTION_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO-38507-OBL-DIRECTION"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_38507_2022"
+      ],
+      "derived_from": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO-38507-STRATEGIC-ALIGNMENT-REVIEW",
+      "name": "Review when strategic AI alignment evidence is missing",
+      "phase": "input",
+      "priority": 95,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_38507",
+        "strategic_alignment": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO38507_STRATEGIC_ALIGNMENT_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO-38507-OBL-ALIGNMENT"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_38507_2022"
+      ],
+      "derived_from": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO-38507-DECISION-RIGHTS-REVIEW",
+      "name": "Review when AI decision-rights evidence is missing",
+      "phase": "input",
+      "priority": 90,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Organizational decision rights ≠ Enigma AUTHORIZE for a held request.",
+      "conditions": {
+        "regulatory_applicability": "ISO_38507",
+        "decision_rights": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO38507_DECISION_RIGHTS_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO-38507-OBL-DECISION-RIGHTS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_38507_2022"
+      ],
+      "derived_from": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO-38507-OVERSIGHT-REVIEW",
+      "name": "Review when AI oversight evidence is missing",
+      "phase": "input",
+      "priority": 85,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_38507",
+        "oversight": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO38507_OVERSIGHT_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO-38507-OBL-OVERSIGHT"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_38507_2022"
+      ],
+      "derived_from": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO-38507-STAKEHOLDER-REVIEW",
+      "name": "Review when relevant stakeholder identification evidence is missing",
+      "phase": "input",
+      "priority": 80,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_38507",
+        "stakeholder": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO38507_STAKEHOLDER_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO-38507-OBL-STAKEHOLDER"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_38507_2022"
+      ],
+      "derived_from": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO-38507-STAKEHOLDER-IMPACT-REVIEW",
+      "name": "Review when stakeholder impact consideration evidence is missing",
+      "phase": "input",
+      "priority": 75,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Complements ISO 42005 impact assessment — does not replace it.",
+      "conditions": {
+        "regulatory_applicability": "ISO_38507",
+        "stakeholder_impact": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO38507_STAKEHOLDER_IMPACT_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO-38507-OBL-STAKEHOLDER-IMPACT"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_38507_2022"
+      ],
+      "derived_from": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO-38507-HUMAN-ACCOUNTABILITY-REVIEW",
+      "name": "Review when human accountability for AI outcomes evidence is missing",
+      "phase": "input",
+      "priority": 70,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Organizational human accountability ≠ Enigma human resolution AUTHORIZE.",
+      "conditions": {
+        "regulatory_applicability": "ISO_38507",
+        "human_accountability": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO38507_HUMAN_ACCOUNTABILITY_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO-38507-OBL-HUMAN-ACCOUNTABILITY"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_38507_2022"
+      ],
+      "derived_from": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO-38507-ESCALATION-REVIEW",
+      "name": "Review when governance escalation-path evidence is missing",
+      "phase": "input",
+      "priority": 65,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_38507",
+        "escalation": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO38507_ESCALATION_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO-38507-OBL-ESCALATION"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_38507_2022"
+      ],
+      "derived_from": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO-38507-GOVERNANCE-MONITORING-REVIEW",
+      "name": "Review when AI governance monitoring/review evidence is missing",
+      "phase": "input",
+      "priority": 60,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_38507",
+        "governance_monitoring": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO38507_GOVERNANCE_MONITORING_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO-38507-OBL-MONITORING"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_38507_2022"
+      ],
+      "derived_from": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO-38507-CONTROLS-SATISFIED",
+      "name": "Allow with controls when ISO/IEC 38507-informed organizational governance evidence is established",
+      "phase": "input",
+      "priority": 40,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "ISO/IEC 38507-informed posture — not ISO 38507 certified / compliant / scored.",
+      "conditions": {
+        "regulatory_applicability": "ISO_38507",
+        "accountability": true,
+        "executive_accountability": true,
+        "governance_direction": true,
+        "strategic_alignment": true,
+        "decision_rights": true,
+        "oversight": true,
+        "stakeholder": true,
+        "stakeholder_impact": true,
+        "human_accountability": true,
+        "escalation": true,
+        "governance_monitoring": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "ISO38507_CONTROLS_SATISFIED"
+      ],
+      "obligation_ids": [
+        "ISO-38507-OBL-ACCOUNTABILITY",
+        "ISO-38507-OBL-EXECUTIVE",
+        "ISO-38507-OBL-DIRECTION",
+        "ISO-38507-OBL-ALIGNMENT",
+        "ISO-38507-OBL-DECISION-RIGHTS",
+        "ISO-38507-OBL-OVERSIGHT",
+        "ISO-38507-OBL-STAKEHOLDER",
+        "ISO-38507-OBL-STAKEHOLDER-IMPACT",
+        "ISO-38507-OBL-HUMAN-ACCOUNTABILITY",
+        "ISO-38507-OBL-ESCALATION",
+        "ISO-38507-OBL-MONITORING"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_38507_2022"
+      ],
+      "derived_from": [
+        "src_iso_38507_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO-38507-OUTPUT-LOG",
+      "name": "Log governance event for ISO/IEC 38507-scoped output",
+      "phase": "output",
+      "priority": 50,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_38507"
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "ISO38507_OUTPUT_LOG"
+      ],
+      "obligation_ids": [
+        "ISO-38507-OBL-MONITORING"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_38507_2022"
+      ],
+      "derived_from": [
+        "src_iso_38507_2022"
+      ]
+    }
+  ]
+}

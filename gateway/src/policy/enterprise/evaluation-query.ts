@@ -280,6 +280,27 @@ export function projectRequestContext(
     if (g.impact && typeof g.impact === 'object') {
       governance.impact = g.impact as NonNullable<GovernanceContext['impact']>;
     }
+    if (g.assurance && typeof g.assurance === 'object') {
+      governance.assurance = g.assurance as NonNullable<GovernanceContext['assurance']>;
+    }
+    if (g.cybersecurity && typeof g.cybersecurity === 'object') {
+      governance.cybersecurity = g.cybersecurity as NonNullable<
+        GovernanceContext['cybersecurity']
+      >;
+    }
+    if (g.organizational_governance && typeof g.organizational_governance === 'object') {
+      governance.organizational_governance = g.organizational_governance as NonNullable<
+        GovernanceContext['organizational_governance']
+      >;
+    }
+    if (g.information_security && typeof g.information_security === 'object') {
+      governance.information_security = g.information_security as NonNullable<
+        GovernanceContext['information_security']
+      >;
+    }
+    if (g.privacy && typeof g.privacy === 'object') {
+      governance.privacy = g.privacy as NonNullable<GovernanceContext['privacy']>;
+    }
     if (Object.keys(governance).length > 0) projected.governance = governance;
   }
 

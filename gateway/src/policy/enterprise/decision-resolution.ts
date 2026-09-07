@@ -52,6 +52,11 @@ export function isEligibleForHumanReview(record: PolicyEvaluationRecord): boolea
     return false;
   }
   const d = String(record.decision ?? '').toUpperCase();
+  // Machine DENY / hard blocks are not human-review eligible — even if an
+  // explanation fragment mentions CONFLICT/UNRESOLVED from a prior contribution.
+  if (d === 'DENY' || d === 'BLOCK' || d === 'BLOCK_OUTPUT') {
+    return false;
+  }
   if (d === 'REVIEW') return true;
   const category = record.explanation?.resolution?.category;
   return category === 'UNRESOLVED' || category === 'CONFLICT';

@@ -1,0 +1,149 @@
+{
+  "version": "1.0.0",
+  "obligations": [
+    {
+      "obligation_id": "NIST-CSF-2-OBL-GOVERN-ACCOUNTABILITY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST CSF 2.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST CSF 2.0 — GOVERN (GV)"
+      ],
+      "source_ids": [
+        "src_nist_csf_2_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-CSF-2-OBL-GOVERN-POLICY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST CSF 2.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST CSF 2.0 — GOVERN (GV)"
+      ],
+      "source_ids": [
+        "src_nist_csf_2_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-CSF-2-OBL-IDENTIFY-ASSETS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST CSF 2.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST CSF 2.0 — IDENTIFY (ID)"
+      ],
+      "source_ids": [
+        "src_nist_csf_2_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-CSF-2-OBL-IDENTIFY-RISK",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST CSF 2.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST CSF 2.0 — IDENTIFY (ID)"
+      ],
+      "source_ids": [
+        "src_nist_csf_2_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-CSF-2-OBL-PROTECT-ACCESS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST CSF 2.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST CSF 2.0 — PROTECT (PR)"
+      ],
+      "source_ids": [
+        "src_nist_csf_2_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-CSF-2-OBL-PROTECT-DATA",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST CSF 2.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST CSF 2.0 — PROTECT (PR)"
+      ],
+      "source_ids": [
+        "src_nist_csf_2_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-CSF-2-OBL-DETECT-MONITORING",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST CSF 2.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST CSF 2.0 — DETECT (DE)"
+      ],
+      "source_ids": [
+        "src_nist_csf_2_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-CSF-2-OBL-DETECT-EVENTS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST CSF 2.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST CSF 2.0 — DETECT (DE)"
+      ],
+      "source_ids": [
+        "src_nist_csf_2_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-CSF-2-OBL-RESPOND-PLAN",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST CSF 2.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST CSF 2.0 — RESPOND (RS)"
+      ],
+      "source_ids": [
+        "src_nist_csf_2_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-CSF-2-OBL-RESPOND-COMMUNICATION",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST CSF 2.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST CSF 2.0 — RESPOND (RS)"
+      ],
+      "source_ids": [
+        "src_nist_csf_2_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-CSF-2-OBL-RECOVER-PLAN",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST CSF 2.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST CSF 2.0 — RECOVER (RC)"
+      ],
+      "source_ids": [
+        "src_nist_csf_2_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-CSF-2-OBL-RECOVER-IMPROVEMENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST CSF 2.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST CSF 2.0 — RECOVER (RC)"
+      ],
+      "source_ids": [
+        "src_nist_csf_2_0"
+      ]
+    }
+  ]
+}

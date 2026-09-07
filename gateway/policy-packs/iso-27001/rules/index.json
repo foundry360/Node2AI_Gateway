@@ -1,0 +1,461 @@
+{
+  "version": "1.0.0",
+  "rules": [
+    {
+      "rule_id": "ISO27001-ISMS-CONTEXT-REVIEW",
+      "name": "Review when ISMS context/scope/objectives evidence is missing",
+      "phase": "input",
+      "priority": 110,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "ISO/IEC 27001-informed ISMS control — not ISO 27001 certification.",
+      "conditions": {
+        "regulatory_applicability": "ISO_27001",
+        "isms_context": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27001_ISMS_CONTEXT_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27001-OBL-ISMS-CONTEXT"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27001_2022"
+      ],
+      "derived_from": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO27001-RISK-PROCESS-REVIEW",
+      "name": "Review when information-security risk process evidence is missing",
+      "phase": "input",
+      "priority": 105,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27001",
+        "risk_process": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27001_RISK_PROCESS_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27001-OBL-RISK-PROCESS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27001_2022"
+      ],
+      "derived_from": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO27001-RISK-TREATMENT-REVIEW",
+      "name": "Review when information-security risk treatment evidence is missing",
+      "phase": "input",
+      "priority": 100,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Residual-risk review ≠ Enigma AUTHORIZE.",
+      "conditions": {
+        "regulatory_applicability": "ISO_27001",
+        "risk_treatment": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27001_RISK_TREATMENT_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27001-OBL-RISK-TREATMENT"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27001_2022"
+      ],
+      "derived_from": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO27001-ASSETS-REVIEW",
+      "name": "Review when information-asset governance evidence is missing",
+      "phase": "input",
+      "priority": 95,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27001",
+        "assets": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27001_ASSETS_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27001-OBL-ASSETS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27001_2022"
+      ],
+      "derived_from": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO27001-ACCESS-REVIEW",
+      "name": "Review when identity/access governance evidence is missing",
+      "phase": "input",
+      "priority": 90,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27001",
+        "access": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27001_ACCESS_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27001-OBL-ACCESS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27001_2022"
+      ],
+      "derived_from": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO27001-OPERATIONS-REVIEW",
+      "name": "Review when secure-operations evidence is missing",
+      "phase": "input",
+      "priority": 85,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27001",
+        "operations": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27001_OPERATIONS_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27001-OBL-OPERATIONS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27001_2022"
+      ],
+      "derived_from": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO27001-SUPPLIER-REVIEW",
+      "name": "Review when supplier/third-party security evidence is missing",
+      "phase": "input",
+      "priority": 80,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27001",
+        "supplier": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27001_SUPPLIER_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27001-OBL-SUPPLIER"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27001_2022"
+      ],
+      "derived_from": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO27001-INCIDENT-REVIEW",
+      "name": "Review when information-security incident-management evidence is missing",
+      "phase": "input",
+      "priority": 75,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27001",
+        "incident": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27001_INCIDENT_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27001-OBL-INCIDENT"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27001_2022"
+      ],
+      "derived_from": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO27001-CONTINUITY-REVIEW",
+      "name": "Review when information-security continuity/resilience evidence is missing",
+      "phase": "input",
+      "priority": 70,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27001",
+        "continuity": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27001_CONTINUITY_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27001-OBL-CONTINUITY"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27001_2022"
+      ],
+      "derived_from": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO27001-PEOPLE-REVIEW",
+      "name": "Review when people/security-responsibility evidence is missing",
+      "phase": "input",
+      "priority": 65,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27001",
+        "people": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27001_PEOPLE_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27001-OBL-PEOPLE"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27001_2022"
+      ],
+      "derived_from": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO27001-MONITORING-REVIEW",
+      "name": "Review when security monitoring/review evidence is missing",
+      "phase": "input",
+      "priority": 60,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27001",
+        "monitoring": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27001_MONITORING_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27001-OBL-MONITORING"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27001_2022"
+      ],
+      "derived_from": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO27001-IMPROVEMENT-REVIEW",
+      "name": "Review when continual-improvement evidence is missing",
+      "phase": "input",
+      "priority": 55,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27001",
+        "improvement": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27001_IMPROVEMENT_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27001-OBL-IMPROVEMENT"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27001_2022"
+      ],
+      "derived_from": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO27001-CONTROLS-SATISFIED",
+      "name": "Allow with controls when ISO/IEC 27001-informed ISMS evidence is established",
+      "phase": "input",
+      "priority": 40,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "ISO/IEC 27001-informed posture — not ISO 27001 certified / compliant / scored.",
+      "conditions": {
+        "regulatory_applicability": "ISO_27001",
+        "isms_context": true,
+        "risk_process": true,
+        "risk_treatment": true,
+        "assets": true,
+        "access": true,
+        "operations": true,
+        "supplier": true,
+        "incident": true,
+        "continuity": true,
+        "people": true,
+        "monitoring": true,
+        "improvement": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "ISO27001_CONTROLS_SATISFIED"
+      ],
+      "obligation_ids": [
+        "ISO27001-OBL-ISMS-CONTEXT",
+        "ISO27001-OBL-RISK-PROCESS",
+        "ISO27001-OBL-RISK-TREATMENT",
+        "ISO27001-OBL-ASSETS",
+        "ISO27001-OBL-ACCESS",
+        "ISO27001-OBL-OPERATIONS",
+        "ISO27001-OBL-SUPPLIER",
+        "ISO27001-OBL-INCIDENT",
+        "ISO27001-OBL-CONTINUITY",
+        "ISO27001-OBL-PEOPLE",
+        "ISO27001-OBL-MONITORING",
+        "ISO27001-OBL-IMPROVEMENT"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27001_2022"
+      ],
+      "derived_from": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "rule_id": "ISO27001-OUTPUT-LOG",
+      "name": "Log governance event for ISO/IEC 27001-scoped output",
+      "phase": "output",
+      "priority": 50,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27001"
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "ISO27001_OUTPUT_LOG"
+      ],
+      "obligation_ids": [
+        "ISO27001-OBL-MONITORING"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27001_2022"
+      ],
+      "derived_from": [
+        "src_iso_27001_2022"
+      ]
+    }
+  ]
+}

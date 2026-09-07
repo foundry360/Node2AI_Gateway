@@ -1,0 +1,43 @@
+{
+  "pack_id": "pack_soc2",
+  "name": "SOC 2 / AICPA Trust Services Criteria",
+  "domain": "ai_risk",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "authority_id": "auth_soc2",
+  "scope": "ENTERPRISE_ASSURANCE_GOVERNANCE",
+  "not": "SOC2_CERTIFICATION_OR_AUDIT_OPINION_OR_COMPLIANCE_SCORE",
+  "description": "Focused SOC 2 / AICPA Trust Services Criteria pack. Operationalizes SOC 2-informed enterprise assurance evidence gates as Enigma controls. Framework — not legal authority, not a certification, not an audit opinion, not a compliance score.",
+  "interpreters": {
+    "input": "soc2_pack_v1",
+    "output": "soc2_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_soc2_input",
+      "version": 1,
+      "phase": "input",
+      "name": "SOC 2 input governance"
+    },
+    {
+      "policy_id": "pol_soc2_output",
+      "version": 1,
+      "phase": "output",
+      "name": "SOC 2 output governance"
+    }
+  ],
+  "semantic_notes": [
+    "SOC 2 is FRAMEWORK — treatsAsLegalAuthority === false",
+    "Uses governance_context.assurance — generic, not soc2-specific naming",
+    "Applicability is opt-in via REGULATORY_APPLICABILITY:SOC_2",
+    "Privacy family applies only when privacy_category_applicable",
+    "No SOC 2 score, certification, auditor portal, or assessment workflow"
+  ],
+  "deliberately_not_implemented": [
+    "SOC 2 readiness assessment / score",
+    "Auditor assignment / evidence collection portal",
+    "SOC 2 report generator",
+    "Certification workflow",
+    "Trust Services Criteria heatmap"
+  ]
+}

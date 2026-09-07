@@ -1,0 +1,43 @@
+{
+  "pack_id": "pack_nist_privacy_framework",
+  "name": "NIST Privacy Framework",
+  "domain": "ai_risk",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "authority_id": "auth_nist_privacy_framework",
+  "scope": "PRIVACY_RISK_MANAGEMENT",
+  "not": "NIST_PRIVACY_CERTIFICATION_OR_GDPR_OR_DSAR_OR_DPIA_OR_PRIVACY_SCORE",
+  "description": "Focused NIST Privacy Framework 1.0 (CSWP 10) pack. Operationalizes privacy-risk Function evidence gates (IDENTIFY-P / GOVERN-P / CONTROL-P / COMMUNICATE-P / PROTECT-P) as Enigma controls under privacy.nist_pf. Framework — not legal authority, not a certification, not GDPR/HIPAA determination, not a DSAR/DPIA workflow or privacy score. Distinct from ISO/IEC 27701 PIMS.",
+  "interpreters": {
+    "input": "nist_privacy_framework_pack_v1",
+    "output": "nist_privacy_framework_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_nist_privacy_framework_input",
+      "version": 1,
+      "phase": "input",
+      "name": "NIST Privacy Framework input governance"
+    },
+    {
+      "policy_id": "pol_nist_privacy_framework_output",
+      "version": 1,
+      "phase": "output",
+      "name": "NIST Privacy Framework output governance"
+    }
+  ],
+  "semantic_notes": [
+    "NIST Privacy Framework 1.0 is FRAMEWORK — treatsAsLegalAuthority === false",
+    "Uses governance_context.privacy.nist_pf only — does not read ISO/IEC 27701 PIMS top-level fields",
+    "Applicability is opt-in via REGULATORY_APPLICABILITY:NIST_PRIVACY_FRAMEWORK",
+    "Satisfying NIST PF does not satisfy ISO 27701 (and vice versa)",
+    "Does not implement GDPR lawful-basis determination, DSAR workflow, DPIA application, or privacy scoring"
+  ],
+  "deliberately_not_implemented": [
+    "Certification / compliance assessment",
+    "GDPR / HIPAA determination",
+    "DSAR / DSR workflow",
+    "DPIA application / privacy impact score",
+    "PII scanner / privacy GRC platform / PrivacyScore"
+  ]
+}

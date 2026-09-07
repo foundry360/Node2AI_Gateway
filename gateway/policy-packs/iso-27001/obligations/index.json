@@ -1,0 +1,148 @@
+{
+  "obligations": [
+    {
+      "obligation_id": "ISO27001-OBL-ISMS-CONTEXT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27001:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27001:2022 — ISMS context / scope / objectives"
+      ],
+      "source_ids": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO27001-OBL-RISK-PROCESS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27001:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27001:2022 — information-security risk assessment"
+      ],
+      "source_ids": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO27001-OBL-RISK-TREATMENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27001:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27001:2022 — information-security risk treatment"
+      ],
+      "source_ids": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO27001-OBL-ASSETS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27001:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27001:2022 — information / asset governance"
+      ],
+      "source_ids": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO27001-OBL-ACCESS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27001:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27001:2022 — access control"
+      ],
+      "source_ids": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO27001-OBL-OPERATIONS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27001:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27001:2022 — operational security"
+      ],
+      "source_ids": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO27001-OBL-SUPPLIER",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27001:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27001:2022 — supplier relationships"
+      ],
+      "source_ids": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO27001-OBL-INCIDENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27001:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27001:2022 — information security incident management"
+      ],
+      "source_ids": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO27001-OBL-CONTINUITY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27001:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27001:2022 — information security during disruption"
+      ],
+      "source_ids": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO27001-OBL-PEOPLE",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27001:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27001:2022 — people controls / awareness"
+      ],
+      "source_ids": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO27001-OBL-MONITORING",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27001:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27001:2022 — monitoring / internal audit / management review"
+      ],
+      "source_ids": [
+        "src_iso_27001_2022"
+      ]
+    },
+    {
+      "obligation_id": "ISO27001-OBL-IMPROVEMENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27001:2022",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27001:2022 — nonconformity and continual improvement"
+      ],
+      "source_ids": [
+        "src_iso_27001_2022"
+      ]
+    }
+  ]
+}

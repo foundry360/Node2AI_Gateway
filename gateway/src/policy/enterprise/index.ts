@@ -28,7 +28,7 @@ export {
   type BridgedEnterprisePdp,
 } from './pack-pdp.js';
 export { InMemoryPolicyRepository, mergeDefaultSnapshot } from './repository.js';
-export { applyRegulatoryOverlays, regulatoryPackExtras, ensureDefaultOverlayRegistry, part2PackContribution, hipaaPackContribution, nistAiRmfPackContribution, owaspLlm2025PackContribution, euAiActPackContribution, iso42001PackContribution, iso23894PackContribution, iso42005PackContribution } from './packs/regulatory.js';
+export { applyRegulatoryOverlays, regulatoryPackExtras, ensureDefaultOverlayRegistry, part2PackContribution, hipaaPackContribution, nistAiRmfPackContribution, owaspLlm2025PackContribution, euAiActPackContribution, iso42001PackContribution, iso23894PackContribution, iso42005PackContribution, soc2PackContribution, nistCsf2PackContribution, iso38507PackContribution, iso27001PackContribution, iso27701PackContribution, nistPrivacyFrameworkPackContribution } from './packs/regulatory.js';
 export {
   HEALTHCARE_DOMAIN,
   AI_RISK_DOMAIN,
@@ -59,6 +59,12 @@ export { compileEuAiActPack } from './packs/eu-ai-act/compile.js';
 export { compileIso42001Pack } from './packs/iso-42001/compile.js';
 export { compileIso23894Pack } from './packs/iso-23894/compile.js';
 export { compileIso42005Pack } from './packs/iso-42005/compile.js';
+export { compileSoc2Pack } from './packs/soc2/compile.js';
+export { compileNistCsf2Pack } from './packs/nist-csf-2/compile.js';
+export { compileIso38507Pack } from './packs/iso-38507/compile.js';
+export { compileIso27001Pack } from './packs/iso-27001/compile.js';
+export { compileIso27701Pack } from './packs/iso-27701/compile.js';
+export { compileNistPrivacyFrameworkPack } from './packs/nist-privacy-framework/compile.js';
 export {
   applyHipaaPackV2Input,
   applyHipaaPackV2Output,
@@ -98,6 +104,36 @@ export {
   applyIso42005PackV1Output,
   deriveIso42005ImpactGates,
 } from './packs/iso-42005/pack.js';
+export {
+  applySoc2PackV1Input,
+  applySoc2PackV1Output,
+  deriveSoc2AssuranceGates,
+} from './packs/soc2/pack.js';
+export {
+  applyNistCsf2PackV1Input,
+  applyNistCsf2PackV1Output,
+  deriveNistCsf2Gates,
+} from './packs/nist-csf-2/pack.js';
+export {
+  applyIso38507PackV1Input,
+  applyIso38507PackV1Output,
+  deriveIso38507Gates,
+} from './packs/iso-38507/pack.js';
+export {
+  applyIso27001PackV1Input,
+  applyIso27001PackV1Output,
+  deriveIso27001Gates,
+} from './packs/iso-27001/pack.js';
+export {
+  applyIso27701PackV1Input,
+  applyIso27701PackV1Output,
+  deriveIso27701Gates,
+} from './packs/iso-27701/pack.js';
+export {
+  applyNistPrivacyFrameworkPackV1Input,
+  applyNistPrivacyFrameworkPackV1Output,
+  deriveNistPrivacyFrameworkGates,
+} from './packs/nist-privacy-framework/pack.js';
 export { PART2_PROVENANCE_GRAPH, PART2_PACK_META } from './packs/part2/compiled-bundle.js';
 export {
   NIST_AI_RMF_PROVENANCE_GRAPH,
@@ -128,6 +164,36 @@ export {
   ISO_42005_PACK_META,
   ISO_42005_RULES,
 } from './packs/iso-42005/compiled-bundle.js';
+export {
+  SOC2_PROVENANCE_GRAPH,
+  SOC2_PACK_META,
+  SOC2_RULES,
+} from './packs/soc2/compiled-bundle.js';
+export {
+  NIST_CSF_2_PROVENANCE_GRAPH,
+  NIST_CSF_2_PACK_META,
+  NIST_CSF_2_RULES,
+} from './packs/nist-csf-2/compiled-bundle.js';
+export {
+  ISO_38507_PROVENANCE_GRAPH,
+  ISO_38507_PACK_META,
+  ISO_38507_RULES,
+} from './packs/iso-38507/compiled-bundle.js';
+export {
+  ISO_27001_PROVENANCE_GRAPH,
+  ISO_27001_PACK_META,
+  ISO_27001_RULES,
+} from './packs/iso-27001/compiled-bundle.js';
+export {
+  ISO_27701_PROVENANCE_GRAPH,
+  ISO_27701_PACK_META,
+  ISO_27701_RULES,
+} from './packs/iso-27701/compiled-bundle.js';
+export {
+  NIST_PRIVACY_FRAMEWORK_PROVENANCE_GRAPH,
+  NIST_PRIVACY_FRAMEWORK_PACK_META,
+  NIST_PRIVACY_FRAMEWORK_RULES,
+} from './packs/nist-privacy-framework/compiled-bundle.js';
 export { PostgresPolicyRepository, type PolicyRepository } from './pg-repository.js';
 export {
   fromLegacyRequestResult,
@@ -251,3 +317,26 @@ export {
   fixtureToRequestContext,
   type PolicyTestFixture,
 } from './lifecycle.js';
+export {
+  assessMateriality,
+  applyLifecycleReviewHold,
+  createGovernanceBaseline,
+  evaluateGovernanceChange,
+  inferChangeTypes,
+  InMemoryChangeGovernanceRepository,
+  lifecycleToPolicyHold,
+  nextBaselineFromChange,
+  type AutonomyLevel,
+  type ChangeEvaluationResult,
+  type ChangeInput,
+  type CreateBaselineInput,
+  type EvaluateChangeOptions,
+  type GovernanceBaseline,
+  type GovernanceBaselineCapabilities,
+  type GovernanceChangeType,
+  type GovernanceImpactDimension,
+  type LifecycleDecision,
+  type MaterialityAssessment,
+  type MaterialityClass,
+  type NormalizedChange,
+} from './change-governance/index.js';

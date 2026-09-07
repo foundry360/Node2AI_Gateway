@@ -1,0 +1,427 @@
+{
+  "version": "1.0.0",
+  "rules": [
+    {
+      "rule_id": "NIST-PF-IDENTIFY-DATA-PROCESSING",
+      "name": "Review when data-processing context evidence is missing",
+      "phase": "input",
+      "priority": 110,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "NIST Privacy Framework-informed IDENTIFY-P control — not NIST certification.",
+      "conditions": {
+        "regulatory_applicability": "NIST_PRIVACY_FRAMEWORK",
+        "identify_processing": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "NIST_PF_IDENTIFY_DATA_PROCESSING_REVIEW"
+      ],
+      "obligation_ids": [
+        "NIST-PF-OBL-IDENTIFY-PROCESSING"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_nist_privacy_framework_1_0"
+      ],
+      "derived_from": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "rule_id": "NIST-PF-IDENTIFY-PRIVACY-RISK",
+      "name": "Review when privacy-risk identification evidence is missing",
+      "phase": "input",
+      "priority": 105,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "NIST_PRIVACY_FRAMEWORK",
+        "identify_privacy_risk": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "NIST_PF_IDENTIFY_PRIVACY_RISK_REVIEW"
+      ],
+      "obligation_ids": [
+        "NIST-PF-OBL-IDENTIFY-PRIVACY-RISK"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_nist_privacy_framework_1_0"
+      ],
+      "derived_from": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "rule_id": "NIST-PF-IDENTIFY-DATA-ACTIONS",
+      "name": "Review when data-actions documentation evidence is missing",
+      "phase": "input",
+      "priority": 100,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "NIST_PRIVACY_FRAMEWORK",
+        "identify_data_actions": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "NIST_PF_IDENTIFY_DATA_ACTIONS_REVIEW"
+      ],
+      "obligation_ids": [
+        "NIST-PF-OBL-IDENTIFY-DATA-ACTIONS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_nist_privacy_framework_1_0"
+      ],
+      "derived_from": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "rule_id": "NIST-PF-GOVERN-POLICIES",
+      "name": "Review when privacy governance policy evidence is missing",
+      "phase": "input",
+      "priority": 95,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "NIST_PRIVACY_FRAMEWORK",
+        "govern_policies": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "NIST_PF_GOVERN_POLICIES_REVIEW"
+      ],
+      "obligation_ids": [
+        "NIST-PF-OBL-GOVERN-POLICIES"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_nist_privacy_framework_1_0"
+      ],
+      "derived_from": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "rule_id": "NIST-PF-GOVERN-ROLES",
+      "name": "Review when privacy roles/responsibilities evidence is missing",
+      "phase": "input",
+      "priority": 90,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "NIST_PRIVACY_FRAMEWORK",
+        "govern_roles": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "NIST_PF_GOVERN_ROLES_REVIEW"
+      ],
+      "obligation_ids": [
+        "NIST-PF-OBL-GOVERN-ROLES"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_nist_privacy_framework_1_0"
+      ],
+      "derived_from": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "rule_id": "NIST-PF-GOVERN-RISK",
+      "name": "Review when privacy risk-governance evidence is missing",
+      "phase": "input",
+      "priority": 85,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "NIST_PRIVACY_FRAMEWORK",
+        "govern_risk": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "NIST_PF_GOVERN_RISK_REVIEW"
+      ],
+      "obligation_ids": [
+        "NIST-PF-OBL-GOVERN-RISK"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_nist_privacy_framework_1_0"
+      ],
+      "derived_from": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "rule_id": "NIST-PF-CONTROL-DATA-ACTIONS",
+      "name": "Review when data-action control evidence is missing",
+      "phase": "input",
+      "priority": 80,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "NIST_PRIVACY_FRAMEWORK",
+        "control_data_actions": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "NIST_PF_CONTROL_DATA_ACTIONS_REVIEW"
+      ],
+      "obligation_ids": [
+        "NIST-PF-OBL-CONTROL-DATA-ACTIONS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_nist_privacy_framework_1_0"
+      ],
+      "derived_from": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "rule_id": "NIST-PF-CONTROL-INDIVIDUAL-CHOICE",
+      "name": "Review when individual choice/participation evidence is missing",
+      "phase": "input",
+      "priority": 75,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "NIST_PRIVACY_FRAMEWORK",
+        "control_individual_choice": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "NIST_PF_CONTROL_INDIVIDUAL_CHOICE_REVIEW"
+      ],
+      "obligation_ids": [
+        "NIST-PF-OBL-CONTROL-INDIVIDUAL-CHOICE"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_nist_privacy_framework_1_0"
+      ],
+      "derived_from": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "rule_id": "NIST-PF-COMMUNICATE-TRANSPARENCY",
+      "name": "Review when privacy transparency evidence is missing",
+      "phase": "input",
+      "priority": 70,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "NIST_PRIVACY_FRAMEWORK",
+        "communicate_transparency": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "NIST_PF_COMMUNICATE_TRANSPARENCY_REVIEW"
+      ],
+      "obligation_ids": [
+        "NIST-PF-OBL-COMMUNICATE-TRANSPARENCY"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_nist_privacy_framework_1_0"
+      ],
+      "derived_from": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "rule_id": "NIST-PF-COMMUNICATE-EXPECTATIONS",
+      "name": "Review when privacy expectations/disclosure evidence is missing",
+      "phase": "input",
+      "priority": 65,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "NIST_PRIVACY_FRAMEWORK",
+        "communicate_expectations": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "NIST_PF_COMMUNICATE_EXPECTATIONS_REVIEW"
+      ],
+      "obligation_ids": [
+        "NIST-PF-OBL-COMMUNICATE-EXPECTATIONS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_nist_privacy_framework_1_0"
+      ],
+      "derived_from": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "rule_id": "NIST-PF-PROTECT-PRIVACY-RISK",
+      "name": "Review when privacy-risk mitigation evidence is missing",
+      "phase": "input",
+      "priority": 60,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "NIST_PRIVACY_FRAMEWORK",
+        "protect_privacy_risk": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "NIST_PF_PROTECT_PRIVACY_RISK_REVIEW"
+      ],
+      "obligation_ids": [
+        "NIST-PF-OBL-PROTECT-PRIVACY-RISK"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_nist_privacy_framework_1_0"
+      ],
+      "derived_from": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "rule_id": "NIST-PF-CONTROLS-SATISFIED",
+      "name": "Allow with controls when NIST Privacy Framework-informed evidence is established",
+      "phase": "input",
+      "priority": 40,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "NIST Privacy Framework-informed posture — not NIST certified / compliant / privacy scored.",
+      "conditions": {
+        "regulatory_applicability": "NIST_PRIVACY_FRAMEWORK",
+        "identify_processing": true,
+        "identify_privacy_risk": true,
+        "identify_data_actions": true,
+        "govern_policies": true,
+        "govern_roles": true,
+        "govern_risk": true,
+        "control_data_actions": true,
+        "control_individual_choice": true,
+        "communicate_transparency": true,
+        "communicate_expectations": true,
+        "protect_privacy_risk": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "NIST_PF_CONTROLS_SATISFIED"
+      ],
+      "obligation_ids": [
+        "NIST-PF-OBL-IDENTIFY-PROCESSING",
+        "NIST-PF-OBL-IDENTIFY-PRIVACY-RISK",
+        "NIST-PF-OBL-IDENTIFY-DATA-ACTIONS",
+        "NIST-PF-OBL-GOVERN-POLICIES",
+        "NIST-PF-OBL-GOVERN-ROLES",
+        "NIST-PF-OBL-GOVERN-RISK",
+        "NIST-PF-OBL-CONTROL-DATA-ACTIONS",
+        "NIST-PF-OBL-CONTROL-INDIVIDUAL-CHOICE",
+        "NIST-PF-OBL-COMMUNICATE-TRANSPARENCY",
+        "NIST-PF-OBL-COMMUNICATE-EXPECTATIONS",
+        "NIST-PF-OBL-PROTECT-PRIVACY-RISK"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_nist_privacy_framework_1_0"
+      ],
+      "derived_from": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "rule_id": "NIST-PF-OUTPUT-LOG",
+      "name": "Log governance event for NIST Privacy Framework-scoped output",
+      "phase": "output",
+      "priority": 50,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "NIST_PRIVACY_FRAMEWORK"
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "NIST_PF_OUTPUT_LOG"
+      ],
+      "obligation_ids": [
+        "NIST-PF-OBL-COMMUNICATE-TRANSPARENCY"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_nist_privacy_framework_1_0"
+      ],
+      "derived_from": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    }
+  ]
+}

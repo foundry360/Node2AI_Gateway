@@ -1,0 +1,41 @@
+{
+  "pack_id": "pack_iso_38507",
+  "name": "ISO/IEC 38507",
+  "domain": "ai_risk",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "authority_id": "auth_iso_38507",
+  "scope": "ORGANIZATIONAL_AI_GOVERNANCE",
+  "not": "ISO_38507_CERTIFICATION_OR_BOARD_GRC_OR_SCORE_OR_ASSESSMENT",
+  "description": "Focused ISO/IEC 38507:2022 pack. Operationalizes organizational AI governance evidence gates as Enigma controls. Standard — not legal authority, not a certification, not board-governance GRC, not a maturity score.",
+  "interpreters": {
+    "input": "iso_38507_pack_v1",
+    "output": "iso_38507_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_iso_38507_input",
+      "version": 1,
+      "phase": "input",
+      "name": "ISO/IEC 38507 input governance"
+    },
+    {
+      "policy_id": "pol_iso_38507_output",
+      "version": 1,
+      "phase": "output",
+      "name": "ISO/IEC 38507 output governance"
+    }
+  ],
+  "semantic_notes": [
+    "ISO/IEC 38507 is STANDARD — treatsAsLegalAuthority === false",
+    "Uses governance_context.organizational_governance — distinct from management_system (ISO 42001)",
+    "Applicability is opt-in via REGULATORY_APPLICABILITY:ISO_38507",
+    "Organizational accountability ≠ Enigma AUTHORIZE"
+  ],
+  "deliberately_not_implemented": [
+    "Board governance / GRC product surfaces",
+    "Maturity / governance scoring",
+    "Certification / compliance assessment",
+    "Workflow / escalation engine"
+  ]
+}

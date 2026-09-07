@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "sources": [
+    {
+      "id": "src_aicpa_trust_services_criteria",
+      "source_id": "src_aicpa_trust_services_criteria",
+      "authority": "AICPA Trust Services Criteria",
+      "authority_tier": 4,
+      "authority_type": "FRAMEWORK",
+      "legal_authority": false,
+      "authority_id": "auth_soc2",
+      "title": "TSP Section 100 — 2017 Trust Services Criteria for Security, Availability, Processing Integrity, Confidentiality, and Privacy (With Revised Points of Focus — 2022)",
+      "publisher": "AICPA (Assurance Services Executive Committee)",
+      "citation": "TSP Section 100 (2017 TSC; Revised Points of Focus — 2022)",
+      "canonical_url": "https://www.aicpa-cima.com/resources/download/2017-trust-services-criteria-with-revised-points-of-focus-2022",
+      "effective_date": "2022-01-01",
+      "retrieved_date": "2026-09-07",
+      "version": "2017 TSC (Revised Points of Focus — 2022)",
+      "note": "Enterprise assurance criteria used in SOC 2 examinations. Not statute; not an Enigma certification, compliance determination, or audit opinion. Enigma-derived operational controls are interpretations for AI governance evidence."
+    }
+  ]
+}

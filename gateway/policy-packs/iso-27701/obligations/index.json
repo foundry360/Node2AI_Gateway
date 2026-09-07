@@ -1,0 +1,148 @@
+{
+  "obligations": [
+    {
+      "obligation_id": "ISO27701-OBL-PIMS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27701:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27701:2025 — PIMS context / scope / roles / objectives"
+      ],
+      "source_ids": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO27701-OBL-PII-PROCESSING",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27701:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27701:2025 — PII processing identification / purposes"
+      ],
+      "source_ids": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO27701-OBL-PRIVACY-RISK",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27701:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27701:2025 — privacy risk assessment / treatment"
+      ],
+      "source_ids": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO27701-OBL-PRIVACY-IMPACT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27701:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27701:2025 — privacy impact considerations"
+      ],
+      "source_ids": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO27701-OBL-DATA-LIFECYCLE",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27701:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27701:2025 — PII lifecycle governance"
+      ],
+      "source_ids": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO27701-OBL-TRANSPARENCY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27701:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27701:2025 — transparency / privacy information"
+      ],
+      "source_ids": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO27701-OBL-PRIVACY-RIGHTS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27701:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27701:2025 — individual privacy rights handling"
+      ],
+      "source_ids": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO27701-OBL-CONTROLLER-PROCESSOR",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27701:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27701:2025 — controller / processor responsibilities"
+      ],
+      "source_ids": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO27701-OBL-THIRD-PARTY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27701:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27701:2025 — processor / third-party privacy requirements"
+      ],
+      "source_ids": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO27701-OBL-PRIVACY-INCIDENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27701:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27701:2025 — privacy incident / breach response"
+      ],
+      "source_ids": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO27701-OBL-MONITORING",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27701:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27701:2025 — privacy performance / management review"
+      ],
+      "source_ids": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO27701-OBL-IMPROVEMENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 27701:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 27701:2025 — nonconformity and continual improvement"
+      ],
+      "source_ids": [
+        "src_iso_27701_2025"
+      ]
+    }
+  ]
+}

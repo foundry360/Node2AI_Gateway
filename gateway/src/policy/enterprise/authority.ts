@@ -60,6 +60,12 @@ export const POLICY_AUTHORITY_IDS = {
   iso42001: 'auth_iso_42001',
   iso23894: 'auth_iso_23894',
   iso42005: 'auth_iso_42005',
+  soc2: 'auth_soc2',
+  nistCsf2: 'auth_nist_csf_2',
+  iso38507: 'auth_iso_38507',
+  iso27001: 'auth_iso_27001',
+  iso27701: 'auth_iso_27701',
+  nistPrivacyFramework: 'auth_nist_privacy_framework',
   euAiAct: 'auth_eu_ai_act',
 } as const;
 
@@ -73,6 +79,12 @@ const PACK_AUTHORITY_BY_PACK_ID: Record<string, string> = {
   pack_iso_42001: POLICY_AUTHORITY_IDS.iso42001,
   pack_iso_23894: POLICY_AUTHORITY_IDS.iso23894,
   pack_iso_42005: POLICY_AUTHORITY_IDS.iso42005,
+  pack_soc2: POLICY_AUTHORITY_IDS.soc2,
+  pack_nist_csf_2: POLICY_AUTHORITY_IDS.nistCsf2,
+  pack_iso_38507: POLICY_AUTHORITY_IDS.iso38507,
+  pack_iso_27001: POLICY_AUTHORITY_IDS.iso27001,
+  pack_iso_27701: POLICY_AUTHORITY_IDS.iso27701,
+  pack_nist_privacy_framework: POLICY_AUTHORITY_IDS.nistPrivacyFramework,
 };
 
 const registry = new Map<string, PolicyAuthority>();
@@ -251,6 +263,117 @@ function defineBuiltIns(): void {
       legal_authority: false,
       notes:
         'AI system impact-assessment guidance — not statute or regulation; not an Enigma certification or impact score.',
+    },
+  });
+
+  registerPolicyAuthority({
+    id: POLICY_AUTHORITY_IDS.soc2,
+    name: 'AICPA Trust Services Criteria (SOC 2)',
+    type: 'FRAMEWORK',
+    publisher: 'AICPA (Assurance Services Executive Committee)',
+    jurisdiction: null,
+    authority_tier: 4,
+    version: '2017 TSC (Revised Points of Focus — 2022)',
+    effective_date: '2022-01-01',
+    source_reference:
+      'TSP Section 100 — 2017 Trust Services Criteria for Security, Availability, Processing Integrity, Confidentiality, and Privacy (With Revised Points of Focus — 2022) — https://www.aicpa-cima.com/resources/download/2017-trust-services-criteria-with-revised-points-of-focus-2022',
+    provenance: {
+      legal_authority: false,
+      notes:
+        'SOC 2-informed enterprise assurance framework — not statute, regulation, certification, or an Enigma audit opinion.',
+    },
+  });
+
+  registerPolicyAuthority({
+    id: POLICY_AUTHORITY_IDS.nistCsf2,
+    name: 'NIST Cybersecurity Framework (CSF) 2.0',
+    type: 'FRAMEWORK',
+    publisher: 'National Institute of Standards and Technology',
+    jurisdiction: null,
+    authority_tier: 4,
+    version: '2.0',
+    effective_date: '2024-02-26',
+    source_reference:
+      'NIST CSWP 29 — The NIST Cybersecurity Framework (CSF) 2.0 — https://www.nist.gov/publications/nist-cybersecurity-framework-csf-20',
+    provenance: {
+      legal_authority: false,
+      notes:
+        'NIST CSF 2.0-informed cybersecurity governance framework — not statute, regulation, certification, or an Enigma cybersecurity assessment.',
+    },
+  });
+
+  registerPolicyAuthority({
+    id: POLICY_AUTHORITY_IDS.iso38507,
+    name: 'ISO/IEC 38507:2022',
+    type: 'STANDARD',
+    publisher:
+      'International Organization for Standardization / International Electrotechnical Commission',
+    jurisdiction: 'INTERNATIONAL',
+    authority_tier: 3,
+    version: '2022',
+    effective_date: '2022-04-08',
+    source_reference:
+      'ISO/IEC 38507:2022 — Information technology — Governance of IT — Governance implications of the use of artificial intelligence by organizations — https://www.iso.org/standard/56641.html',
+    provenance: {
+      legal_authority: false,
+      notes:
+        'ISO/IEC 38507-informed organizational AI governance guidance — not statute, regulation, certification, board-governance software, or an Enigma organizational assessment.',
+    },
+  });
+
+  registerPolicyAuthority({
+    id: POLICY_AUTHORITY_IDS.iso27001,
+    name: 'ISO/IEC 27001:2022',
+    type: 'STANDARD',
+    publisher:
+      'International Organization for Standardization / International Electrotechnical Commission',
+    jurisdiction: 'INTERNATIONAL',
+    authority_tier: 3,
+    version: '2022',
+    effective_date: '2022-10-25',
+    source_reference:
+      'ISO/IEC 27001:2022 — Information security, cybersecurity and privacy protection — Information security management systems — Requirements — https://www.iso.org/standard/27001',
+    provenance: {
+      legal_authority: false,
+      notes:
+        'ISO/IEC 27001-informed ISMS / information-security governance standard — not statute, regulation, certification, SIEM, Annex A score, or an Enigma security assessment. Includes recognition of ISO/IEC 27001:2022/Amd 1:2024 (climate action changes) as amendment context only.',
+    },
+  });
+
+  registerPolicyAuthority({
+    id: POLICY_AUTHORITY_IDS.iso27701,
+    name: 'ISO/IEC 27701:2025',
+    type: 'STANDARD',
+    publisher:
+      'International Organization for Standardization / International Electrotechnical Commission',
+    jurisdiction: 'INTERNATIONAL',
+    authority_tier: 3,
+    version: '2025',
+    effective_date: '2025-10-14',
+    source_reference:
+      'ISO/IEC 27701:2025 — Information security, cybersecurity and privacy protection — Privacy information management systems — Requirements and guidance — https://www.iso.org/standard/27701',
+    provenance: {
+      legal_authority: false,
+      notes:
+        'ISO/IEC 27701-informed PIMS / privacy-information-management standard — not statute, regulation, GDPR determination, certification, DSAR workflow, DPIA app, privacy score, or an Enigma privacy assessment. ISO/IEC 27701:2019 is withdrawn; this authority reflects the 2025 edition.',
+    },
+  });
+
+  registerPolicyAuthority({
+    id: POLICY_AUTHORITY_IDS.nistPrivacyFramework,
+    name: 'NIST Privacy Framework 1.0',
+    type: 'FRAMEWORK',
+    publisher: 'National Institute of Standards and Technology',
+    jurisdiction: null,
+    authority_tier: 4,
+    version: '1.0',
+    effective_date: '2020-01-16',
+    source_reference:
+      'NIST Privacy Framework: A Tool for Improving Privacy through Enterprise Risk Management, Version 1.0 (NIST CSWP 10) — https://csrc.nist.gov/pubs/cswp/10/nist-privacy-framework-version-10/final',
+    provenance: {
+      legal_authority: false,
+      notes:
+        'Voluntary NIST Privacy Framework-informed privacy-risk management guidance — not statute, regulation, certification, GDPR/HIPAA determination, DSAR/DPIA workflow, privacy score, or an Enigma privacy assessment. NIST PF 1.1 draft is not authoritative for this pack.',
     },
   });
 

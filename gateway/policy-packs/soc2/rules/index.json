@@ -1,0 +1,427 @@
+{
+  "version": "1.0.0",
+  "rules": [
+    {
+      "rule_id": "SOC2-R-CONTROL-ENVIRONMENT",
+      "name": "Review when control environment evidence is not documented",
+      "phase": "input",
+      "priority": 110,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "SOC 2-informed enterprise control — not SOC 2 certification.",
+      "conditions": {
+        "regulatory_applicability": "SOC_2",
+        "control_environment_documented": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "SOC2_CONTROL_ENVIRONMENT_REVIEW"
+      ],
+      "obligation_ids": [
+        "SOC2-OBL-CONTROL-ENVIRONMENT"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_aicpa_trust_services_criteria"
+      ],
+      "derived_from": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "rule_id": "SOC2-R-ACCESS-CONTROLS",
+      "name": "Review when access control evidence is not verified",
+      "phase": "input",
+      "priority": 105,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "SOC_2",
+        "access_controls_verified": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "SOC2_ACCESS_CONTROLS_REVIEW"
+      ],
+      "obligation_ids": [
+        "SOC2-OBL-ACCESS-CONTROLS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_aicpa_trust_services_criteria"
+      ],
+      "derived_from": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "rule_id": "SOC2-R-CHANGE-MANAGEMENT",
+      "name": "Review when change-management control evidence is not verified",
+      "phase": "input",
+      "priority": 100,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "SOC_2",
+        "change_management_controls_verified": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "SOC2_CHANGE_MANAGEMENT_REVIEW"
+      ],
+      "obligation_ids": [
+        "SOC2-OBL-CHANGE-MANAGEMENT"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_aicpa_trust_services_criteria"
+      ],
+      "derived_from": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "rule_id": "SOC2-R-LOGICAL-ACCESS",
+      "name": "Review when logical-access control evidence is not verified",
+      "phase": "input",
+      "priority": 95,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "SOC_2",
+        "logical_access_controls_verified": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "SOC2_LOGICAL_ACCESS_REVIEW"
+      ],
+      "obligation_ids": [
+        "SOC2-OBL-LOGICAL-ACCESS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_aicpa_trust_services_criteria"
+      ],
+      "derived_from": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "rule_id": "SOC2-R-DATA-PROTECTION",
+      "name": "Review when data-protection control evidence is not verified",
+      "phase": "input",
+      "priority": 90,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "SOC_2",
+        "data_protection_controls_verified": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "SOC2_DATA_PROTECTION_REVIEW"
+      ],
+      "obligation_ids": [
+        "SOC2-OBL-DATA-PROTECTION"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_aicpa_trust_services_criteria"
+      ],
+      "derived_from": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "rule_id": "SOC2-R-MONITORING",
+      "name": "Review when system-monitoring control evidence is not verified",
+      "phase": "input",
+      "priority": 85,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "SOC_2",
+        "system_monitoring_controls_verified": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "SOC2_MONITORING_REVIEW"
+      ],
+      "obligation_ids": [
+        "SOC2-OBL-MONITORING"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_aicpa_trust_services_criteria"
+      ],
+      "derived_from": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "rule_id": "SOC2-R-INCIDENT-RESPONSE",
+      "name": "Review when incident-response control evidence is not verified",
+      "phase": "input",
+      "priority": 80,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "SOC_2",
+        "incident_response_controls_verified": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "SOC2_INCIDENT_RESPONSE_REVIEW"
+      ],
+      "obligation_ids": [
+        "SOC2-OBL-INCIDENT-RESPONSE"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_aicpa_trust_services_criteria"
+      ],
+      "derived_from": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "rule_id": "SOC2-R-AVAILABILITY",
+      "name": "Review when availability control evidence is not verified",
+      "phase": "input",
+      "priority": 75,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "SOC_2",
+        "availability_controls_verified": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "SOC2_AVAILABILITY_REVIEW"
+      ],
+      "obligation_ids": [
+        "SOC2-OBL-AVAILABILITY"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_aicpa_trust_services_criteria"
+      ],
+      "derived_from": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "rule_id": "SOC2-R-PROCESSING-INTEGRITY",
+      "name": "Review when processing-integrity control evidence is not verified",
+      "phase": "input",
+      "priority": 70,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "SOC_2",
+        "processing_integrity_controls_verified": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "SOC2_PROCESSING_INTEGRITY_REVIEW"
+      ],
+      "obligation_ids": [
+        "SOC2-OBL-PROCESSING-INTEGRITY"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_aicpa_trust_services_criteria"
+      ],
+      "derived_from": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "rule_id": "SOC2-R-CONFIDENTIALITY",
+      "name": "Review when confidentiality control evidence is not verified",
+      "phase": "input",
+      "priority": 65,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "SOC_2",
+        "confidentiality_controls_verified": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "SOC2_CONFIDENTIALITY_REVIEW"
+      ],
+      "obligation_ids": [
+        "SOC2-OBL-CONFIDENTIALITY"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_aicpa_trust_services_criteria"
+      ],
+      "derived_from": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "rule_id": "SOC2-R-PRIVACY",
+      "name": "Review when privacy-category control evidence is not verified",
+      "phase": "input",
+      "priority": 60,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Applies only when privacy_category_applicable — not assumed for every request.",
+      "conditions": {
+        "regulatory_applicability": "SOC_2",
+        "privacy_category_applicable": true,
+        "privacy_controls_verified": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "SOC2_PRIVACY_REVIEW"
+      ],
+      "obligation_ids": [
+        "SOC2-OBL-PRIVACY"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_aicpa_trust_services_criteria"
+      ],
+      "derived_from": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "rule_id": "SOC2-R-CONTROLS-SATISFIED",
+      "name": "Allow with controls when SOC 2-informed assurance evidence is established",
+      "phase": "input",
+      "priority": 40,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "SOC 2-informed policy posture — not SOC 2 certified / compliant / audit opinion.",
+      "conditions": {
+        "regulatory_applicability": "SOC_2",
+        "control_environment_documented": true,
+        "access_controls_verified": true,
+        "change_management_controls_verified": true,
+        "logical_access_controls_verified": true,
+        "data_protection_controls_verified": true,
+        "system_monitoring_controls_verified": true,
+        "incident_response_controls_verified": true,
+        "availability_controls_verified": true,
+        "processing_integrity_controls_verified": true,
+        "confidentiality_controls_verified": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "SOC2_CONTROLS_SATISFIED"
+      ],
+      "obligation_ids": [
+        "SOC2-OBL-CONTROL-ENVIRONMENT",
+        "SOC2-OBL-ACCESS-CONTROLS",
+        "SOC2-OBL-CHANGE-MANAGEMENT",
+        "SOC2-OBL-LOGICAL-ACCESS",
+        "SOC2-OBL-DATA-PROTECTION",
+        "SOC2-OBL-MONITORING",
+        "SOC2-OBL-INCIDENT-RESPONSE",
+        "SOC2-OBL-AVAILABILITY",
+        "SOC2-OBL-PROCESSING-INTEGRITY",
+        "SOC2-OBL-CONFIDENTIALITY"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_aicpa_trust_services_criteria"
+      ],
+      "derived_from": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    },
+    {
+      "rule_id": "SOC2-R-OUTPUT-MONITOR-LOG",
+      "name": "Log governance event for SOC 2-scoped output",
+      "phase": "output",
+      "priority": 50,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "SOC_2"
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "SOC2_OUTPUT_MONITOR_LOG"
+      ],
+      "obligation_ids": [
+        "SOC2-OBL-MONITORING"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_aicpa_trust_services_criteria"
+      ],
+      "derived_from": [
+        "src_aicpa_trust_services_criteria"
+      ]
+    }
+  ]
+}

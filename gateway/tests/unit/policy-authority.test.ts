@@ -221,7 +221,7 @@ describe('PolicyAuthority architecture', () => {
     expect(getAuthorityForPack('pack_hipaa')?.type).toBe('REGULATION');
   });
 
-  it('lists catalog authorities; ISO packs linked through Pack #8', () => {
+  it('lists catalog authorities; NIST CSF 2 pack linked as Pack #10', () => {
     const ids = listPolicyAuthorities().map((a) => a.id);
     expect(ids).toEqual(
       expect.arrayContaining([
@@ -232,16 +232,22 @@ describe('PolicyAuthority architecture', () => {
         POLICY_AUTHORITY_IDS.iso42001,
         POLICY_AUTHORITY_IDS.iso23894,
         POLICY_AUTHORITY_IDS.iso42005,
+        POLICY_AUTHORITY_IDS.soc2,
+        POLICY_AUTHORITY_IDS.nistCsf2,
+        POLICY_AUTHORITY_IDS.iso38507,
+        POLICY_AUTHORITY_IDS.iso27001,
+        POLICY_AUTHORITY_IDS.iso27701,
+        POLICY_AUTHORITY_IDS.nistPrivacyFramework,
         POLICY_AUTHORITY_IDS.euAiAct,
       ]),
     );
-    expect(getAuthorityIdForPack('pack_nist_ai_rmf')).toBe(POLICY_AUTHORITY_IDS.nistAiRmf);
-    expect(getAuthorityIdForPack('pack_owasp_llm_2025')).toBe(
-      POLICY_AUTHORITY_IDS.owaspLlm2025,
+    expect(getAuthorityIdForPack('pack_soc2')).toBe(POLICY_AUTHORITY_IDS.soc2);
+    expect(getAuthorityIdForPack('pack_nist_csf_2')).toBe(POLICY_AUTHORITY_IDS.nistCsf2);
+    expect(getAuthorityIdForPack('pack_iso_38507')).toBe(POLICY_AUTHORITY_IDS.iso38507);
+    expect(getAuthorityIdForPack('pack_iso_27001')).toBe(POLICY_AUTHORITY_IDS.iso27001);
+    expect(getAuthorityIdForPack('pack_iso_27701')).toBe(POLICY_AUTHORITY_IDS.iso27701);
+    expect(getAuthorityIdForPack('pack_nist_privacy_framework')).toBe(
+      POLICY_AUTHORITY_IDS.nistPrivacyFramework,
     );
-    expect(getAuthorityIdForPack('pack_eu_ai_act')).toBe(POLICY_AUTHORITY_IDS.euAiAct);
-    expect(getAuthorityIdForPack('pack_iso_42001')).toBe(POLICY_AUTHORITY_IDS.iso42001);
-    expect(getAuthorityIdForPack('pack_iso_23894')).toBe(POLICY_AUTHORITY_IDS.iso23894);
-    expect(getAuthorityIdForPack('pack_iso_42005')).toBe(POLICY_AUTHORITY_IDS.iso42005);
   });
 });

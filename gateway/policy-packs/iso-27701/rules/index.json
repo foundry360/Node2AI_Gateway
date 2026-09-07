@@ -1,0 +1,463 @@
+{
+  "version": "1.0.0",
+  "rules": [
+    {
+      "rule_id": "ISO27701-PIMS-REVIEW",
+      "name": "Review when PIMS scope/context/roles/objectives evidence is missing",
+      "phase": "input",
+      "priority": 110,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "ISO/IEC 27701-informed PIMS control — not ISO 27701 certification.",
+      "conditions": {
+        "regulatory_applicability": "ISO_27701",
+        "pims": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27701_PIMS_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27701-OBL-PIMS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27701_2025"
+      ],
+      "derived_from": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "rule_id": "ISO27701-PII-PROCESSING-REVIEW",
+      "name": "Review when PII processing inventory/purpose/role evidence is missing",
+      "phase": "input",
+      "priority": 105,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27701",
+        "pii_processing": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27701_PII_PROCESSING_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27701-OBL-PII-PROCESSING"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27701_2025"
+      ],
+      "derived_from": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "rule_id": "ISO27701-PRIVACY-RISK-REVIEW",
+      "name": "Review when privacy risk management evidence is missing",
+      "phase": "input",
+      "priority": 100,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Residual privacy-risk review ≠ Enigma AUTHORIZE.",
+      "conditions": {
+        "regulatory_applicability": "ISO_27701",
+        "privacy_risk": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27701_PRIVACY_RISK_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27701-OBL-PRIVACY-RISK"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27701_2025"
+      ],
+      "derived_from": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "rule_id": "ISO27701-PRIVACY-IMPACT-REVIEW",
+      "name": "Review when privacy impact assessment evidence is missing",
+      "phase": "input",
+      "priority": 95,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Not a DPIA workflow or privacy impact score.",
+      "conditions": {
+        "regulatory_applicability": "ISO_27701",
+        "privacy_impact": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27701_PRIVACY_IMPACT_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27701-OBL-PRIVACY-IMPACT"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27701_2025"
+      ],
+      "derived_from": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "rule_id": "ISO27701-DATA-LIFECYCLE-REVIEW",
+      "name": "Review when PII lifecycle governance evidence is missing",
+      "phase": "input",
+      "priority": 90,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27701",
+        "data_lifecycle": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27701_DATA_LIFECYCLE_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27701-OBL-DATA-LIFECYCLE"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27701_2025"
+      ],
+      "derived_from": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "rule_id": "ISO27701-TRANSPARENCY-REVIEW",
+      "name": "Review when privacy transparency/notice evidence is missing",
+      "phase": "input",
+      "priority": 85,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27701",
+        "transparency": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27701_TRANSPARENCY_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27701-OBL-TRANSPARENCY"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27701_2025"
+      ],
+      "derived_from": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "rule_id": "ISO27701-PRIVACY-RIGHTS-REVIEW",
+      "name": "Review when individual privacy-rights process evidence is missing",
+      "phase": "input",
+      "priority": 80,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Not a DSAR/DSR workflow application.",
+      "conditions": {
+        "regulatory_applicability": "ISO_27701",
+        "privacy_rights": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27701_PRIVACY_RIGHTS_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27701-OBL-PRIVACY-RIGHTS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27701_2025"
+      ],
+      "derived_from": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "rule_id": "ISO27701-CONTROLLER-PROCESSOR-REVIEW",
+      "name": "Review when controller/processor role or responsibilities evidence is missing",
+      "phase": "input",
+      "priority": 75,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27701",
+        "controller_processor": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27701_CONTROLLER_PROCESSOR_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27701-OBL-CONTROLLER-PROCESSOR"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27701_2025"
+      ],
+      "derived_from": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "rule_id": "ISO27701-THIRD-PARTY-REVIEW",
+      "name": "Review when third-party / processor privacy evidence is missing",
+      "phase": "input",
+      "priority": 70,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27701",
+        "third_party": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27701_THIRD_PARTY_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27701-OBL-THIRD-PARTY"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27701_2025"
+      ],
+      "derived_from": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "rule_id": "ISO27701-PRIVACY-INCIDENT-REVIEW",
+      "name": "Review when privacy incident / breach-response evidence is missing",
+      "phase": "input",
+      "priority": 65,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27701",
+        "privacy_incident": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27701_PRIVACY_INCIDENT_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27701-OBL-PRIVACY-INCIDENT"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27701_2025"
+      ],
+      "derived_from": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "rule_id": "ISO27701-MONITORING-REVIEW",
+      "name": "Review when privacy monitoring/review evidence is missing",
+      "phase": "input",
+      "priority": 60,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27701",
+        "monitoring": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27701_MONITORING_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27701-OBL-MONITORING"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27701_2025"
+      ],
+      "derived_from": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "rule_id": "ISO27701-IMPROVEMENT-REVIEW",
+      "name": "Review when privacy continual-improvement evidence is missing",
+      "phase": "input",
+      "priority": 55,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27701",
+        "improvement": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO27701_IMPROVEMENT_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO27701-OBL-IMPROVEMENT"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27701_2025"
+      ],
+      "derived_from": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "rule_id": "ISO27701-CONTROLS-SATISFIED",
+      "name": "Allow with controls when ISO/IEC 27701-informed PIMS evidence is established",
+      "phase": "input",
+      "priority": 40,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "ISO/IEC 27701-informed privacy posture — not ISO 27701 certified / compliant / PIMS certified / scored.",
+      "conditions": {
+        "regulatory_applicability": "ISO_27701",
+        "pims": true,
+        "pii_processing": true,
+        "privacy_risk": true,
+        "privacy_impact": true,
+        "data_lifecycle": true,
+        "transparency": true,
+        "privacy_rights": true,
+        "controller_processor": true,
+        "third_party": true,
+        "privacy_incident": true,
+        "monitoring": true,
+        "improvement": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "ISO27701_CONTROLS_SATISFIED"
+      ],
+      "obligation_ids": [
+        "ISO27701-OBL-PIMS",
+        "ISO27701-OBL-PII-PROCESSING",
+        "ISO27701-OBL-PRIVACY-RISK",
+        "ISO27701-OBL-PRIVACY-IMPACT",
+        "ISO27701-OBL-DATA-LIFECYCLE",
+        "ISO27701-OBL-TRANSPARENCY",
+        "ISO27701-OBL-PRIVACY-RIGHTS",
+        "ISO27701-OBL-CONTROLLER-PROCESSOR",
+        "ISO27701-OBL-THIRD-PARTY",
+        "ISO27701-OBL-PRIVACY-INCIDENT",
+        "ISO27701-OBL-MONITORING",
+        "ISO27701-OBL-IMPROVEMENT"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27701_2025"
+      ],
+      "derived_from": [
+        "src_iso_27701_2025"
+      ]
+    },
+    {
+      "rule_id": "ISO27701-OUTPUT-LOG",
+      "name": "Log governance event for ISO/IEC 27701-scoped output",
+      "phase": "output",
+      "priority": 50,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_27701"
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "ISO27701_OUTPUT_LOG"
+      ],
+      "obligation_ids": [
+        "ISO27701-OBL-MONITORING"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_27701_2025"
+      ],
+      "derived_from": [
+        "src_iso_27701_2025"
+      ]
+    }
+  ]
+}

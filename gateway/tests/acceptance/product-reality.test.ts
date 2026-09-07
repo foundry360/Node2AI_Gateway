@@ -4,8 +4,8 @@
  *
  * Covers Tests 1–15 from the Product Reality brief.
  */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   createPhase1Gateway,
@@ -22,10 +22,16 @@ import { InMemoryAuditService } from '../../src/audit/service.js';
 import { GatewayError } from '../../src/shared/errors.js';
 import type { ModelGateway } from '../../src/models/types.js';
 import {
+  InMemoryChangeGovernanceRepository,
   InMemoryPolicyRepository,
   POLICY_AUTHORITY_IDS,
   PackBackedEnterprisePdp,
+  assessMateriality,
+  buildHumanResolution,
+  createGovernanceBaseline,
   customerVerificationLabel,
+  ensureDefaultOverlayRegistry,
+  evaluateGovernanceChange,
   evaluationRecordToDecisionPayload,
   getAuthorityForPack,
   getPolicyAuthority,
@@ -33,11 +39,14 @@ import {
   projectRequestContext,
   resolvePackContributions,
   treatsAsLegalAuthority,
+  withHumanResolution,
   withOperatorExplanation,
   type PackEvaluationContribution,
   type PolicyEvaluationRecord,
 } from '../../src/policy/enterprise/index.js';
 import type { Application, User } from '../../src/identity/types.js';
+
+ensureDefaultOverlayRegistry();
 
 const clinician: User = {
   user_id: 'user_clinician',
@@ -907,6 +916,7 @@ describe('Product Reality Test — Enigma governance lifecycle', () => {
     const iso = getAuthorityForPack('pack_iso_42001')!;
     const iso23894 = getAuthorityForPack('pack_iso_23894')!;
     const iso42005 = getAuthorityForPack('pack_iso_42005')!;
+    const soc2 = getAuthorityForPack('pack_soc2')!;
 
     expect(hipaa.type).toBe('REGULATION');
     expect(treatsAsLegalAuthority(hipaa)).toBe(true);
@@ -927,6 +937,22 @@ describe('Product Reality Test — Enigma governance lifecycle', () => {
     expect(treatsAsLegalAuthority(iso42005)).toBe(false);
     expect(iso42005.id).not.toBe(iso.id);
     expect(iso42005.id).not.toBe(iso23894.id);
+    expect(soc2.type).toBe('FRAMEWORK');
+    expect(treatsAsLegalAuthority(soc2)).toBe(false);
+    expect(soc2.id).not.toBe(nist.id);
+    const csf = getAuthorityForPack('pack_nist_csf_2')!;
+    expect(csf.type).toBe('FRAMEWORK');
+    expect(treatsAsLegalAuthority(csf)).toBe(false);
+    expect(csf.id).not.toBe(nist.id);
+    expect(csf.id).not.toBe(soc2.id);
+    const iso38507 = getAuthorityForPack('pack_iso_38507')!;
+    expect(iso38507.type).toBe('STANDARD');
+    expect(treatsAsLegalAuthority(iso38507)).toBe(false);
+    expect(iso38507.id).not.toBe(getAuthorityForPack('pack_iso_42001')!.id);
+    const iso27001 = getAuthorityForPack('pack_iso_27001')!;
+    expect(iso27001.type).toBe('STANDARD');
+    expect(treatsAsLegalAuthority(iso27001)).toBe(false);
+    expect(iso27001.id).not.toBe(iso38507.id);
 
     const explained = withOperatorExplanation(decision);
     const nistSource = explained.explanation.provenance?.sources?.find(
@@ -1662,5 +1688,1915 @@ describe('Product Reality Test — Enigma governance lifecycle', () => {
     expect(sources.some((s) => s.authority_id === POLICY_AUTHORITY_IDS.iso42005)).toBe(
       true,
     );
+  });
+
+  it('TEST 26 — Customer questions: blocked / REVIEW vs DENY / conflict / proof', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+
+    // Q1 — Why blocked? (DENY path with explanation)
+    const deny = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: clinicalApp,
+      operation: 'write',
+      requestedModel: 'gpt-cloud-external',
+      availableModels: ['gpt-cloud-external'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'PHI',
+        confidence: 0.99,
+        risk: 'high',
+        reason_codes: ['REGULATORY_APPLICABILITY:HIPAA'],
+      },
+      deploymentMode: 'connected',
+      purpose: 'marketing',
+      request_id: 'req_q_blocked',
+    });
+    const denyExplained = withOperatorExplanation(deny);
+    expect(denyExplained.decision === 'DENY' || denyExplained.decision === 'REVIEW').toBe(
+      true,
+    );
+    expect(
+      denyExplained.explanation.operator?.narrative ||
+        denyExplained.explanation.final_reason,
+    ).toBeTruthy();
+    expect(denyExplained.reason_codes.length).toBeGreaterThan(0);
+
+    // Q6 — REVIEW ≠ DENY when impact evidence missing
+    const review = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:ISO_42005'],
+      },
+      deploymentMode: 'connected',
+      request_id: 'req_q_review',
+    });
+    expect(review.decision).toBe('REVIEW');
+    expect(review.decision).not.toBe('DENY');
+    const reviewNarrative =
+      withOperatorExplanation(review).explanation.operator?.narrative ?? '';
+    expect(reviewNarrative.toLowerCase()).not.toMatch(/denied by policy/);
+
+    // Q2 / Q7 — which requirements / conflict → REVIEW
+    const conflict = resolvePackContributions([
+      {
+        pack_id: 'pack_iso_42005',
+        pack_name: 'ISO/IEC 42005',
+        pack_version: '1.0.0',
+        policy_id: 'pol_iso_42005_input',
+        policy_name: 'ISO 42005 input',
+        policy_version: 1,
+        decision: 'ALLOW',
+        reason_codes: ['ISO42005_CONTROLS_SATISFIED'],
+        rule_ids: [],
+        obligation_ids: [],
+        obligations: [],
+        controls: [],
+        transforms: [],
+        eligible_models: ['local-general-v1'],
+        matched: [],
+        applicable: true,
+      },
+      {
+        pack_id: 'pack_hipaa',
+        pack_name: 'HIPAA',
+        pack_version: '3.1.0',
+        policy_id: 'pol_hipaa_phi_local',
+        policy_name: 'HIPAA PHI',
+        policy_version: 3,
+        decision: 'DENY',
+        reason_codes: ['HIPAA_DENY'],
+        rule_ids: [],
+        obligation_ids: [],
+        obligations: [],
+        controls: [],
+        transforms: [],
+        eligible_models: [],
+        matched: [],
+        applicable: true,
+      },
+    ]);
+    expect(conflict.decision).toBe('REVIEW');
+    expect(conflict.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(conflict.resolution.contributing_pack_ids).toEqual(
+      expect.arrayContaining(['pack_iso_42005', 'pack_hipaa']),
+    );
+
+    // Q3 / Q5 — enforcement verification + proof binding via Decision API
+    const gw = createPhase1Gateway({
+      config: { adminApiKey: 'test_admin', auditSigningKey: 'test-audit-key' },
+    });
+    const server = await gw.buildServer();
+    const auth = { authorization: 'Bearer test_admin' };
+    const sim = await server.inject({
+      method: 'POST',
+      url: '/v1/admin/policies/pol_iso_42005_input/simulate',
+      headers: auth,
+      payload: {
+        classification: 'INTERNAL',
+        action: 'summarize',
+        requested_model: 'local-general-v1',
+        regulatory_applicability: ['ISO_42005'],
+        governance_context: {
+          impact: {
+            impact_assessment_completed: true,
+            impact_scope_defined: true,
+            affected_stakeholders_identified: true,
+            potential_impacts_identified: true,
+            impact_severity_assessed: true,
+            impact_likelihood_assessed: true,
+            mitigations_defined: true,
+            mitigations_implemented: true,
+            residual_impact_reviewed: true,
+            impact_monitoring_established: true,
+            impact_review_established: true,
+          },
+        },
+      },
+    });
+    expect(sim.statusCode).toBe(200);
+    const evaluationId = sim.json().decision?.evaluation_id as string;
+    const detail = await server.inject({
+      method: 'GET',
+      url: `/v1/admin/evaluations/${evaluationId}`,
+      headers: auth,
+    });
+    expect(detail.statusCode).toBe(200);
+    const body = detail.json();
+    expect(body.source).toBe('policy_evaluations');
+    expect(body.enforcement?.status).toBe('NOT_EXECUTED');
+    expect(
+      body.decision?.applicable_policies?.length ||
+        body.decision?.explanation?.operator?.contributions?.length,
+    ).toBeGreaterThan(0);
+    expect(body.decision?.explanation?.provenance?.sources?.length).toBeGreaterThan(0);
+    // No certification language
+    const blob = JSON.stringify(body);
+    expect(blob).not.toMatch(/ISO certified|ISO compliant|impact score|compliance percentage/i);
+    await server.close();
+  });
+
+  it('TEST 27 — Customer question: historical reproducibility (evaluation_as_of)', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:ISO_42005'],
+      },
+      deploymentMode: 'connected',
+      evaluation_as_of: '2025-06-01',
+      governance_context: {
+        impact: {
+          impact_assessment_completed: true,
+          impact_scope_defined: true,
+          affected_stakeholders_identified: true,
+          potential_impacts_identified: true,
+          impact_severity_assessed: true,
+          impact_likelihood_assessed: true,
+          mitigations_defined: true,
+          mitigations_implemented: true,
+          residual_impact_reviewed: true,
+          impact_monitoring_established: true,
+          impact_review_established: true,
+        },
+      },
+      request_id: 'req_q_hist',
+    });
+    const stored = repo.getEvaluation(decision.evaluation_id!)!;
+    const replay = evaluationRecordToDecisionPayload(stored);
+    expect(replay.decision).toBe(decision.decision);
+    expect(replay.reason_codes).toEqual(decision.reason_codes);
+    expect(replay.evaluation_id).toBe(decision.evaluation_id);
+  });
+
+  const ASSURANCE_ALL = {
+    control_environment_documented: true,
+    access_controls_verified: true,
+    change_management_controls_verified: true,
+    logical_access_controls_verified: true,
+    data_protection_controls_verified: true,
+    system_monitoring_controls_verified: true,
+    incident_response_controls_verified: true,
+    availability_controls_verified: true,
+    processing_integrity_controls_verified: true,
+    confidentiality_controls_verified: true,
+  };
+
+  it('TEST 28 — SOC 2 assurance evidence satisfied → ALLOW path', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal', allowed_operations: ['summarize'] },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:SOC_2'],
+      },
+      deploymentMode: 'connected',
+      governance_context: { assurance: ASSURANCE_ALL },
+      request_id: 'req_soc2_allow',
+    });
+    expect(decision.reason_codes).toContain('SOC2_CONTROLS_SATISFIED');
+    expect(decision.decision).not.toBe('REVIEW');
+    const narrative =
+      withOperatorExplanation(decision).explanation.operator?.narrative ?? '';
+    expect(narrative).not.toMatch(/SOC 2 certified|SOC 2 compliant/i);
+  });
+
+  it('TEST 29 — SOC 2 missing assurance evidence → REVIEW', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:SOC_2'],
+      },
+      deploymentMode: 'connected',
+      request_id: 'req_soc2_review',
+    });
+    expect(decision.decision).toBe('REVIEW');
+    expect(decision.reason_codes.some((c) => c.startsWith('SOC2_'))).toBe(true);
+  });
+
+  it('TEST 30 — Nine-authority evaluation + SOC 2 customer question (not certification)', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: clinicalApp,
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'PHI',
+        confidence: 0.99,
+        risk: 'high',
+        reason_codes: [
+          'REGULATORY_APPLICABILITY:HIPAA',
+          'REGULATORY_APPLICABILITY:PART2',
+          'REGULATORY_APPLICABILITY:NIST_AI_RMF',
+          'REGULATORY_APPLICABILITY:OWASP_LLM_2025',
+          'REGULATORY_APPLICABILITY:EU_AI_ACT',
+          'REGULATORY_APPLICABILITY:ISO_42001',
+          'REGULATORY_APPLICABILITY:ISO_23894',
+          'REGULATORY_APPLICABILITY:ISO_42005',
+          'REGULATORY_APPLICABILITY:SOC_2',
+        ],
+      },
+      deploymentMode: 'connected',
+      purpose: 'treatment',
+      source_system: 'ehr',
+      authorization_context: 'part2_consent',
+      evaluation_as_of: '2026-09-01',
+      governance_context: {
+        ...GOVERNANCE_DOCUMENTED,
+        security_controls: {
+          prompt_injection_controls: true,
+          sensitive_data_controls: true,
+          supply_chain_controls: true,
+          poisoning_controls: true,
+          output_validation_controls: true,
+          agency_controls: true,
+          system_prompt_protection: true,
+          retrieval_security_controls: true,
+          grounding_controls: true,
+          resource_limits: true,
+        },
+        management_system: {
+          ai_policy_established: true,
+          roles_responsibilities_documented: true,
+          ai_system_inventory_documented: true,
+          risk_process_established: true,
+          risk_assessment_completed: true,
+          risk_treatment_documented: true,
+          impact_assessment_completed: true,
+          data_governance_established: true,
+          human_oversight_defined: true,
+          operational_controls_defined: true,
+          monitoring_established: true,
+          performance_evaluation_established: true,
+          incident_process_established: true,
+          continual_improvement_process_established: true,
+        },
+        ai_risk: {
+          risk_management_established: true,
+          risk_context_defined: true,
+          risk_identification_completed: true,
+          risk_analysis_completed: true,
+          risk_evaluation_completed: true,
+          risk_treatment_defined: true,
+          risk_treatment_implemented: true,
+          residual_risk_accepted: true,
+          risk_monitoring_established: true,
+          risk_communication_established: true,
+          risk_review_established: true,
+        },
+        impact: {
+          impact_assessment_completed: true,
+          impact_scope_defined: true,
+          affected_stakeholders_identified: true,
+          potential_impacts_identified: true,
+          impact_severity_assessed: true,
+          impact_likelihood_assessed: true,
+          mitigations_defined: true,
+          mitigations_implemented: true,
+          residual_impact_reviewed: true,
+          impact_monitoring_established: true,
+          impact_review_established: true,
+        },
+        assurance: ASSURANCE_ALL,
+        regulatory: {
+          actor_role: 'deployer',
+          deployment_jurisdiction: 'EU',
+          market_placement_jurisdiction: 'EU',
+          prohibited_practice_code: 'none',
+          regulatory_risk_category: 'MINIMAL_OR_NO_RISK',
+        },
+      },
+      request_id: 'req_nine_auth_product',
+    });
+
+    expect(decision.reason_codes).not.toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(decision.reason_codes.some((c) => c.startsWith('SOC2_'))).toBe(true);
+    const sources = decision.explanation.provenance?.sources ?? [];
+    expect(sources.some((s) => s.authority_id === POLICY_AUTHORITY_IDS.soc2)).toBe(true);
+    expect(treatsAsLegalAuthority(getAuthorityForPack('pack_soc2')!)).toBe(false);
+
+    // Customer Q: "Are we SOC 2 compliant?" → No; this is SOC 2-informed governance evidence
+    const auth = getPolicyAuthority(POLICY_AUTHORITY_IDS.soc2)!;
+    expect(auth.type).toBe('FRAMEWORK');
+    expect(auth.provenance.legal_authority).toBe(false);
+    expect(auth.provenance.notes ?? '').toMatch(/not.*certification|not.*audit opinion/i);
+    const blob = JSON.stringify(withOperatorExplanation(decision));
+    expect(blob).not.toMatch(/SOC 2 certified|SOC 2 compliant|SOC 2 certification/i);
+  });
+
+  const CYBERSECURITY_ALL = {
+    govern: {
+      accountability_documented: true,
+      cybersecurity_roles_defined: true,
+      cybersecurity_policy_documented: true,
+    },
+    identify: {
+      assets_identified: true,
+      dependencies_identified: true,
+      cybersecurity_risk_identified: true,
+    },
+    protect: {
+      access_controls_documented: true,
+      safeguards_implemented: true,
+      data_protection_documented: true,
+    },
+    detect: {
+      monitoring_established: true,
+      anomalous_activity_detection: true,
+      cybersecurity_events_logged: true,
+    },
+    respond: {
+      response_plan_documented: true,
+      incident_response_process: true,
+      communication_process: true,
+    },
+    recover: {
+      recovery_plan_documented: true,
+      recovery_process: true,
+      lessons_learned_process: true,
+    },
+  };
+
+  it('TEST 31 — NIST CSF 2.0 cybersecurity evidence satisfied → ALLOW path', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal', allowed_operations: ['summarize'] },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:NIST_CSF_2'],
+      },
+      deploymentMode: 'connected',
+      governance_context: { cybersecurity: CYBERSECURITY_ALL },
+      request_id: 'req_csf_allow',
+    });
+    expect(decision.reason_codes).toContain('NIST_CSF_2_CONTROLS_SATISFIED');
+    expect(decision.decision).not.toBe('REVIEW');
+    const narrative =
+      withOperatorExplanation(decision).explanation.operator?.narrative ?? '';
+    expect(narrative).not.toMatch(/NIST CSF certified|NIST CSF compliant/i);
+  });
+
+  it('TEST 32 — NIST CSF 2.0 missing cybersecurity evidence → REVIEW', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:NIST_CSF_2'],
+      },
+      deploymentMode: 'connected',
+      request_id: 'req_csf_review',
+    });
+    expect(decision.decision).toBe('REVIEW');
+    expect(decision.reason_codes.some((c) => c.startsWith('NIST_CSF_2_'))).toBe(true);
+  });
+
+  it('TEST 33 — Ten-authority evaluation + CSF customer question (not certification)', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: clinicalApp,
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'PHI',
+        confidence: 0.99,
+        risk: 'high',
+        reason_codes: [
+          'REGULATORY_APPLICABILITY:HIPAA',
+          'REGULATORY_APPLICABILITY:PART2',
+          'REGULATORY_APPLICABILITY:NIST_AI_RMF',
+          'REGULATORY_APPLICABILITY:OWASP_LLM_2025',
+          'REGULATORY_APPLICABILITY:EU_AI_ACT',
+          'REGULATORY_APPLICABILITY:ISO_42001',
+          'REGULATORY_APPLICABILITY:ISO_23894',
+          'REGULATORY_APPLICABILITY:ISO_42005',
+          'REGULATORY_APPLICABILITY:SOC_2',
+          'REGULATORY_APPLICABILITY:NIST_CSF_2',
+        ],
+      },
+      deploymentMode: 'connected',
+      purpose: 'treatment',
+      source_system: 'ehr',
+      authorization_context: 'part2_consent',
+      evaluation_as_of: '2026-09-01',
+      governance_context: {
+        ...GOVERNANCE_DOCUMENTED,
+        security_controls: {
+          prompt_injection_controls: true,
+          sensitive_data_controls: true,
+          supply_chain_controls: true,
+          poisoning_controls: true,
+          output_validation_controls: true,
+          agency_controls: true,
+          system_prompt_protection: true,
+          retrieval_security_controls: true,
+          grounding_controls: true,
+          resource_limits: true,
+        },
+        management_system: {
+          ai_policy_established: true,
+          roles_responsibilities_documented: true,
+          ai_system_inventory_documented: true,
+          risk_process_established: true,
+          risk_assessment_completed: true,
+          risk_treatment_documented: true,
+          impact_assessment_completed: true,
+          data_governance_established: true,
+          human_oversight_defined: true,
+          operational_controls_defined: true,
+          monitoring_established: true,
+          performance_evaluation_established: true,
+          incident_process_established: true,
+          continual_improvement_process_established: true,
+        },
+        ai_risk: {
+          risk_management_established: true,
+          risk_context_defined: true,
+          risk_identification_completed: true,
+          risk_analysis_completed: true,
+          risk_evaluation_completed: true,
+          risk_treatment_defined: true,
+          risk_treatment_implemented: true,
+          residual_risk_accepted: true,
+          risk_monitoring_established: true,
+          risk_communication_established: true,
+          risk_review_established: true,
+        },
+        impact: {
+          impact_assessment_completed: true,
+          impact_scope_defined: true,
+          affected_stakeholders_identified: true,
+          potential_impacts_identified: true,
+          impact_severity_assessed: true,
+          impact_likelihood_assessed: true,
+          mitigations_defined: true,
+          mitigations_implemented: true,
+          residual_impact_reviewed: true,
+          impact_monitoring_established: true,
+          impact_review_established: true,
+        },
+        assurance: ASSURANCE_ALL,
+        cybersecurity: CYBERSECURITY_ALL,
+        regulatory: {
+          actor_role: 'deployer',
+          deployment_jurisdiction: 'EU',
+          market_placement_jurisdiction: 'EU',
+          prohibited_practice_code: 'none',
+          regulatory_risk_category: 'MINIMAL_OR_NO_RISK',
+        },
+      },
+      request_id: 'req_ten_auth_product',
+    });
+
+    expect(decision.reason_codes).not.toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(decision.reason_codes.some((c) => c.startsWith('NIST_CSF_2_'))).toBe(true);
+    const sources = decision.explanation.provenance?.sources ?? [];
+    expect(sources.some((s) => s.authority_id === POLICY_AUTHORITY_IDS.nistCsf2)).toBe(
+      true,
+    );
+    const auth = getPolicyAuthority(POLICY_AUTHORITY_IDS.nistCsf2)!;
+    expect(auth.type).toBe('FRAMEWORK');
+    expect(auth.provenance.legal_authority).toBe(false);
+    expect(auth.provenance.notes ?? '').toMatch(
+      /not.*certification|not.*assessment|not.*cybersecurity score/i,
+    );
+    const blob = JSON.stringify(withOperatorExplanation(decision));
+    expect(blob).not.toMatch(/NIST CSF certified|NIST CSF compliant|CSF maturity/i);
+  });
+
+  it('TEST 34 — Ten-pack customer truth: decide / explain / prove / not certify', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: clinicalApp,
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'PHI',
+        confidence: 0.99,
+        risk: 'high',
+        reason_codes: [
+          'REGULATORY_APPLICABILITY:HIPAA',
+          'REGULATORY_APPLICABILITY:PART2',
+          'REGULATORY_APPLICABILITY:NIST_AI_RMF',
+          'REGULATORY_APPLICABILITY:OWASP_LLM_2025',
+          'REGULATORY_APPLICABILITY:EU_AI_ACT',
+          'REGULATORY_APPLICABILITY:ISO_42001',
+          'REGULATORY_APPLICABILITY:ISO_23894',
+          'REGULATORY_APPLICABILITY:ISO_42005',
+          'REGULATORY_APPLICABILITY:SOC_2',
+          'REGULATORY_APPLICABILITY:NIST_CSF_2',
+        ],
+      },
+      deploymentMode: 'connected',
+      purpose: 'treatment',
+      source_system: 'ehr',
+      authorization_context: 'part2_consent',
+      evaluation_as_of: '2026-09-01',
+      governance_context: {
+        ...GOVERNANCE_DOCUMENTED,
+        security_controls: {
+          prompt_injection_controls: true,
+          sensitive_data_controls: true,
+          supply_chain_controls: true,
+          poisoning_controls: true,
+          output_validation_controls: true,
+          agency_controls: true,
+          system_prompt_protection: true,
+          retrieval_security_controls: true,
+          grounding_controls: true,
+          resource_limits: true,
+        },
+        management_system: {
+          ai_policy_established: true,
+          roles_responsibilities_documented: true,
+          ai_system_inventory_documented: true,
+          risk_process_established: true,
+          risk_assessment_completed: true,
+          risk_treatment_documented: true,
+          impact_assessment_completed: true,
+          data_governance_established: true,
+          human_oversight_defined: true,
+          operational_controls_defined: true,
+          monitoring_established: true,
+          performance_evaluation_established: true,
+          incident_process_established: true,
+          continual_improvement_process_established: true,
+        },
+        ai_risk: {
+          risk_management_established: true,
+          risk_context_defined: true,
+          risk_identification_completed: true,
+          risk_analysis_completed: true,
+          risk_evaluation_completed: true,
+          risk_treatment_defined: true,
+          risk_treatment_implemented: true,
+          residual_risk_accepted: true,
+          risk_monitoring_established: true,
+          risk_communication_established: true,
+          risk_review_established: true,
+        },
+        impact: {
+          impact_assessment_completed: true,
+          impact_scope_defined: true,
+          affected_stakeholders_identified: true,
+          potential_impacts_identified: true,
+          impact_severity_assessed: true,
+          impact_likelihood_assessed: true,
+          mitigations_defined: true,
+          mitigations_implemented: true,
+          residual_impact_reviewed: true,
+          impact_monitoring_established: true,
+          impact_review_established: true,
+        },
+        assurance: ASSURANCE_ALL,
+        cybersecurity: CYBERSECURITY_ALL,
+        regulatory: {
+          actor_role: 'deployer',
+          deployment_jurisdiction: 'EU',
+          market_placement_jurisdiction: 'EU',
+          prohibited_practice_code: 'none',
+          regulatory_risk_category: 'MINIMAL_OR_NO_RISK',
+        },
+      },
+      request_id: 'req_tcp_customer_truth',
+    });
+
+    // Q1–Q3: policies, authoritative decision, explanation
+    const stored = repo.getEvaluation(decision.evaluation_id!)!;
+    expect(stored.decision).toBe(decision.decision);
+    expect(stored.applicable_policies.length).toBeGreaterThan(0);
+    const explained = withOperatorExplanation(decision);
+    expect(explained.explanation.operator?.narrative).toBeTruthy();
+    expect(explained.explanation.provenance?.sources?.length).toBeGreaterThan(0);
+
+    // Q8–Q9: machine immutable + historical replay
+    if (stored.decision === 'REVIEW') {
+      const authorized = withHumanResolution(
+        stored,
+        buildHumanResolution(stored, {
+          disposition: 'AUTHORIZE',
+          reason: 'documented compensating controls accepted',
+          resolved_by: 'approver_product',
+        }),
+      );
+      expect(authorized.decision).toBe('REVIEW');
+      expect(authorized.human_resolution?.final_decision).toBe('ALLOW');
+    }
+    const replay = evaluationRecordToDecisionPayload(stored);
+    expect(replay.decision).toBe(decision.decision);
+    expect(replay.reason_codes).toEqual(decision.reason_codes);
+
+    // Q10: not certification
+    const blob = JSON.stringify(explained);
+    expect(blob).not.toMatch(
+      /certified|certification|audit opinion|CSF maturity|compliance percentage/i,
+    );
+  });
+
+  const ORG_GOVERNANCE_ALL = {
+    accountability: {
+      governing_body_accountable: true,
+      executive_accountability_defined: true,
+      ai_responsibilities_defined: true,
+    },
+    direction: {
+      ai_governance_policy_defined: true,
+      strategic_alignment_documented: true,
+      acceptable_use_direction_defined: true,
+    },
+    oversight: {
+      ai_oversight_established: true,
+      reporting_path_defined: true,
+      decision_rights_defined: true,
+    },
+    stakeholder: {
+      relevant_stakeholders_identified: true,
+      stakeholder_impacts_considered: true,
+      stakeholder_communication_defined: true,
+    },
+    decision_governance: {
+      human_accountability_defined: true,
+      escalation_path_defined: true,
+      significant_ai_decisions_reviewed: true,
+    },
+    organizational_effectiveness: {
+      ai_use_objectives_defined: true,
+      performance_monitoring_established: true,
+      governance_review_established: true,
+    },
+  };
+
+  it('TEST 35 — ISO 38507 organizational governance satisfied → ALLOW path', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal', allowed_operations: ['summarize'] },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:ISO_38507'],
+      },
+      deploymentMode: 'connected',
+      governance_context: { organizational_governance: ORG_GOVERNANCE_ALL },
+      request_id: 'req_38507_allow',
+    });
+    expect(decision.reason_codes).toContain('ISO38507_CONTROLS_SATISFIED');
+    expect(decision.decision).not.toBe('REVIEW');
+    expect(decision.human_resolution).toBeUndefined();
+    const narrative =
+      withOperatorExplanation(decision).explanation.operator?.narrative ?? '';
+    expect(narrative).not.toMatch(/ISO 38507 certified|ISO 38507 compliant/i);
+  });
+
+  it('TEST 36 — ISO 38507 missing organizational evidence → REVIEW; oversight ≠ AUTHORIZE', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:ISO_38507'],
+      },
+      deploymentMode: 'connected',
+      request_id: 'req_38507_review',
+    });
+    expect(decision.decision).toBe('REVIEW');
+    expect(decision.reason_codes.some((c) => c.startsWith('ISO38507_'))).toBe(true);
+    expect(decision.human_resolution).toBeUndefined();
+  });
+
+  it('TEST 37 — Eleven-authority + ISO 38507 customer truth (not certification; complements 42001)', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: clinicalApp,
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'PHI',
+        confidence: 0.99,
+        risk: 'high',
+        reason_codes: [
+          'REGULATORY_APPLICABILITY:HIPAA',
+          'REGULATORY_APPLICABILITY:PART2',
+          'REGULATORY_APPLICABILITY:NIST_AI_RMF',
+          'REGULATORY_APPLICABILITY:OWASP_LLM_2025',
+          'REGULATORY_APPLICABILITY:EU_AI_ACT',
+          'REGULATORY_APPLICABILITY:ISO_42001',
+          'REGULATORY_APPLICABILITY:ISO_23894',
+          'REGULATORY_APPLICABILITY:ISO_42005',
+          'REGULATORY_APPLICABILITY:SOC_2',
+          'REGULATORY_APPLICABILITY:NIST_CSF_2',
+          'REGULATORY_APPLICABILITY:ISO_38507',
+        ],
+      },
+      deploymentMode: 'connected',
+      purpose: 'treatment',
+      source_system: 'ehr',
+      authorization_context: 'part2_consent',
+      evaluation_as_of: '2026-09-01',
+      governance_context: {
+        ...GOVERNANCE_DOCUMENTED,
+        security_controls: {
+          prompt_injection_controls: true,
+          sensitive_data_controls: true,
+          supply_chain_controls: true,
+          poisoning_controls: true,
+          output_validation_controls: true,
+          agency_controls: true,
+          system_prompt_protection: true,
+          retrieval_security_controls: true,
+          grounding_controls: true,
+          resource_limits: true,
+        },
+        management_system: {
+          ai_policy_established: true,
+          roles_responsibilities_documented: true,
+          ai_system_inventory_documented: true,
+          risk_process_established: true,
+          risk_assessment_completed: true,
+          risk_treatment_documented: true,
+          impact_assessment_completed: true,
+          data_governance_established: true,
+          human_oversight_defined: true,
+          operational_controls_defined: true,
+          monitoring_established: true,
+          performance_evaluation_established: true,
+          incident_process_established: true,
+          continual_improvement_process_established: true,
+        },
+        ai_risk: {
+          risk_management_established: true,
+          risk_context_defined: true,
+          risk_identification_completed: true,
+          risk_analysis_completed: true,
+          risk_evaluation_completed: true,
+          risk_treatment_defined: true,
+          risk_treatment_implemented: true,
+          residual_risk_accepted: true,
+          risk_monitoring_established: true,
+          risk_communication_established: true,
+          risk_review_established: true,
+        },
+        impact: {
+          impact_assessment_completed: true,
+          impact_scope_defined: true,
+          affected_stakeholders_identified: true,
+          potential_impacts_identified: true,
+          impact_severity_assessed: true,
+          impact_likelihood_assessed: true,
+          mitigations_defined: true,
+          mitigations_implemented: true,
+          residual_impact_reviewed: true,
+          impact_monitoring_established: true,
+          impact_review_established: true,
+        },
+        assurance: ASSURANCE_ALL,
+        cybersecurity: CYBERSECURITY_ALL,
+        organizational_governance: ORG_GOVERNANCE_ALL,
+        regulatory: {
+          actor_role: 'deployer',
+          deployment_jurisdiction: 'EU',
+          market_placement_jurisdiction: 'EU',
+          prohibited_practice_code: 'none',
+          regulatory_risk_category: 'MINIMAL_OR_NO_RISK',
+        },
+      },
+      request_id: 'req_eleven_auth_product',
+    });
+
+    expect(decision.reason_codes).not.toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(decision.reason_codes.some((c) => c.startsWith('ISO38507_'))).toBe(true);
+    expect(decision.reason_codes.some((c) => c.startsWith('ISO42001_'))).toBe(true);
+    const sources = decision.explanation.provenance?.sources ?? [];
+    expect(sources.some((s) => s.authority_id === POLICY_AUTHORITY_IDS.iso38507)).toBe(
+      true,
+    );
+    expect(sources.some((s) => s.authority_id === POLICY_AUTHORITY_IDS.iso42001)).toBe(
+      true,
+    );
+    const auth = getPolicyAuthority(POLICY_AUTHORITY_IDS.iso38507)!;
+    expect(auth.type).toBe('STANDARD');
+    expect(auth.provenance.legal_authority).toBe(false);
+    const stored = repo.getEvaluation(decision.evaluation_id!)!;
+    expect(stored.decision).toBe(decision.decision);
+    const blob = JSON.stringify(withOperatorExplanation(decision));
+    expect(blob).not.toMatch(/ISO 38507 certified|ISO 38507 compliant|board GRC/i);
+  });
+
+  const INFOSEC_ALL = {
+    isms: {
+      scope_defined: true,
+      context_established: true,
+      interested_parties_identified: true,
+      information_security_objectives_defined: true,
+    },
+    risk: {
+      risk_process_established: true,
+      risks_identified: true,
+      risks_assessed: true,
+      risk_treatment_defined: true,
+      risk_treatment_implemented: true,
+      residual_risk_reviewed: true,
+    },
+    information_assets: {
+      assets_identified: true,
+      information_classification_defined: true,
+      asset_ownership_defined: true,
+    },
+    access: {
+      access_control_defined: true,
+      identity_management_established: true,
+      privileged_access_controlled: true,
+      access_review_established: true,
+    },
+    operations: {
+      operational_controls_established: true,
+      change_management_established: true,
+      logging_monitoring_established: true,
+      backup_recovery_established: true,
+    },
+    supplier_security: {
+      supplier_risk_controls_established: true,
+      third_party_security_requirements_defined: true,
+      supplier_monitoring_established: true,
+    },
+    incident: {
+      incident_management_established: true,
+      incident_response_defined: true,
+      incident_learning_established: true,
+    },
+    continuity: {
+      business_continuity_security_defined: true,
+      resilience_controls_established: true,
+      recovery_capability_established: true,
+    },
+    people: {
+      security_roles_defined: true,
+      security_awareness_established: true,
+      personnel_security_controls_established: true,
+    },
+    monitoring: {
+      security_performance_monitored: true,
+      internal_review_established: true,
+      management_review_established: true,
+    },
+    improvement: {
+      nonconformities_managed: true,
+      corrective_actions_managed: true,
+      continual_improvement_established: true,
+    },
+  };
+
+  it('TEST 38 — ISO 27001 ISMS evidence satisfied → ALLOW path', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal', allowed_operations: ['summarize'] },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:ISO_27001'],
+      },
+      deploymentMode: 'connected',
+      governance_context: { information_security: INFOSEC_ALL },
+      request_id: 'req_27001_allow',
+    });
+    expect(decision.reason_codes).toContain('ISO27001_CONTROLS_SATISFIED');
+    expect(decision.decision).not.toBe('REVIEW');
+    expect(decision.human_resolution).toBeUndefined();
+  });
+
+  it('TEST 39 — ISO 27001 missing ISMS evidence → REVIEW', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:ISO_27001'],
+      },
+      deploymentMode: 'connected',
+      request_id: 'req_27001_review',
+    });
+    expect(decision.decision).toBe('REVIEW');
+    expect(decision.reason_codes.some((c) => c.startsWith('ISO27001_'))).toBe(true);
+  });
+
+  it('TEST 40 — ISO 27001 + ISO 42001 multi-pack complementary resolution', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: [
+          'REGULATORY_APPLICABILITY:ISO_27001',
+          'REGULATORY_APPLICABILITY:ISO_42001',
+        ],
+      },
+      deploymentMode: 'connected',
+      governance_context: {
+        information_security: INFOSEC_ALL,
+        management_system: {
+          ai_policy_established: true,
+          roles_responsibilities_documented: true,
+          ai_system_inventory_documented: true,
+          risk_process_established: true,
+          risk_assessment_completed: true,
+          risk_treatment_documented: true,
+          impact_assessment_completed: true,
+          data_governance_established: true,
+          human_oversight_defined: true,
+          operational_controls_defined: true,
+          monitoring_established: true,
+          performance_evaluation_established: true,
+          incident_process_established: true,
+          continual_improvement_process_established: true,
+        },
+      },
+      request_id: 'req_27001_42001',
+    });
+    expect(decision.reason_codes).toContain('ISO27001_CONTROLS_SATISFIED');
+    expect(decision.reason_codes.some((c) => c.startsWith('ISO42001_'))).toBe(true);
+    expect(decision.reason_codes).not.toContain('POLICY_CONFLICT_UNRESOLVED');
+    const sources = decision.explanation.provenance?.sources ?? [];
+    expect(sources.some((s) => s.authority_id === POLICY_AUTHORITY_IDS.iso27001)).toBe(
+      true,
+    );
+    expect(sources.some((s) => s.authority_id === POLICY_AUTHORITY_IDS.iso42001)).toBe(
+      true,
+    );
+  });
+
+  it('TEST 41 — ISO 27001 does not produce certification/compliance claims', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:ISO_27001'],
+      },
+      deploymentMode: 'connected',
+      governance_context: { information_security: INFOSEC_ALL },
+      request_id: 'req_27001_nocert',
+    });
+    const auth = getPolicyAuthority(POLICY_AUTHORITY_IDS.iso27001)!;
+    expect(auth.provenance.legal_authority).toBe(false);
+    expect(auth.provenance.notes ?? '').toMatch(/not.*certification|not.*SIEM/i);
+    const blob = JSON.stringify(withOperatorExplanation(decision));
+    expect(blob).not.toMatch(
+      /ISO 27001 certified|ISO 27001 compliant|Annex A score|certification achieved/i,
+    );
+  });
+
+  it('TEST 42 — Twelve-authority control-plane execution includes ISO 27001', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: clinicalApp,
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'PHI',
+        confidence: 0.99,
+        risk: 'high',
+        reason_codes: [
+          'REGULATORY_APPLICABILITY:HIPAA',
+          'REGULATORY_APPLICABILITY:PART2',
+          'REGULATORY_APPLICABILITY:NIST_AI_RMF',
+          'REGULATORY_APPLICABILITY:OWASP_LLM_2025',
+          'REGULATORY_APPLICABILITY:EU_AI_ACT',
+          'REGULATORY_APPLICABILITY:ISO_42001',
+          'REGULATORY_APPLICABILITY:ISO_23894',
+          'REGULATORY_APPLICABILITY:ISO_42005',
+          'REGULATORY_APPLICABILITY:SOC_2',
+          'REGULATORY_APPLICABILITY:NIST_CSF_2',
+          'REGULATORY_APPLICABILITY:ISO_38507',
+          'REGULATORY_APPLICABILITY:ISO_27001',
+        ],
+      },
+      deploymentMode: 'connected',
+      purpose: 'treatment',
+      source_system: 'ehr',
+      authorization_context: 'part2_consent',
+      evaluation_as_of: '2026-09-01',
+      governance_context: {
+        ...GOVERNANCE_DOCUMENTED,
+        security_controls: {
+          prompt_injection_controls: true,
+          sensitive_data_controls: true,
+          supply_chain_controls: true,
+          poisoning_controls: true,
+          output_validation_controls: true,
+          agency_controls: true,
+          system_prompt_protection: true,
+          retrieval_security_controls: true,
+          grounding_controls: true,
+          resource_limits: true,
+        },
+        management_system: {
+          ai_policy_established: true,
+          roles_responsibilities_documented: true,
+          ai_system_inventory_documented: true,
+          risk_process_established: true,
+          risk_assessment_completed: true,
+          risk_treatment_documented: true,
+          impact_assessment_completed: true,
+          data_governance_established: true,
+          human_oversight_defined: true,
+          operational_controls_defined: true,
+          monitoring_established: true,
+          performance_evaluation_established: true,
+          incident_process_established: true,
+          continual_improvement_process_established: true,
+        },
+        ai_risk: {
+          risk_management_established: true,
+          risk_context_defined: true,
+          risk_identification_completed: true,
+          risk_analysis_completed: true,
+          risk_evaluation_completed: true,
+          risk_treatment_defined: true,
+          risk_treatment_implemented: true,
+          residual_risk_accepted: true,
+          risk_monitoring_established: true,
+          risk_communication_established: true,
+          risk_review_established: true,
+        },
+        impact: {
+          impact_assessment_completed: true,
+          impact_scope_defined: true,
+          affected_stakeholders_identified: true,
+          potential_impacts_identified: true,
+          impact_severity_assessed: true,
+          impact_likelihood_assessed: true,
+          mitigations_defined: true,
+          mitigations_implemented: true,
+          residual_impact_reviewed: true,
+          impact_monitoring_established: true,
+          impact_review_established: true,
+        },
+        assurance: ASSURANCE_ALL,
+        cybersecurity: CYBERSECURITY_ALL,
+        organizational_governance: ORG_GOVERNANCE_ALL,
+        information_security: INFOSEC_ALL,
+        regulatory: {
+          actor_role: 'deployer',
+          deployment_jurisdiction: 'EU',
+          market_placement_jurisdiction: 'EU',
+          prohibited_practice_code: 'none',
+          regulatory_risk_category: 'MINIMAL_OR_NO_RISK',
+        },
+      },
+      request_id: 'req_twelve_auth_product',
+    });
+
+    expect(decision.reason_codes).not.toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(decision.reason_codes.some((c) => c.startsWith('ISO27001_'))).toBe(true);
+    const sources = decision.explanation.provenance?.sources ?? [];
+    expect(sources.some((s) => s.authority_id === POLICY_AUTHORITY_IDS.iso27001)).toBe(
+      true,
+    );
+    expect(repo.getEvaluation(decision.evaluation_id!)?.decision).toBe(decision.decision);
+    const blob = JSON.stringify(withOperatorExplanation(decision));
+    expect(blob).not.toMatch(/ISO 27001 certified|ISO 27001 compliant/i);
+  });
+
+  it('TEST 43 — 12-pack control-plane stress: single decision, isolation, no cert claims', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: clinicalApp,
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'PHI',
+        confidence: 0.99,
+        risk: 'high',
+        reason_codes: [
+          'REGULATORY_APPLICABILITY:HIPAA',
+          'REGULATORY_APPLICABILITY:PART2',
+          'REGULATORY_APPLICABILITY:NIST_AI_RMF',
+          'REGULATORY_APPLICABILITY:OWASP_LLM_2025',
+          'REGULATORY_APPLICABILITY:EU_AI_ACT',
+          'REGULATORY_APPLICABILITY:ISO_42001',
+          'REGULATORY_APPLICABILITY:ISO_23894',
+          'REGULATORY_APPLICABILITY:ISO_42005',
+          'REGULATORY_APPLICABILITY:SOC_2',
+          'REGULATORY_APPLICABILITY:NIST_CSF_2',
+          'REGULATORY_APPLICABILITY:ISO_38507',
+          'REGULATORY_APPLICABILITY:ISO_27001',
+        ],
+      },
+      deploymentMode: 'connected',
+      purpose: 'treatment',
+      source_system: 'ehr',
+      authorization_context: 'part2_consent',
+      evaluation_as_of: '2026-09-01',
+      governance_context: {
+        ...GOVERNANCE_DOCUMENTED,
+        security_controls: {
+          prompt_injection_controls: true,
+          sensitive_data_controls: true,
+          supply_chain_controls: true,
+          poisoning_controls: true,
+          output_validation_controls: true,
+          agency_controls: true,
+          system_prompt_protection: true,
+          retrieval_security_controls: true,
+          grounding_controls: true,
+          resource_limits: true,
+        },
+        management_system: {
+          ai_policy_established: true,
+          roles_responsibilities_documented: true,
+          ai_system_inventory_documented: true,
+          risk_process_established: true,
+          risk_assessment_completed: true,
+          risk_treatment_documented: true,
+          impact_assessment_completed: true,
+          data_governance_established: true,
+          human_oversight_defined: true,
+          operational_controls_defined: true,
+          monitoring_established: true,
+          performance_evaluation_established: true,
+          incident_process_established: true,
+          continual_improvement_process_established: true,
+        },
+        ai_risk: {
+          risk_management_established: true,
+          risk_context_defined: true,
+          risk_identification_completed: true,
+          risk_analysis_completed: true,
+          risk_evaluation_completed: true,
+          risk_treatment_defined: true,
+          risk_treatment_implemented: true,
+          residual_risk_accepted: true,
+          risk_monitoring_established: true,
+          risk_communication_established: true,
+          risk_review_established: true,
+        },
+        impact: {
+          impact_assessment_completed: true,
+          impact_scope_defined: true,
+          affected_stakeholders_identified: true,
+          potential_impacts_identified: true,
+          impact_severity_assessed: true,
+          impact_likelihood_assessed: true,
+          mitigations_defined: true,
+          mitigations_implemented: true,
+          residual_impact_reviewed: true,
+          impact_monitoring_established: true,
+          impact_review_established: true,
+        },
+        assurance: ASSURANCE_ALL,
+        cybersecurity: CYBERSECURITY_ALL,
+        organizational_governance: ORG_GOVERNANCE_ALL,
+        information_security: INFOSEC_ALL,
+        regulatory: {
+          actor_role: 'deployer',
+          deployment_jurisdiction: 'EU',
+          market_placement_jurisdiction: 'EU',
+          prohibited_practice_code: 'none',
+          regulatory_risk_category: 'MINIMAL_OR_NO_RISK',
+        },
+      },
+      request_id: 'req_12_stress_product',
+    });
+
+    expect(decision.reason_codes).not.toContain('POLICY_CONFLICT_UNRESOLVED');
+    const stored = repo.getEvaluation(decision.evaluation_id!)!;
+    expect(stored.decision).toBe(decision.decision);
+    expect(
+      repo
+        .listEvaluations({ limit: 50 })
+        .filter((r) => r.request_id === 'req_12_stress_product' && r.phase === 'input'),
+    ).toHaveLength(1);
+
+    const sources = decision.explanation.provenance?.sources ?? [];
+    for (const authId of [
+      POLICY_AUTHORITY_IDS.iso27001,
+      POLICY_AUTHORITY_IDS.iso38507,
+      POLICY_AUTHORITY_IDS.soc2,
+      POLICY_AUTHORITY_IDS.nistCsf2,
+      POLICY_AUTHORITY_IDS.hipaa,
+      POLICY_AUTHORITY_IDS.euAiAct,
+    ]) {
+      expect(sources.some((s) => s.authority_id === authId)).toBe(true);
+    }
+
+    // Namespace isolation: SOC2 ≠ ISO27001
+    expect(POLICY_AUTHORITY_IDS.soc2).not.toBe(POLICY_AUTHORITY_IDS.iso27001);
+    expect(treatsAsLegalAuthority(getPolicyAuthority(POLICY_AUTHORITY_IDS.iso27001)!)).toBe(
+      false,
+    );
+
+    const blob = JSON.stringify(withOperatorExplanation(decision));
+    expect(blob).not.toMatch(
+      /12\/12 compliant|certified|100% compliant|ISO 27001 compliant|risk score/i,
+    );
+  });
+
+  const PRIVACY_ALL = {
+    processing_role: 'controller' as const,
+    purpose_status: 'documented' as const,
+    pims: {
+      scope_defined: true,
+      privacy_context_established: true,
+      roles_responsibilities_defined: true,
+      privacy_objectives_defined: true,
+    },
+    pii_governance: {
+      pii_processing_inventory_established: true,
+      processing_purposes_defined: true,
+      processing_roles_defined: true,
+      controller_processor_role_defined: true,
+      processing_responsibilities_defined: true,
+    },
+    privacy_risk: {
+      privacy_risk_process_established: true,
+      privacy_risks_identified: true,
+      privacy_risks_assessed: true,
+      privacy_risk_treatment_defined: true,
+      residual_privacy_risk_reviewed: true,
+    },
+    privacy_impact: {
+      privacy_impact_assessment_established: true,
+      potential_impacts_identified: true,
+      affected_individuals_considered: true,
+      mitigations_defined: true,
+      residual_impact_reviewed: true,
+    },
+    data_lifecycle: {
+      collection_governance_established: true,
+      use_governance_established: true,
+      sharing_governance_established: true,
+      retention_governance_established: true,
+      deletion_disposal_governance_established: true,
+    },
+    transparency: {
+      privacy_information_provided: true,
+      processing_transparency_established: true,
+      notice_governance_established: true,
+    },
+    rights: {
+      privacy_rights_process_established: true,
+      rights_request_handling_established: true,
+      identity_verification_for_rights_established: true,
+      response_process_established: true,
+    },
+    third_party: {
+      processor_requirements_defined: true,
+      third_party_privacy_requirements_defined: true,
+      processor_monitoring_established: true,
+    },
+    privacy_incident: {
+      privacy_incident_process_established: true,
+      privacy_breach_response_established: true,
+      notification_process_established: true,
+    },
+    monitoring: {
+      privacy_performance_monitored: true,
+      privacy_review_established: true,
+      management_review_established: true,
+    },
+    improvement: {
+      privacy_nonconformities_managed: true,
+      corrective_actions_managed: true,
+      continual_improvement_established: true,
+    },
+  };
+
+  it('TEST 44 — ISO 27701 PIMS evidence satisfied → CONTROLS_SATISFIED', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal', allowed_operations: ['summarize'] },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:ISO_27701'],
+      },
+      deploymentMode: 'connected',
+      governance_context: { privacy: PRIVACY_ALL },
+      request_id: 'req_27701_allow',
+    });
+    expect(decision.reason_codes).toContain('ISO27701_CONTROLS_SATISFIED');
+    expect(decision.decision).not.toBe('REVIEW');
+    expect(decision.human_resolution).toBeUndefined();
+  });
+
+  it('TEST 45 — ISO 27701 missing privacy evidence → REVIEW', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:ISO_27701'],
+      },
+      deploymentMode: 'connected',
+      request_id: 'req_27701_review',
+    });
+    expect(decision.decision).toBe('REVIEW');
+    expect(decision.reason_codes.some((c) => c.startsWith('ISO27701_'))).toBe(true);
+  });
+
+  it('TEST 46 — ISO 27701 + ISO 27001 complementary (both provenance, no conflict)', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: [
+          'REGULATORY_APPLICABILITY:ISO_27701',
+          'REGULATORY_APPLICABILITY:ISO_27001',
+        ],
+      },
+      deploymentMode: 'connected',
+      governance_context: {
+        privacy: PRIVACY_ALL,
+        information_security: INFOSEC_ALL,
+      },
+      request_id: 'req_27701_27001',
+    });
+    expect(decision.reason_codes).toContain('ISO27701_CONTROLS_SATISFIED');
+    expect(decision.reason_codes).toContain('ISO27001_CONTROLS_SATISFIED');
+    expect(decision.reason_codes).not.toContain('POLICY_CONFLICT_UNRESOLVED');
+    const sources = decision.explanation.provenance?.sources ?? [];
+    expect(sources.some((s) => s.authority_id === POLICY_AUTHORITY_IDS.iso27701)).toBe(
+      true,
+    );
+    expect(sources.some((s) => s.authority_id === POLICY_AUTHORITY_IDS.iso27001)).toBe(
+      true,
+    );
+  });
+
+  it('TEST 47 — ISO 27701 + HIPAA distinct (privacy ≠ regulatory)', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: clinicalApp,
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'PHI',
+        confidence: 0.99,
+        risk: 'high',
+        reason_codes: [
+          'REGULATORY_APPLICABILITY:ISO_27701',
+          'REGULATORY_APPLICABILITY:HIPAA',
+        ],
+      },
+      deploymentMode: 'connected',
+      purpose: 'treatment',
+      governance_context: { privacy: PRIVACY_ALL },
+      request_id: 'req_27701_hipaa',
+    });
+    expect(POLICY_AUTHORITY_IDS.iso27701).not.toBe(POLICY_AUTHORITY_IDS.hipaa);
+    expect(treatsAsLegalAuthority(getPolicyAuthority(POLICY_AUTHORITY_IDS.iso27701)!)).toBe(
+      false,
+    );
+    expect(treatsAsLegalAuthority(getPolicyAuthority(POLICY_AUTHORITY_IDS.hipaa)!)).toBe(
+      true,
+    );
+    const sources = decision.explanation.provenance?.sources ?? [];
+    expect(sources.some((s) => s.authority_id === POLICY_AUTHORITY_IDS.iso27701)).toBe(
+      true,
+    );
+    expect(sources.some((s) => s.authority_id === POLICY_AUTHORITY_IDS.hipaa)).toBe(true);
+    expect(decision.reason_codes).not.toContain('POLICY_CONFLICT_UNRESOLVED');
+  });
+
+  it('TEST 48 — ISO 27701 does not produce certification claims', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:ISO_27701'],
+      },
+      deploymentMode: 'connected',
+      governance_context: { privacy: PRIVACY_ALL },
+      request_id: 'req_27701_nocert',
+    });
+    const auth = getPolicyAuthority(POLICY_AUTHORITY_IDS.iso27701)!;
+    expect(auth.provenance.legal_authority).toBe(false);
+    expect(auth.provenance.notes ?? '').toMatch(/not.*certification|not.*GDPR|not.*DSAR/i);
+    const blob = JSON.stringify(withOperatorExplanation(decision));
+    expect(blob).not.toMatch(
+      /ISO 27701 certified|ISO 27701 compliant|PIMS certified|privacy score|certification achieved/i,
+    );
+  });
+
+  const NIST_PF_ALL = {
+    identify: {
+      processing_context_documented: true,
+      privacy_risk_identified: true,
+      data_actions_documented: true,
+    },
+    govern: {
+      policies_documented: true,
+      roles_documented: true,
+      risk_governance_documented: true,
+    },
+    control: {
+      data_actions_controlled: true,
+      individual_choice_addressed: true,
+    },
+    communicate: {
+      transparency_documented: true,
+      expectations_documented: true,
+    },
+    protect: {
+      privacy_risk_mitigation_documented: true,
+    },
+  };
+
+  it('TEST 49 — NIST Privacy Framework evidence satisfied → CONTROLS_SATISFIED', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal', allowed_operations: ['summarize'] },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:NIST_PRIVACY_FRAMEWORK'],
+      },
+      deploymentMode: 'connected',
+      governance_context: { privacy: { nist_pf: NIST_PF_ALL } },
+      request_id: 'req_nist_pf_allow',
+    });
+    expect(decision.reason_codes).toContain('NIST_PF_CONTROLS_SATISFIED');
+    expect(decision.decision).not.toBe('REVIEW');
+    expect(decision.human_resolution).toBeUndefined();
+  });
+
+  it('TEST 50 — NIST Privacy Framework missing evidence → REVIEW', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:NIST_PRIVACY_FRAMEWORK'],
+      },
+      deploymentMode: 'connected',
+      request_id: 'req_nist_pf_review',
+    });
+    expect(decision.decision).toBe('REVIEW');
+    expect(decision.reason_codes.some((c) => c.startsWith('NIST_PF_'))).toBe(true);
+  });
+
+  it('TEST 51 — ISO 27701 + NIST Privacy Framework complementary (distinct namespaces)', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: [
+          'REGULATORY_APPLICABILITY:ISO_27701',
+          'REGULATORY_APPLICABILITY:NIST_PRIVACY_FRAMEWORK',
+        ],
+      },
+      deploymentMode: 'connected',
+      governance_context: {
+        privacy: { ...PRIVACY_ALL, nist_pf: NIST_PF_ALL },
+      },
+      request_id: 'req_27701_nist_pf',
+    });
+    expect(decision.reason_codes).toContain('ISO27701_CONTROLS_SATISFIED');
+    expect(decision.reason_codes).toContain('NIST_PF_CONTROLS_SATISFIED');
+    expect(decision.reason_codes).not.toContain('POLICY_CONFLICT_UNRESOLVED');
+    const sources = decision.explanation.provenance?.sources ?? [];
+    expect(sources.some((s) => s.authority_id === POLICY_AUTHORITY_IDS.iso27701)).toBe(true);
+    expect(
+      sources.some((s) => s.authority_id === POLICY_AUTHORITY_IDS.nistPrivacyFramework),
+    ).toBe(true);
+    expect(POLICY_AUTHORITY_IDS.iso27701).not.toBe(POLICY_AUTHORITY_IDS.nistPrivacyFramework);
+  });
+
+  it('TEST 52 — NIST Privacy Framework does not authorize HIPAA/GDPR claims', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:NIST_PRIVACY_FRAMEWORK'],
+      },
+      deploymentMode: 'connected',
+      governance_context: { privacy: { nist_pf: NIST_PF_ALL } },
+      request_id: 'req_nist_pf_no_hipaa_gdpr',
+    });
+    expect(decision.reason_codes).toContain('NIST_PF_CONTROLS_SATISFIED');
+    expect(decision.reason_codes.some((c) => /HIPAA|GDPR/i.test(c))).toBe(false);
+    const auth = getPolicyAuthority(POLICY_AUTHORITY_IDS.nistPrivacyFramework)!;
+    expect(treatsAsLegalAuthority(auth)).toBe(false);
+    expect(auth.provenance.notes ?? '').toMatch(/not.*GDPR|not.*HIPAA/i);
+    const blob = JSON.stringify(withOperatorExplanation(decision));
+    expect(blob).not.toMatch(/HIPAA compliant|GDPR compliant|HIPAA authorized|GDPR authorized/i);
+  });
+
+  it('TEST 53 — NIST Privacy Framework does not produce certified/compliant/privacy score language', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: { ...clinicalApp, type: 'internal' },
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'INTERNAL',
+        confidence: 0.9,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:NIST_PRIVACY_FRAMEWORK'],
+      },
+      deploymentMode: 'connected',
+      governance_context: { privacy: { nist_pf: NIST_PF_ALL } },
+      request_id: 'req_nist_pf_nocert',
+    });
+    const auth = getPolicyAuthority(POLICY_AUTHORITY_IDS.nistPrivacyFramework)!;
+    expect(auth.provenance.legal_authority).toBe(false);
+    expect(auth.type).toBe('FRAMEWORK');
+    const blob = JSON.stringify(withOperatorExplanation(decision));
+    expect(blob).not.toMatch(
+      /NIST certified|NIST Privacy Framework certified|NIST Privacy Framework compliant|privacy score|PrivacyScore|certification achieved/i,
+    );
+  });
+
+  it('TEST 54 — Change governance baseline is immutable', async () => {
+    const changeRepo = new InMemoryChangeGovernanceRepository();
+    const v1 = createGovernanceBaseline({
+      target_type: 'application',
+      target_id: clinicalApp.application_id,
+      capabilities: { model_version: '1.0.0', write_capability: false },
+      configuration: { ui_label: 'Clinical' },
+    });
+    changeRepo.saveBaseline(v1);
+    const snap = structuredClone(v1);
+    const policyRepo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(policyRepo);
+    await evaluateGovernanceChange({
+      repository: changeRepo,
+      policy_repository: policyRepo,
+      pdp,
+      policy_context: {
+        user: clinician,
+        application: { ...clinicalApp, type: 'internal' },
+        operation: 'summarize',
+        requestedModel: 'local-general-v1',
+        availableModels: ['local-general-v1'],
+        regulatory_applicability: ['NIST_AI_RMF'],
+        governance_context: GOVERNANCE_DOCUMENTED,
+      },
+      commit_baseline_on_hold: true,
+      input: {
+        target_type: 'application',
+        target_id: clinicalApp.application_id,
+        previous_baseline_id: v1.baseline_id,
+        proposed_state: { model_version: '2.0.0', write_capability: true },
+        request_id: 'req_pr_cg_54',
+      },
+    });
+    expect(changeRepo.getBaseline(v1.baseline_id)).toEqual(snap);
+    expect(() => changeRepo.saveBaseline(v1)).toThrow(/immutable|already exists/i);
+  });
+
+  it('TEST 55 — Material model change triggers re-evaluation', async () => {
+    const changeRepo = new InMemoryChangeGovernanceRepository();
+    const policyRepo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(policyRepo);
+    const baseline = changeRepo.saveBaseline(
+      createGovernanceBaseline({
+        target_type: 'application',
+        target_id: clinicalApp.application_id,
+        capabilities: { model_version: '1.0.0' },
+      }),
+    );
+    const result = await evaluateGovernanceChange({
+      repository: changeRepo,
+      policy_repository: policyRepo,
+      pdp,
+      policy_context: {
+        user: clinician,
+        application: { ...clinicalApp, type: 'internal' },
+        operation: 'summarize',
+        requestedModel: 'local-general-v1',
+        availableModels: ['local-general-v1'],
+        regulatory_applicability: ['NIST_AI_RMF'],
+        governance_context: GOVERNANCE_DOCUMENTED,
+      },
+      input: {
+        target_type: 'application',
+        target_id: clinicalApp.application_id,
+        previous_baseline_id: baseline.baseline_id,
+        proposed_state: { model_version: '2.5.0' },
+        request_id: 'req_pr_cg_55',
+      },
+    });
+    expect(result.materiality).toBe('MATERIAL');
+    expect(result.lifecycle_decision).toBe('REEVALUATION_REQUIRED');
+    expect(result.pdp_invoked).toBe(true);
+    expect(result.evaluation_id).toBeTruthy();
+    expect(policyRepo.getEvaluation(result.evaluation_id!)).toBeTruthy();
+  });
+
+  it('TEST 56 — Critical write capability → REVIEW (not DENY from lifecycle alone)', async () => {
+    const changeRepo = new InMemoryChangeGovernanceRepository();
+    const policyRepo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(policyRepo);
+    const baseline = changeRepo.saveBaseline(
+      createGovernanceBaseline({
+        target_type: 'application',
+        target_id: clinicalApp.application_id,
+        capabilities: { write_capability: false },
+      }),
+    );
+    const result = await evaluateGovernanceChange({
+      repository: changeRepo,
+      policy_repository: policyRepo,
+      pdp,
+      policy_context: {
+        user: clinician,
+        application: { ...clinicalApp, type: 'internal' },
+        operation: 'summarize',
+        requestedModel: 'local-general-v1',
+        availableModels: ['local-general-v1'],
+        regulatory_applicability: ['NIST_AI_RMF'],
+        governance_context: GOVERNANCE_DOCUMENTED,
+      },
+      input: {
+        target_type: 'application',
+        target_id: clinicalApp.application_id,
+        previous_baseline_id: baseline.baseline_id,
+        proposed_state: { write_capability: true },
+        request_id: 'req_pr_cg_56',
+      },
+    });
+    expect(result.materiality).toBe('CRITICAL');
+    expect(result.lifecycle_decision).toBe('MANDATORY_REVIEW');
+    expect(String(result.policy_decision?.decision).toUpperCase()).toBe('REVIEW');
+    expect(String(result.policy_decision?.decision).toUpperCase()).not.toBe('DENY');
+  });
+
+  it('TEST 57 — UNKNOWN incomplete is never silently NON_MATERIAL', () => {
+    const assessment = assessMateriality({
+      target_type: 'application',
+      target_id: clinicalApp.application_id,
+      incomplete: true,
+      change_types: ['UI_LABEL'],
+    });
+    expect(assessment.materiality).toBe('UNKNOWN');
+    expect(assessment.lifecycle_decision).toBe('UNKNOWN');
+    expect(assessment.materiality).not.toBe('NON_MATERIAL');
+  });
+
+  it('TEST 58 — No lifecycle pack/authority/score/assessment product sprawl', () => {
+    const srcRoot = resolve(__dirname, '../../src');
+    const forbidden = [
+      'auth_lifecycle',
+      'pack_lifecycle',
+      'auth_lifecycle_governance',
+      'LifecycleEvaluator',
+      'ChangeRiskScore',
+      'MaterialityScore',
+    ];
+    const walk = (dir: string, out: string[] = []): string[] => {
+      if (!existsSync(dir)) return out;
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name);
+        const st = statSync(p);
+        if (st.isDirectory()) walk(p, out);
+        else if (name.endsWith('.ts') || name.endsWith('.tsx')) out.push(p);
+      }
+      return out;
+    };
+    const hits: string[] = [];
+    for (const file of walk(srcRoot)) {
+      const text = readFileSync(file, 'utf8');
+      for (const name of forbidden) {
+        if (text.includes(name)) hits.push(`${file}:${name}`);
+      }
+    }
+    expect(hits).toEqual([]);
+    expect(getPolicyAuthority('auth_lifecycle' as never)).toBeUndefined();
+    expect(getAuthorityForPack('pack_lifecycle')).toBeUndefined();
   });
 });

@@ -1,0 +1,20 @@
+{
+  "sources": [
+    {
+      "source_id": "src_iso_27701_2025",
+      "authority": "ISO/IEC 27701:2025",
+      "authority_tier": 3,
+      "authority_type": "STANDARD",
+      "legal_authority": false,
+      "authority_id": "auth_iso_27701",
+      "title": "Information security, cybersecurity and privacy protection — Privacy information management systems — Requirements and guidance",
+      "publisher": "ISO / IEC",
+      "citation": "ISO/IEC 27701:2025",
+      "canonical_url": "https://www.iso.org/standard/27701",
+      "effective_date": "2025-10-14",
+      "retrieved_date": "2026-09-07",
+      "version": "2025",
+      "note": "International Standard for PIMS requirements and guidance (Edition 2). Not statute; not GDPR determination; not an Enigma certification, compliance determination, DSAR workflow, DPIA app, privacy score, or PII scanner. ISO/IEC 27701:2019 is withdrawn — this pack uses the 2025 edition. Enigma-derived controls are interpretations for AI action governance evidence."
+    }
+  ]
+}

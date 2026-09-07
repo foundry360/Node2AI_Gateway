@@ -1,0 +1,20 @@
+{
+  "sources": [
+    {
+      "source_id": "src_nist_privacy_framework_1_0",
+      "authority": "NIST Privacy Framework 1.0",
+      "authority_tier": 4,
+      "authority_type": "FRAMEWORK",
+      "legal_authority": false,
+      "authority_id": "auth_nist_privacy_framework",
+      "title": "NIST Privacy Framework: A Tool for Improving Privacy through Enterprise Risk Management, Version 1.0",
+      "publisher": "National Institute of Standards and Technology",
+      "citation": "NIST CSWP 10",
+      "canonical_url": "https://csrc.nist.gov/pubs/cswp/10/nist-privacy-framework-version-10/final",
+      "effective_date": "2020-01-16",
+      "retrieved_date": "2026-09-07",
+      "version": "1.0",
+      "note": "Voluntary privacy-risk management framework (NIST CSWP 10). Not statute; not GDPR/HIPAA determination; not an Enigma certification, compliance determination, DSAR workflow, DPIA app, privacy score, or PII scanner. NIST PF 1.1 draft is not used. Enigma-derived controls are NIST Privacy Framework-informed interpretations for AI action governance evidence."
+    }
+  ]
+}

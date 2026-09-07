@@ -1,0 +1,20 @@
+{
+  "sources": [
+    {
+      "source_id": "src_iso_27001_2022",
+      "authority": "ISO/IEC 27001:2022",
+      "authority_tier": 3,
+      "authority_type": "STANDARD",
+      "legal_authority": false,
+      "authority_id": "auth_iso_27001",
+      "title": "Information security, cybersecurity and privacy protection — Information security management systems — Requirements",
+      "publisher": "ISO / IEC",
+      "citation": "ISO/IEC 27001:2022",
+      "canonical_url": "https://www.iso.org/standard/27001",
+      "effective_date": "2022-10-25",
+      "retrieved_date": "2026-09-07",
+      "version": "2022",
+      "note": "International Standard for ISMS requirements (Edition 3). Not statute; not an Enigma certification, compliance determination, SIEM, Annex A checklist score, or security assessment. Amendment ISO/IEC 27001:2022/Amd 1:2024 is recognized as amendment context only. Enigma-derived controls are interpretations for AI action governance evidence."
+    }
+  ]
+}

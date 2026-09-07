@@ -1,0 +1,136 @@
+{
+  "obligations": [
+    {
+      "obligation_id": "NIST-PF-OBL-IDENTIFY-PROCESSING",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST Privacy Framework 1.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST Privacy Framework 1.0 — IDENTIFY-P / data processing context"
+      ],
+      "source_ids": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-PF-OBL-IDENTIFY-PRIVACY-RISK",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST Privacy Framework 1.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST Privacy Framework 1.0 — IDENTIFY-P / privacy risk"
+      ],
+      "source_ids": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-PF-OBL-IDENTIFY-DATA-ACTIONS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST Privacy Framework 1.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST Privacy Framework 1.0 — IDENTIFY-P / data actions"
+      ],
+      "source_ids": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-PF-OBL-GOVERN-POLICIES",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST Privacy Framework 1.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST Privacy Framework 1.0 — GOVERN-P / policies"
+      ],
+      "source_ids": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-PF-OBL-GOVERN-ROLES",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST Privacy Framework 1.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST Privacy Framework 1.0 — GOVERN-P / roles"
+      ],
+      "source_ids": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-PF-OBL-GOVERN-RISK",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST Privacy Framework 1.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST Privacy Framework 1.0 — GOVERN-P / risk governance"
+      ],
+      "source_ids": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-PF-OBL-CONTROL-DATA-ACTIONS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST Privacy Framework 1.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST Privacy Framework 1.0 — CONTROL-P / data actions"
+      ],
+      "source_ids": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-PF-OBL-CONTROL-INDIVIDUAL-CHOICE",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST Privacy Framework 1.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST Privacy Framework 1.0 — CONTROL-P / individual choice"
+      ],
+      "source_ids": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-PF-OBL-COMMUNICATE-TRANSPARENCY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST Privacy Framework 1.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST Privacy Framework 1.0 — COMMUNICATE-P / transparency"
+      ],
+      "source_ids": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-PF-OBL-COMMUNICATE-EXPECTATIONS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST Privacy Framework 1.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST Privacy Framework 1.0 — COMMUNICATE-P / expectations"
+      ],
+      "source_ids": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    },
+    {
+      "obligation_id": "NIST-PF-OBL-PROTECT-PRIVACY-RISK",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST Privacy Framework 1.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST Privacy Framework 1.0 — PROTECT-P / privacy risk mitigation"
+      ],
+      "source_ids": [
+        "src_nist_privacy_framework_1_0"
+      ]
+    }
+  ]
+}

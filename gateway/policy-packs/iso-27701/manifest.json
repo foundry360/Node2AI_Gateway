@@ -1,0 +1,42 @@
+{
+  "pack_id": "pack_iso_27701",
+  "name": "ISO/IEC 27701",
+  "domain": "ai_risk",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "authority_id": "auth_iso_27701",
+  "scope": "PRIVACY_INFORMATION_MANAGEMENT",
+  "not": "ISO_27701_CERTIFICATION_OR_GDPR_OR_DSAR_OR_DPIA_OR_PRIVACY_SCORE",
+  "description": "Focused ISO/IEC 27701:2025 pack. Operationalizes PIMS privacy-information-management governance evidence gates as Enigma controls. Standard — not legal authority, not a certification, not GDPR determination, not a DSAR/DPIA workflow or privacy score.",
+  "interpreters": {
+    "input": "iso_27701_pack_v1",
+    "output": "iso_27701_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_iso_27701_input",
+      "version": 1,
+      "phase": "input",
+      "name": "ISO/IEC 27701 input governance"
+    },
+    {
+      "policy_id": "pol_iso_27701_output",
+      "version": 1,
+      "phase": "output",
+      "name": "ISO/IEC 27701 output governance"
+    }
+  ],
+  "semantic_notes": [
+    "ISO/IEC 27701 is STANDARD — treatsAsLegalAuthority === false",
+    "Uses governance_context.privacy — distinct from information_security, cybersecurity, assurance, regulatory",
+    "Applicability is opt-in via REGULATORY_APPLICABILITY:ISO_27701",
+    "Residual privacy-risk review ≠ Enigma AUTHORIZE",
+    "Does not implement GDPR lawful-basis determination, DSAR workflow, or DPIA application"
+  ],
+  "deliberately_not_implemented": [
+    "Certification / compliance assessment",
+    "GDPR / DSAR / DSR workflow",
+    "DPIA application / privacy impact score",
+    "PII scanner / privacy GRC platform"
+  ]
+}

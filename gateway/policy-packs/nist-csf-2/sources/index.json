@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "sources": [
+    {
+      "id": "src_nist_csf_2_0",
+      "source_id": "src_nist_csf_2_0",
+      "authority": "NIST Cybersecurity Framework (CSF) 2.0",
+      "authority_tier": 4,
+      "authority_type": "FRAMEWORK",
+      "legal_authority": false,
+      "authority_id": "auth_nist_csf_2",
+      "title": "NIST CSWP 29 — The NIST Cybersecurity Framework (CSF) 2.0",
+      "publisher": "National Institute of Standards and Technology",
+      "citation": "NIST CSF 2.0 (CSWP 29)",
+      "canonical_url": "https://www.nist.gov/publications/nist-cybersecurity-framework-csf-20",
+      "effective_date": "2024-02-26",
+      "retrieved_date": "2026-09-07",
+      "version": "2.0",
+      "note": "Voluntary cybersecurity framework. Not statute; not an Enigma certification, compliance determination, SIEM, or cybersecurity score. Enigma-derived operational controls are interpretations for AI governance evidence."
+    }
+  ]
+}
