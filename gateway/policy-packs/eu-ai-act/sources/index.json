@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "authority_hierarchy": [
+    {
+      "rank": 1,
+      "class": "EU_AI_ACT",
+      "authority_type": "REGULATION",
+      "label": "European Union Artificial Intelligence Act",
+      "note": "Binding regulation — legal authority for DENY when facts establish prohibited practices"
+    }
+  ],
+  "sources": [
+    {
+      "id": "src_eu_ai_act_2024_1689",
+      "source_id": "src_eu_ai_act_2024_1689",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "authority_rank": 1,
+      "authority_type": "REGULATION",
+      "legal_authority": true,
+      "authority_id": "auth_eu_ai_act",
+      "citation": "Regulation (EU) 2024/1689 (consolidated 2026-07-27)",
+      "title": "Regulation (EU) 2024/1689 of the European Parliament and of the Council (Artificial Intelligence Act)",
+      "publisher": "European Parliament and Council of the European Union",
+      "canonical_url": "https://eur-lex.europa.eu/eli/reg/2024/1689/2026-07-27/eng",
+      "effective_date": "2024-08-01",
+      "retrieved_date": null,
+      "version": "2024/1689 (incl. Regulation (EU) 2026/1744)",
+      "note": "Official EUR-Lex consolidated text. Binding regulation — not an Enigma certification."
+    }
+  ]
+}

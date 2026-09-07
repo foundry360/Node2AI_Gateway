@@ -1,0 +1,125 @@
+{
+  "version": "1.0.0",
+  "obligations": [
+    {
+      "obligation_id": "ISO23894-OBL-RISK-PROCESS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 23894:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 23894:2023 — Risk management process"
+      ],
+      "source_ids": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO23894-OBL-RISK-CONTEXT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 23894:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 23894:2023 — Establishing the context"
+      ],
+      "source_ids": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO23894-OBL-RISK-IDENTIFICATION",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 23894:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 23894:2023 — Risk identification"
+      ],
+      "source_ids": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO23894-OBL-RISK-ANALYSIS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 23894:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 23894:2023 — Risk analysis"
+      ],
+      "source_ids": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO23894-OBL-RISK-EVALUATION",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 23894:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 23894:2023 — Risk evaluation"
+      ],
+      "source_ids": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO23894-OBL-RISK-TREATMENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 23894:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 23894:2023 — Risk treatment"
+      ],
+      "source_ids": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO23894-OBL-RESIDUAL-RISK",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 23894:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 23894:2023 — Residual risk"
+      ],
+      "source_ids": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO23894-OBL-RISK-MONITORING",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 23894:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 23894:2023 — Monitoring and review"
+      ],
+      "source_ids": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO23894-OBL-RISK-COMMUNICATION",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 23894:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 23894:2023 — Communication and consultation"
+      ],
+      "source_ids": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO23894-OBL-RISK-REVIEW",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 23894:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 23894:2023 — Monitoring and review"
+      ],
+      "source_ids": [
+        "src_iso_iec_23894_2023"
+      ]
+    }
+  ]
+}

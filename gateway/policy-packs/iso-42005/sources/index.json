@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "sources": [
+    {
+      "id": "src_iso_iec_42005_2025",
+      "source_id": "src_iso_iec_42005_2025",
+      "authority": "ISO/IEC 42005:2025",
+      "authority_tier": 3,
+      "authority_type": "STANDARD",
+      "legal_authority": false,
+      "authority_id": "auth_iso_42005",
+      "title": "ISO/IEC 42005:2025 Information technology — Artificial intelligence (AI) — AI system impact assessment",
+      "publisher": "ISO / IEC",
+      "citation": "ISO/IEC 42005:2025",
+      "canonical_url": "https://www.iso.org/standard/42005",
+      "effective_date": "2025-05-28",
+      "retrieved_date": null,
+      "version": "2025",
+      "note": "International Standard providing guidance on AI system impact assessment. Edition 1, published 2025-05-28. Not statute; not Enigma certification or impact score."
+    }
+  ]
+}

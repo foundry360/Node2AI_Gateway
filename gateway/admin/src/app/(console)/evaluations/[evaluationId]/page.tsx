@@ -50,6 +50,12 @@ type RequestContext = {
   purpose?: string;
   recipient?: string;
   authorization?: string;
+  governance?: {
+    accountability_documented?: boolean;
+    system_context_documented?: boolean;
+    measurement_documented?: boolean;
+    risk_response_documented?: boolean;
+  };
   source?: string;
   processing_location?: string;
   regulatory_applicability?: string[];

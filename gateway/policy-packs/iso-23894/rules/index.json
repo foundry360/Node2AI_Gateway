@@ -1,0 +1,398 @@
+{
+  "version": "1.0.0",
+  "rules": [
+    {
+      "rule_id": "ISO23894-R-RISK-PROCESS",
+      "name": "Review when AI risk-management process is not established",
+      "phase": "input",
+      "priority": 100,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "ISO 23894-informed risk-management control — not ISO certification.",
+      "conditions": {
+        "regulatory_applicability": "ISO_23894",
+        "risk_management_established": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO23894_RISK_PROCESS_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO23894-OBL-RISK-PROCESS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_iec_23894_2023"
+      ],
+      "derived_from": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "rule_id": "ISO23894-R-RISK-CONTEXT",
+      "name": "Review when AI risk context is not defined",
+      "phase": "input",
+      "priority": 95,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_23894",
+        "risk_context_defined": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO23894_RISK_CONTEXT_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO23894-OBL-RISK-CONTEXT"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_iec_23894_2023"
+      ],
+      "derived_from": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "rule_id": "ISO23894-R-RISK-IDENTIFICATION",
+      "name": "Review when AI risk identification is not completed",
+      "phase": "input",
+      "priority": 90,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Governance evidence — not an automatic AI risk detector.",
+      "conditions": {
+        "regulatory_applicability": "ISO_23894",
+        "risk_identification_completed": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO23894_RISK_IDENTIFICATION_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO23894-OBL-RISK-IDENTIFICATION"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_iec_23894_2023"
+      ],
+      "derived_from": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "rule_id": "ISO23894-R-RISK-ANALYSIS",
+      "name": "Review when AI risk analysis is not completed",
+      "phase": "input",
+      "priority": 85,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Does not invent a proprietary quantitative risk-analysis algorithm.",
+      "conditions": {
+        "regulatory_applicability": "ISO_23894",
+        "risk_analysis_completed": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO23894_RISK_ANALYSIS_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO23894-OBL-RISK-ANALYSIS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_iec_23894_2023"
+      ],
+      "derived_from": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "rule_id": "ISO23894-R-RISK-EVALUATION",
+      "name": "Review when organizational AI risk evaluation is not completed",
+      "phase": "input",
+      "priority": 80,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Organizational risk evaluation ≠ Enigma policy evaluation.",
+      "conditions": {
+        "regulatory_applicability": "ISO_23894",
+        "risk_evaluation_completed": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO23894_RISK_EVALUATION_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO23894-OBL-RISK-EVALUATION"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_iec_23894_2023"
+      ],
+      "derived_from": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "rule_id": "ISO23894-R-RISK-TREATMENT",
+      "name": "Review when AI risk treatment is not defined and implemented",
+      "phase": "input",
+      "priority": 75,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_23894",
+        "risk_treatment_established": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO23894_RISK_TREATMENT_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO23894-OBL-RISK-TREATMENT"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_iec_23894_2023"
+      ],
+      "derived_from": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "rule_id": "ISO23894-R-RESIDUAL-RISK",
+      "name": "Review when residual-risk acceptance evidence is not established",
+      "phase": "input",
+      "priority": 70,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Organizational residual-risk acceptance ≠ Enigma policy authorization.",
+      "conditions": {
+        "regulatory_applicability": "ISO_23894",
+        "residual_risk_accepted": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO23894_RESIDUAL_RISK_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO23894-OBL-RESIDUAL-RISK"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_iec_23894_2023"
+      ],
+      "derived_from": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "rule_id": "ISO23894-R-RISK-MONITORING",
+      "name": "Review when AI risk monitoring is not established",
+      "phase": "input",
+      "priority": 65,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_23894",
+        "risk_monitoring_established": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO23894_RISK_MONITORING_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO23894-OBL-RISK-MONITORING"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_iec_23894_2023"
+      ],
+      "derived_from": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "rule_id": "ISO23894-R-RISK-COMMUNICATION",
+      "name": "Review when AI risk communication is not established",
+      "phase": "input",
+      "priority": 60,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_23894",
+        "risk_communication_established": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO23894_RISK_COMMUNICATION_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO23894-OBL-RISK-COMMUNICATION"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_iec_23894_2023"
+      ],
+      "derived_from": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "rule_id": "ISO23894-R-RISK-REVIEW",
+      "name": "Review when AI risk review process is not established",
+      "phase": "input",
+      "priority": 55,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_23894",
+        "risk_review_established": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "ISO23894_RISK_REVIEW_PROCESS_REVIEW"
+      ],
+      "obligation_ids": [
+        "ISO23894-OBL-RISK-REVIEW"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_iec_23894_2023"
+      ],
+      "derived_from": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "rule_id": "ISO23894-R-CONTROLS-SATISFIED",
+      "name": "Allow with controls when ISO 23894-informed risk-management evidence is established",
+      "phase": "input",
+      "priority": 40,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "ISO 23894 policy posture — not ISO certified / ISO compliant / risk score.",
+      "conditions": {
+        "regulatory_applicability": "ISO_23894",
+        "risk_management_established": true,
+        "risk_context_defined": true,
+        "risk_identification_completed": true,
+        "risk_analysis_completed": true,
+        "risk_evaluation_completed": true,
+        "risk_treatment_established": true,
+        "residual_risk_accepted": true,
+        "risk_monitoring_established": true,
+        "risk_communication_established": true,
+        "risk_review_established": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "ISO23894_CONTROLS_SATISFIED"
+      ],
+      "obligation_ids": [
+        "ISO23894-OBL-RISK-PROCESS",
+        "ISO23894-OBL-RISK-CONTEXT",
+        "ISO23894-OBL-RISK-IDENTIFICATION",
+        "ISO23894-OBL-RISK-ANALYSIS",
+        "ISO23894-OBL-RISK-EVALUATION",
+        "ISO23894-OBL-RISK-TREATMENT",
+        "ISO23894-OBL-RESIDUAL-RISK",
+        "ISO23894-OBL-RISK-MONITORING",
+        "ISO23894-OBL-RISK-COMMUNICATION",
+        "ISO23894-OBL-RISK-REVIEW"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_iec_23894_2023"
+      ],
+      "derived_from": [
+        "src_iso_iec_23894_2023"
+      ]
+    },
+    {
+      "rule_id": "ISO23894-R-OUTPUT-GOVERNANCE-LOG",
+      "name": "Log governance event for ISO 23894-scoped output",
+      "phase": "output",
+      "priority": 50,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "ISO_23894"
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "ISO23894_OUTPUT_GOVERNANCE_LOG"
+      ],
+      "obligation_ids": [
+        "ISO23894-OBL-RISK-MONITORING"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_iso_iec_23894_2023"
+      ],
+      "derived_from": [
+        "src_iso_iec_23894_2023"
+      ]
+    }
+  ]
+}

@@ -14,6 +14,36 @@ import {
 } from './hipaa/pack-v2.js';
 import { compilePart2Pack } from './part2/compile.js';
 import { applyPart2PackV1Input, applyPart2PackV1Output } from './part2/pack.js';
+import { compileNistAiRmfPack } from './nist-ai-rmf/compile.js';
+import {
+  applyNistAiRmfPackV1Input,
+  applyNistAiRmfPackV1Output,
+} from './nist-ai-rmf/pack.js';
+import { compileOwaspLlm2025Pack } from './owasp-llm-2025/compile.js';
+import {
+  applyOwaspLlm2025PackV1Input,
+  applyOwaspLlm2025PackV1Output,
+} from './owasp-llm-2025/pack.js';
+import { compileEuAiActPack } from './eu-ai-act/compile.js';
+import {
+  applyEuAiActPackV1Input,
+  applyEuAiActPackV1Output,
+} from './eu-ai-act/pack.js';
+import { compileIso42001Pack } from './iso-42001/compile.js';
+import {
+  applyIso42001PackV1Input,
+  applyIso42001PackV1Output,
+} from './iso-42001/pack.js';
+import { compileIso23894Pack } from './iso-23894/compile.js';
+import {
+  applyIso23894PackV1Input,
+  applyIso23894PackV1Output,
+} from './iso-23894/pack.js';
+import { compileIso42005Pack } from './iso-42005/compile.js';
+import {
+  applyIso42005PackV1Input,
+  applyIso42005PackV1Output,
+} from './iso-42005/pack.js';
 import {
   applyRegisteredOverlays,
   mergePackContributions,
@@ -21,6 +51,7 @@ import {
   type PackContribution,
 } from '../overlay-registry.js';
 import { addPackToDomain } from '../domain.js';
+import { POLICY_AUTHORITY_IDS } from '../authority.js';
 
 function isCloudModel(modelId: string): boolean {
   return (
@@ -226,9 +257,27 @@ export function ensureDefaultOverlayRegistry(): void {
   registerOverlayInterpreter('hipaa_overlay_v1', applyHipaa);
   registerOverlayInterpreter('part2_pack_v1', applyPart2PackV1Input);
   registerOverlayInterpreter('part2_pack_v1_output', applyPart2PackV1Output);
+  registerOverlayInterpreter('nist_ai_rmf_pack_v1', applyNistAiRmfPackV1Input);
+  registerOverlayInterpreter('nist_ai_rmf_pack_v1_output', applyNistAiRmfPackV1Output);
+  registerOverlayInterpreter('owasp_llm_2025_pack_v1', applyOwaspLlm2025PackV1Input);
+  registerOverlayInterpreter('owasp_llm_2025_pack_v1_output', applyOwaspLlm2025PackV1Output);
+  registerOverlayInterpreter('eu_ai_act_pack_v1', applyEuAiActPackV1Input);
+  registerOverlayInterpreter('eu_ai_act_pack_v1_output', applyEuAiActPackV1Output);
+  registerOverlayInterpreter('iso_42001_pack_v1', applyIso42001PackV1Input);
+  registerOverlayInterpreter('iso_42001_pack_v1_output', applyIso42001PackV1Output);
+  registerOverlayInterpreter('iso_23894_pack_v1', applyIso23894PackV1Input);
+  registerOverlayInterpreter('iso_23894_pack_v1_output', applyIso23894PackV1Output);
+  registerOverlayInterpreter('iso_42005_pack_v1', applyIso42005PackV1Input);
+  registerOverlayInterpreter('iso_42005_pack_v1_output', applyIso42005PackV1Output);
   registerOverlayInterpreter('financial_overlay_v1', applyFinancial);
   registerOverlayInterpreter('legal_overlay_v1', applyLegal);
   addPackToDomain('healthcare', 'pack_42_cfr_part_2');
+  addPackToDomain('ai_risk', 'pack_nist_ai_rmf');
+  addPackToDomain('ai_risk', 'pack_owasp_llm_2025');
+  addPackToDomain('ai_risk', 'pack_eu_ai_act');
+  addPackToDomain('ai_risk', 'pack_iso_42001');
+  addPackToDomain('ai_risk', 'pack_iso_23894');
+  addPackToDomain('ai_risk', 'pack_iso_42005');
   defaultOverlaysRegistered = true;
 }
 
@@ -256,6 +305,7 @@ export function hipaaPackContribution(): PackContribution {
         status: 'active',
         name: 'HIPAA',
         domain: 'hipaa',
+        authority_id: POLICY_AUTHORITY_IDS.hipaa,
       },
     ],
     policies: [...hipaa.policies],
@@ -338,9 +388,112 @@ export function part2PackContribution(): PackContribution {
         status: 'active',
         name: '42 CFR Part 2',
         domain: 'healthcare',
+        authority_id: POLICY_AUTHORITY_IDS.part2,
       },
     ],
     policies: [...part2.policies],
+  };
+}
+
+/** NIST AI RMF pack contribution (Framework Pack #3). */
+export function nistAiRmfPackContribution(): PackContribution {
+  const nist = compileNistAiRmfPack();
+  return {
+    packs: [
+      {
+        pack_id: 'pack_nist_ai_rmf',
+        status: 'active',
+        name: 'NIST AI RMF',
+        domain: 'ai_risk',
+        authority_id: POLICY_AUTHORITY_IDS.nistAiRmf,
+      },
+    ],
+    policies: [...nist.policies],
+  };
+}
+
+/** OWASP LLM Top 10 2025 pack contribution (Security Guidance Pack #4). */
+export function owaspLlm2025PackContribution(): PackContribution {
+  const owasp = compileOwaspLlm2025Pack();
+  return {
+    packs: [
+      {
+        pack_id: 'pack_owasp_llm_2025',
+        status: 'active',
+        name: 'OWASP LLM Top 10 2025',
+        domain: 'ai_risk',
+        authority_id: POLICY_AUTHORITY_IDS.owaspLlm2025,
+      },
+    ],
+    policies: [...owasp.policies],
+  };
+}
+
+/** EU AI Act pack contribution (Regulation Pack #5). */
+export function euAiActPackContribution(): PackContribution {
+  const eu = compileEuAiActPack();
+  return {
+    packs: [
+      {
+        pack_id: 'pack_eu_ai_act',
+        status: 'active',
+        name: 'EU AI Act',
+        domain: 'ai_risk',
+        authority_id: POLICY_AUTHORITY_IDS.euAiAct,
+      },
+    ],
+    policies: [...eu.policies],
+  };
+}
+
+/** ISO/IEC 42001 pack contribution (Standard Pack #6). */
+export function iso42001PackContribution(): PackContribution {
+  const iso = compileIso42001Pack();
+  return {
+    packs: [
+      {
+        pack_id: 'pack_iso_42001',
+        status: 'active',
+        name: 'ISO/IEC 42001',
+        domain: 'ai_risk',
+        authority_id: POLICY_AUTHORITY_IDS.iso42001,
+      },
+    ],
+    policies: [...iso.policies],
+  };
+}
+
+/** ISO/IEC 23894 pack contribution (Standard Pack #7). */
+export function iso23894PackContribution(): PackContribution {
+  const iso = compileIso23894Pack();
+  return {
+    packs: [
+      {
+        pack_id: 'pack_iso_23894',
+        status: 'active',
+        name: 'ISO/IEC 23894',
+        domain: 'ai_risk',
+        authority_id: POLICY_AUTHORITY_IDS.iso23894,
+      },
+    ],
+    policies: [...iso.policies],
+  };
+}
+
+/** ISO/IEC 42005 pack contribution (Standard Pack #8). */
+export function iso42005PackContribution(): PackContribution {
+  const iso = compileIso42005Pack();
+  return {
+    packs: [
+      {
+        pack_id: 'pack_iso_42005',
+        status: 'active',
+        name: 'ISO/IEC 42005',
+        domain: 'ai_risk',
+        authority_id: POLICY_AUTHORITY_IDS.iso42005,
+      },
+    ],
+    policies: [...iso.policies],
   };
 }
 
@@ -353,6 +506,12 @@ export function regulatoryPackExtras(): Pick<PackSnapshot, 'packs' | 'policies'>
   return mergePackContributions(
     hipaaPackContribution(),
     part2PackContribution(),
+    nistAiRmfPackContribution(),
+    owaspLlm2025PackContribution(),
+    euAiActPackContribution(),
+    iso42001PackContribution(),
+    iso23894PackContribution(),
+    iso42005PackContribution(),
     financialPackContribution(),
     legalPackContribution(),
   );

@@ -4,7 +4,8 @@ export type FrameworkCompliance = {
   score: number;
   status: 'strong' | 'partial' | 'weak' | 'unknown';
   detail: string;
-  compliant_controls: number;
+  /** Count of controls evaluated as active/covered — not a certification claim. */
+  controls_evaluated: number;
   total_controls: number;
   high_priority_issues: number;
 };
@@ -16,7 +17,7 @@ export type PriorityFrameworkDef = {
   domains: string[];
 };
 
-/** Priority regulatory frameworks surfaced on the Console compliance card. */
+/** Priority governance frameworks surfaced on the Console policy-posture card. */
 export const PRIORITY_FRAMEWORKS: PriorityFrameworkDef[] = [
   {
     framework_id: 'eu_ai_act',
@@ -85,7 +86,7 @@ export function scoreFrameworkHeuristic(
       score: 0,
       status: 'unknown',
       detail: 'No matching policy pack loaded for this framework.',
-      compliant_controls: 0,
+      controls_evaluated: 0,
       total_controls: 10,
       high_priority_issues: 2,
     };
@@ -115,7 +116,7 @@ export function scoreFrameworkHeuristic(
   score = Math.max(0, Math.min(100, score));
 
   const totalControls = Math.max(total, 1) * (total === 0 ? 10 : 1);
-  const compliantControls =
+  const controlsEvaluated =
     total > 0 ? active + approved : pack.status === 'active' ? 6 : 0;
   const highPriorityIssues =
     gap +
@@ -131,7 +132,7 @@ export function scoreFrameworkHeuristic(
       total > 0
         ? `${active} of ${total} pack policies active (${pack.status} pack).`
         : `Pack ${pack.name} is ${pack.status} with no linked policies.`,
-    compliant_controls: Math.min(compliantControls, totalControls),
+    controls_evaluated: Math.min(controlsEvaluated, totalControls),
     total_controls: totalControls,
     high_priority_issues: highPriorityIssues,
   };
@@ -171,9 +172,9 @@ export function parseComplianceJson(raw: string): {
           typeof f.total_controls === 'number' && f.total_controls > 0
             ? Math.round(f.total_controls)
             : 10;
-        const compliantControls =
-          typeof f.compliant_controls === 'number'
-            ? Math.max(0, Math.min(totalControls, Math.round(f.compliant_controls)))
+        const controlsEvaluated =
+          typeof f.controls_evaluated === 'number'
+            ? Math.max(0, Math.min(totalControls, Math.round(f.controls_evaluated)))
             : Math.round((score / 100) * totalControls);
         return {
           framework_id: String(f.framework_id),
@@ -190,7 +191,7 @@ export function parseComplianceJson(raw: string): {
             typeof f.detail === 'string'
               ? f.detail
               : 'Scored by local runtime.',
-          compliant_controls: compliantControls,
+          controls_evaluated: controlsEvaluated,
           total_controls: totalControls,
           high_priority_issues:
             typeof f.high_priority_issues === 'number'

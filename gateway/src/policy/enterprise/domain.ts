@@ -28,8 +28,19 @@ export const HEALTHCARE_DOMAIN: PolicyDomain = {
   pack_ids: ['pack_hipaa', 'pack_42_cfr_part_2'],
 };
 
+/** Cross-cutting AI risk framework domain. NIST AI RMF is Pack #3. */
+export const AI_RISK_DOMAIN: PolicyDomain = {
+  domain_id: 'ai_risk',
+  name: 'AI Risk',
+  description:
+    'AI risk management framework domain. Contains voluntary framework packs (NIST AI RMF Pack #3). Not a regulation and not a certification checklist.',
+  status: 'active',
+  pack_ids: ['pack_nist_ai_rmf'],
+};
+
 const DOMAIN_REGISTRY = new Map<string, PolicyDomain>([
   [HEALTHCARE_DOMAIN.domain_id, HEALTHCARE_DOMAIN],
+  [AI_RISK_DOMAIN.domain_id, AI_RISK_DOMAIN],
 ]);
 
 export function getPolicyDomain(domainId: string): PolicyDomain | undefined {

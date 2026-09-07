@@ -90,8 +90,13 @@ export class StubLocalRuntime implements LocalModelRuntime {
       }
     }
 
-    // Console compliance score: score priority frameworks from pack/policy facts.
-    if (content.includes('Score compliance for each priority framework') && content.includes('{')) {
+    // Console policy posture: score priority frameworks from pack/policy facts.
+    if (
+      (content.includes('Score compliance for each priority framework') ||
+        content.includes('Score each priority framework') ||
+        content.includes('governance analyst')) &&
+      content.includes('{')
+    ) {
       const jsonStart = content.indexOf('{');
       const jsonEnd = content.lastIndexOf('}');
       if (jsonStart >= 0 && jsonEnd > jsonStart) {
@@ -107,7 +112,7 @@ export class StubLocalRuntime implements LocalModelRuntime {
           );
           return {
             content: JSON.stringify({
-              summary: `Local runtime (${input.model}) scored priority framework compliance.`,
+              summary: `Local runtime (${input.model}) scored priority framework policy posture.`,
               overall: overallComplianceScore(frameworks),
               frameworks,
             }),

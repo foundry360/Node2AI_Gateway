@@ -90,7 +90,7 @@ export function AuditDetailDrawer({
       <button
         type="button"
         className="drawer-backdrop"
-        aria-label="Close audit panel"
+        aria-label="Close observability panel"
         onClick={onClose}
       />
       <aside
@@ -102,7 +102,7 @@ export function AuditDetailDrawer({
         <div className="drawer-header">
           <div>
             <h2 id="audit-detail-title" className="drawer-title">
-              Audit event
+              Observability event
             </h2>
             <p className="drawer-sub mono">{event.audit_id}</p>
           </div>

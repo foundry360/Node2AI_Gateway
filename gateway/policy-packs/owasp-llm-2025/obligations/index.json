@@ -1,0 +1,95 @@
+{
+  "version": "1.0.0",
+  "obligations": [
+    {
+      "obligation_id": "OWASP-OBL-LLM01-PROMPT-INJECTION",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "OWASP Top 10 for LLM Applications 2025",
+      "authority_tier": 4,
+      "citations": ["OWASP LLM01:2025 Prompt Injection"],
+      "source_ids": ["src_owasp_llm_top10_2025"],
+      "informational": false
+    },
+    {
+      "obligation_id": "OWASP-OBL-LLM02-SENSITIVE-DISCLOSURE",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "OWASP Top 10 for LLM Applications 2025",
+      "authority_tier": 4,
+      "citations": ["OWASP LLM02:2025 Sensitive Information Disclosure"],
+      "source_ids": ["src_owasp_llm_top10_2025"],
+      "informational": false
+    },
+    {
+      "obligation_id": "OWASP-OBL-LLM03-SUPPLY-CHAIN",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "OWASP Top 10 for LLM Applications 2025",
+      "authority_tier": 4,
+      "citations": ["OWASP LLM03:2025 Supply Chain"],
+      "source_ids": ["src_owasp_llm_top10_2025"],
+      "informational": false
+    },
+    {
+      "obligation_id": "OWASP-OBL-LLM04-POISONING",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "OWASP Top 10 for LLM Applications 2025",
+      "authority_tier": 4,
+      "citations": ["OWASP LLM04:2025 Data and Model Poisoning"],
+      "source_ids": ["src_owasp_llm_top10_2025"],
+      "informational": false
+    },
+    {
+      "obligation_id": "OWASP-OBL-LLM05-OUTPUT-HANDLING",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "OWASP Top 10 for LLM Applications 2025",
+      "authority_tier": 4,
+      "citations": ["OWASP LLM05:2025 Improper Output Handling"],
+      "source_ids": ["src_owasp_llm_top10_2025"],
+      "informational": false
+    },
+    {
+      "obligation_id": "OWASP-OBL-LLM06-AGENCY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "OWASP Top 10 for LLM Applications 2025",
+      "authority_tier": 4,
+      "citations": ["OWASP LLM06:2025 Excessive Agency"],
+      "source_ids": ["src_owasp_llm_top10_2025"],
+      "informational": false
+    },
+    {
+      "obligation_id": "OWASP-OBL-LLM07-SYSTEM-PROMPT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "OWASP Top 10 for LLM Applications 2025",
+      "authority_tier": 4,
+      "citations": ["OWASP LLM07:2025 System Prompt Leakage"],
+      "source_ids": ["src_owasp_llm_top10_2025"],
+      "informational": false
+    },
+    {
+      "obligation_id": "OWASP-OBL-LLM08-RETRIEVAL",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "OWASP Top 10 for LLM Applications 2025",
+      "authority_tier": 4,
+      "citations": ["OWASP LLM08:2025 Vector and Embedding Weaknesses"],
+      "source_ids": ["src_owasp_llm_top10_2025"],
+      "informational": false
+    },
+    {
+      "obligation_id": "OWASP-OBL-LLM09-MISINFORMATION",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "OWASP Top 10 for LLM Applications 2025",
+      "authority_tier": 4,
+      "citations": ["OWASP LLM09:2025 Misinformation"],
+      "source_ids": ["src_owasp_llm_top10_2025"],
+      "informational": false
+    },
+    {
+      "obligation_id": "OWASP-OBL-LLM10-UNBOUNDED-CONSUMPTION",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "OWASP Top 10 for LLM Applications 2025",
+      "authority_tier": 4,
+      "citations": ["OWASP LLM10:2025 Unbounded Consumption"],
+      "source_ids": ["src_owasp_llm_top10_2025"],
+      "informational": false
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "pack_id": "pack_nist_ai_rmf",
+  "name": "NIST AI RMF",
+  "domain": "ai_risk",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "authority_id": "auth_nist_ai_rmf",
+  "scope": "AI_DATA_GOVERNANCE",
+  "not": "NIST_AI_RMF_CERTIFICATION",
+  "description": "Focused NIST AI Risk Management Framework (AI RMF 1.0) policy pack. Operationalizes selected GOVERN/MAP/MEASURE/MANAGE guidance as Enigma governance controls. Framework guidance — not legal authority, not a readiness assessment or certification.",
+  "interpreters": {
+    "input": "nist_ai_rmf_pack_v1",
+    "output": "nist_ai_rmf_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_nist_ai_rmf_input",
+      "version": 1,
+      "phase": "input",
+      "name": "NIST AI RMF input governance"
+    },
+    {
+      "policy_id": "pol_nist_ai_rmf_output",
+      "version": 1,
+      "phase": "output",
+      "name": "NIST AI RMF output monitoring governance"
+    }
+  ],
+  "semantic_notes": [
+    "NIST AI RMF is FRAMEWORK guidance — treatsAsLegalAuthority === false",
+    "Executable REVIEW/ALLOW_WITH_CONTROLS behaviors are Enigma controls informed by NIST, not NIST legal mandates",
+    "Applicability is opt-in via REGULATORY_APPLICABILITY:NIST_AI_RMF",
+    "No implicit precedence vs HIPAA or Part 2"
+  ],
+  "deliberately_not_implemented": [
+    "Full AI RMF subcategory checklist / assessment scoring",
+    "NIST Generative AI Profile as a separate pack",
+    "Certification or readiness percentages",
+    "Exhaustive Playbook action catalogs"
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "version": "1.0.0",
+  "obligations": [
+    {
+      "obligation_id": "EU-OBL-ART1-SCOPE",
+      "requirement_type": "REGULATORY",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "citations": [
+        "Regulation (EU) 2024/1689 — Article 1",
+        "Regulation (EU) 2024/1689 — Article 2"
+      ],
+      "source_ids": ["src_eu_ai_act_2024_1689"]
+    },
+    {
+      "obligation_id": "EU-OBL-ART5-PROHIBITED",
+      "requirement_type": "REGULATORY",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "citations": ["Regulation (EU) 2024/1689 — Article 5"],
+      "source_ids": ["src_eu_ai_act_2024_1689"]
+    },
+    {
+      "obligation_id": "EU-OBL-ART6-HIGH-RISK",
+      "requirement_type": "REGULATORY",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "citations": ["Regulation (EU) 2024/1689 — Article 6"],
+      "source_ids": ["src_eu_ai_act_2024_1689"]
+    },
+    {
+      "obligation_id": "EU-OBL-ART9-RISK-MANAGEMENT",
+      "requirement_type": "REGULATORY",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "citations": ["Regulation (EU) 2024/1689 — Article 9"],
+      "source_ids": ["src_eu_ai_act_2024_1689"]
+    },
+    {
+      "obligation_id": "EU-OBL-ART10-DATA-GOVERNANCE",
+      "requirement_type": "REGULATORY",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "citations": ["Regulation (EU) 2024/1689 — Article 10"],
+      "source_ids": ["src_eu_ai_act_2024_1689"]
+    },
+    {
+      "obligation_id": "EU-OBL-ART11-TECHNICAL-DOCUMENTATION",
+      "requirement_type": "REGULATORY",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "citations": ["Regulation (EU) 2024/1689 — Article 11"],
+      "source_ids": ["src_eu_ai_act_2024_1689"]
+    },
+    {
+      "obligation_id": "EU-OBL-ART12-RECORD-KEEPING",
+      "requirement_type": "REGULATORY",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "citations": ["Regulation (EU) 2024/1689 — Article 12"],
+      "source_ids": ["src_eu_ai_act_2024_1689"]
+    },
+    {
+      "obligation_id": "EU-OBL-ART13-TRANSPARENCY",
+      "requirement_type": "REGULATORY",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "citations": ["Regulation (EU) 2024/1689 — Article 13"],
+      "source_ids": ["src_eu_ai_act_2024_1689"]
+    },
+    {
+      "obligation_id": "EU-OBL-ART14-HUMAN-OVERSIGHT",
+      "requirement_type": "REGULATORY",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "citations": ["Regulation (EU) 2024/1689 — Article 14"],
+      "source_ids": ["src_eu_ai_act_2024_1689"]
+    },
+    {
+      "obligation_id": "EU-OBL-ART15-ACCURACY-ROBUSTNESS",
+      "requirement_type": "REGULATORY",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "citations": ["Regulation (EU) 2024/1689 — Article 15"],
+      "source_ids": ["src_eu_ai_act_2024_1689"]
+    },
+    {
+      "obligation_id": "EU-OBL-ART26-DEPLOYER",
+      "requirement_type": "REGULATORY",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "citations": ["Regulation (EU) 2024/1689 — Article 26"],
+      "source_ids": ["src_eu_ai_act_2024_1689"]
+    },
+    {
+      "obligation_id": "EU-OBL-ART50-TRANSPARENCY",
+      "requirement_type": "REGULATORY",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "citations": ["Regulation (EU) 2024/1689 — Article 50"],
+      "source_ids": ["src_eu_ai_act_2024_1689"]
+    },
+    {
+      "obligation_id": "EU-OBL-GPAI-PROVIDER",
+      "requirement_type": "REGULATORY",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "citations": [
+        "Regulation (EU) 2024/1689 — Article 51",
+        "Regulation (EU) 2024/1689 — Article 53"
+      ],
+      "source_ids": ["src_eu_ai_act_2024_1689"]
+    },
+    {
+      "obligation_id": "EU-OBL-GPAI-SYSTEMIC-RISK",
+      "requirement_type": "REGULATORY",
+      "authority": "European Union Artificial Intelligence Act",
+      "authority_tier": 1,
+      "citations": [
+        "Regulation (EU) 2024/1689 — Article 51",
+        "Regulation (EU) 2024/1689 — Article 55"
+      ],
+      "source_ids": ["src_eu_ai_act_2024_1689"]
+    }
+  ]
+}

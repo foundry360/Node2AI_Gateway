@@ -32,7 +32,11 @@ export type ExpectedActionCode =
 export interface EnforcementProjection {
   /** Observed/verified Gateway result — never invent success. */
   status: EnforcementStatus;
-  /** True only when a Gateway audit/enforcement record was joined. */
+  /**
+   * True when a Gateway audit/enforcement record was joined.
+   * Distinct from customer-facing verification of a successful expected outcome —
+   * see {@link customerVerificationLabel}.
+   */
   verified: boolean;
   /** True when Gateway attempted enforcement for this request. */
   attempted: boolean;
@@ -48,6 +52,40 @@ export interface EnforcementProjection {
    * not a machine or human DENY.
    */
   safety_fallback?: boolean;
+}
+
+/**
+ * Customer-facing verification of the expected enforcement outcome.
+ * Distinct from `verified` (audit joined) and from cryptographic event integrity.
+ *
+ * ALLOWED / CONTROLS_APPLIED / BLOCKED + joined audit → VERIFIED
+ * FAILED → FAILED (never VERIFIED, even when an audit exists)
+ * UNKNOWN / missing / REVIEW_REQUIRED → UNVERIFIED
+ */
+export type CustomerVerificationLabel =
+  | 'VERIFIED'
+  | 'FAILED'
+  | 'UNVERIFIED'
+  | 'NOT_EXECUTED';
+
+export function customerVerificationLabel(
+  enforcement:
+    | Pick<EnforcementProjection, 'status' | 'verified'>
+    | null
+    | undefined,
+): CustomerVerificationLabel {
+  if (!enforcement) return 'UNVERIFIED';
+  if (enforcement.status === 'FAILED') return 'FAILED';
+  if (enforcement.status === 'NOT_EXECUTED') return 'NOT_EXECUTED';
+  if (
+    enforcement.verified &&
+    (enforcement.status === 'ALLOWED' ||
+      enforcement.status === 'CONTROLS_APPLIED' ||
+      enforcement.status === 'BLOCKED')
+  ) {
+    return 'VERIFIED';
+  }
+  return 'UNVERIFIED';
 }
 
 const HARD_FAILURE_CODES = new Set([

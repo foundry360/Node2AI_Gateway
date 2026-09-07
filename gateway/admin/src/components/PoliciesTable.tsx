@@ -60,7 +60,7 @@ const SORT_COLUMNS: Array<{ key: SortKey; label: string; className?: string }> =
 ];
 
 function policyDomainIcon(domain: string | undefined): ReactNode {
-  const props = { size: 14, strokeWidth: 1.75, 'aria-hidden': true as const };
+  const props = { size: 16, strokeWidth: 1.75, 'aria-hidden': true as const };
   const d = (domain ?? '').toLowerCase();
   if (
     d === 'hipaa' ||

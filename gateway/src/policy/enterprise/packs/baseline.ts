@@ -1,6 +1,7 @@
 import type { Obligation, ObligationCode } from '../types.js';
 import type { DecisionProvenance } from '../provenance.js';
 import type { ResolvedPolicyOutcome } from '../policy-resolution.js';
+import type { GovernanceContext } from '../../types.js';
 
 /** Facts bag for baseline pack interpreters (input + output). */
 export interface BaselineFacts {
@@ -37,7 +38,23 @@ export interface BaselineFacts {
   recipient?: string;
   source_system?: string;
   processing_location?: string;
+  /** Authorization/consent basis only — not governance documentation. */
   authorization_context?: string;
+  /**
+   * Generic governance evidence. Packs map these into control inputs.
+   * Distinct from authorization_context.
+   */
+  governance_context?: GovernanceContext;
+  /**
+   * Evaluation timestamp (ISO-8601) for phased obligation applicability.
+   * Set at the request boundary — packs compare against rule application_date.
+   */
+  evaluation_as_of?: string;
+  /** Optional pack-local documentation gates (framework pack inputs). */
+  nist_governance_documented?: boolean;
+  nist_map_context_documented?: boolean;
+  nist_measure_documented?: boolean;
+  nist_manage_response_documented?: boolean;
 }
 
 export interface PackPolicyMeta {
@@ -82,7 +99,14 @@ export interface PackPolicyMeta {
 }
 
 export interface PackSnapshot {
-  packs: Array<{ pack_id: string; status: string; name: string; domain: string }>;
+  packs: Array<{
+    pack_id: string;
+    status: string;
+    name: string;
+    domain: string;
+    /** Optional link to PolicyAuthority catalog (provenance only). */
+    authority_id?: string;
+  }>;
   policies: PackPolicyMeta[];
 }
 

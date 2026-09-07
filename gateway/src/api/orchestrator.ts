@@ -197,6 +197,15 @@ export class GatewayOrchestrator {
 
       let policyResult;
       try {
+        const applicabilityCodes = (body.regulatory_applicability ?? []).map(
+          (a) =>
+            a.startsWith('REGULATORY_APPLICABILITY:')
+              ? a
+              : `REGULATORY_APPLICABILITY:${a}`,
+        );
+        const reasonCodes = [
+          ...new Set([...classification.reason_codes, ...applicabilityCodes]),
+        ];
         policyResult = await this.deps.policy.evaluateRequest({
           user,
           application: principal.application,
@@ -204,9 +213,18 @@ export class GatewayOrchestrator {
           requestedModel: body.model,
           availableModels: this.deps.models.listAvailableModels(),
           environment: principal.application.environment,
-          classification,
+          classification: {
+            ...classification,
+            reason_codes: reasonCodes,
+          },
           deploymentMode: this.deps.config.deploymentMode,
           request_id: requestId,
+          purpose: body.purpose,
+          authorization_context: body.authorization_context,
+          source_system: body.source_system,
+          processing_location: body.processing_location,
+          governance_context: body.governance_context,
+          evaluation_as_of: body.evaluation_as_of,
         });
       } catch {
         return block(

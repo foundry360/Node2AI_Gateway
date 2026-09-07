@@ -1,0 +1,43 @@
+{
+  "pack_id": "pack_eu_ai_act",
+  "name": "EU AI Act",
+  "domain": "ai_risk",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "authority_id": "auth_eu_ai_act",
+  "scope": "AI_REGULATORY_GOVERNANCE",
+  "not": "EU_AI_ACT_CERTIFICATION",
+  "description": "Focused Regulation (EU) 2024/1689 (EU AI Act) pack. Operationalizes prohibited practices, high-risk, Article 50 transparency, and GPAI obligation evidence gates. Legal authority — not a compliance certification.",
+  "interpreters": {
+    "input": "eu_ai_act_pack_v1",
+    "output": "eu_ai_act_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_eu_ai_act_input",
+      "version": 1,
+      "phase": "input",
+      "name": "EU AI Act input governance"
+    },
+    {
+      "policy_id": "pol_eu_ai_act_output",
+      "version": 1,
+      "phase": "output",
+      "name": "EU AI Act output governance"
+    }
+  ],
+  "semantic_notes": [
+    "EU AI Act is REGULATION — treatsAsLegalAuthority === true",
+    "Applicability is opt-in via REGULATORY_APPLICABILITY:EU_AI_ACT",
+    "Phased obligations use evaluation_as_of vs Art. 113 application dates",
+    "No EU-specific evaluator, resolver, Decision type, Gateway branch, or compliance score",
+    "No implicit precedence vs HIPAA, Part 2, NIST, or OWASP"
+  ],
+  "deliberately_not_implemented": [
+    "Standalone EU risk classifier engine",
+    "Automatic sector-to-high-risk inference",
+    "Legal-compliance certification or readiness percentages",
+    "Full Annex III case-by-case classifier",
+    "Market surveillance / notifying body workflows"
+  ]
+}

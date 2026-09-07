@@ -688,11 +688,16 @@ export function registerAdminRoutes(
         summary:
           request_context.execution_mode === 'simulation'
             ? 'Decision evaluated - Gateway action not executed'
-            : enforcement.verified
-              ? 'Decision evaluated - Gateway enforcement correlated and verified'
-              : enforcement.attempted
-                ? 'Decision evaluated - Gateway enforcement attempted'
-                : 'Decision evaluated - Gateway enforcement not yet correlated',
+            : enforcement.status === 'FAILED'
+              ? 'Decision evaluated - Gateway enforcement failed'
+              : enforcement.verified &&
+                  (enforcement.status === 'ALLOWED' ||
+                    enforcement.status === 'CONTROLS_APPLIED' ||
+                    enforcement.status === 'BLOCKED')
+                ? 'Decision evaluated - Gateway enforcement correlated and verified'
+                : enforcement.attempted
+                  ? 'Decision evaluated - Gateway enforcement attempted'
+                  : 'Decision evaluated - Gateway enforcement not yet correlated',
         resume: record.execution ?? null,
         held_request_present: Boolean(record.held_request),
       },
@@ -1470,7 +1475,7 @@ export function registerAdminRoutes(
     const result = await audit.verifyIntegrity();
     return {
       integrity: result,
-      note: 'Hash-chained HMAC-signed audit. Response bodies are not stored — only response_hash.',
+      note: 'Hash-chained HMAC-signed audit. Response bodies are not stored, only response_hash.',
     };
   });
 
@@ -1797,11 +1802,11 @@ export function registerAdminRoutes(
             {
               role: 'system',
               content:
-                'You are the Enigma gateway compliance analyst. Score each priority framework 0-100. Return JSON only: {"summary":string,"overall":number,"frameworks":[{"framework_id":string,"name":string,"score":number,"status":"strong"|"partial"|"weak"|"unknown","detail":string,"compliant_controls":number,"total_controls":number,"high_priority_issues":number}]}.',
+                'You are the Enigma gateway governance analyst. Score each priority framework 0-100 based on loaded policy pack posture (not certification). Return JSON only: {"summary":string,"overall":number,"frameworks":[{"framework_id":string,"name":string,"score":number,"status":"strong"|"partial"|"weak"|"unknown","detail":string,"controls_evaluated":number,"total_controls":number,"high_priority_issues":number}]}.',
             },
             {
               role: 'user',
-              content: `Score compliance for each priority framework:\n${JSON.stringify(
+              content: `Score each priority framework policy posture (not certification):\n${JSON.stringify(
                 {
                   priority_frameworks: PRIORITY_FRAMEWORKS,
                   packs,

@@ -99,7 +99,7 @@ export function AuditTable({
           <thead>
             <tr>
               <th>Date</th>
-              <th>Audit</th>
+              <th>Event</th>
               <th>Application</th>
               <th>Policy Decision</th>
               <th>Decision Response</th>

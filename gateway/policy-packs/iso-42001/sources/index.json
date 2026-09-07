@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "sources": [
+    {
+      "id": "src_iso_iec_42001_2023",
+      "source_id": "src_iso_iec_42001_2023",
+      "authority": "ISO/IEC 42001:2023",
+      "authority_tier": 3,
+      "authority_type": "STANDARD",
+      "legal_authority": false,
+      "authority_id": "auth_iso_42001",
+      "title": "ISO/IEC 42001:2023 Information technology — Artificial intelligence — Management system",
+      "publisher": "International Organization for Standardization / International Electrotechnical Commission",
+      "citation": "ISO/IEC 42001:2023",
+      "canonical_url": "https://www.iso.org/standard/42001",
+      "effective_date": "2023-12-18",
+      "retrieved_date": null,
+      "version": "2023",
+      "note": "International Standard for an AI management system (AIMS). Not statute; not Enigma certification."
+    }
+  ]
+}

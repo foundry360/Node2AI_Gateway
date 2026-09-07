@@ -1,0 +1,604 @@
+{
+  "version": "1.0.0",
+  "rules": [
+    {
+      "rule_id": "EU-AI-ACT-ART5-PROHIBITED-DENY",
+      "name": "Deny when an applicable Article 5 prohibited practice is established",
+      "phase": "input",
+      "priority": 200,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2025-02-02",
+      "note": "Regulatory prohibition under Art. 5 — not a security control attestation.",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "prohibited_practice_established": true
+      },
+      "decision": "DENY",
+      "reason_codes": [
+        "EU_AI_ACT_ART5_PROHIBITED_PRACTICE"
+      ],
+      "obligation_ids": [
+        "EU-OBL-ART5-PROHIBITED"
+      ],
+      "control_ids": [
+        "ctrl_enigma_block"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT",
+        "NO_EXTERNAL_TRANSMISSION"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-ART5-PROHIBITED-UNCERTAIN",
+      "name": "Review when prohibited-practice applicability cannot be established",
+      "phase": "input",
+      "priority": 195,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2025-02-02",
+      "note": "Uncertainty must not silently become ALLOW or DENY.",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "prohibited_practice_uncertain": true
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "EU_AI_ACT_ART5_PROHIBITED_APPLICABILITY_UNCERTAIN"
+      ],
+      "obligation_ids": [
+        "EU-OBL-ART5-PROHIBITED"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-HIGH-RISK-APPLICABILITY-UNCERTAIN",
+      "name": "Review when high-risk applicability cannot be established",
+      "phase": "input",
+      "priority": 180,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2026-08-02",
+      "note": "Does not invent high-risk classification from sector keywords.",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "high_risk_applicability_uncertain": true
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "EU_AI_ACT_HIGH_RISK_APPLICABILITY_UNCERTAIN"
+      ],
+      "obligation_ids": [
+        "EU-OBL-ART6-HIGH-RISK"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-HIGH-RISK-OBLIGATIONS-REVIEW",
+      "name": "Review when high-risk obligation evidence is not established",
+      "phase": "input",
+      "priority": 175,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2026-08-02",
+      "note": "Arts. 9–15 / Art. 26 evidence gates — organizational evidence, not per-prompt proof.",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "high_risk_established": true,
+        "high_risk_obligations_satisfied": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "EU_AI_ACT_HIGH_RISK_OBLIGATION_EVIDENCE_MISSING"
+      ],
+      "obligation_ids": [
+        "EU-OBL-ART9-RISK-MANAGEMENT",
+        "EU-OBL-ART10-DATA-GOVERNANCE",
+        "EU-OBL-ART11-TECHNICAL-DOCUMENTATION",
+        "EU-OBL-ART12-RECORD-KEEPING",
+        "EU-OBL-ART13-TRANSPARENCY",
+        "EU-OBL-ART14-HUMAN-OVERSIGHT",
+        "EU-OBL-ART15-ACCURACY-ROBUSTNESS"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-HIGH-RISK-OBLIGATIONS-SATISFIED",
+      "name": "Allow with controls when high-risk obligation evidence is established",
+      "phase": "input",
+      "priority": 80,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2026-08-02",
+      "note": "Regulatory obligation evaluated — not EU AI Act certification.",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "high_risk_established": true,
+        "high_risk_obligations_satisfied": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "EU_AI_ACT_HIGH_RISK_OBLIGATION_EVIDENCE_ESTABLISHED"
+      ],
+      "obligation_ids": [
+        "EU-OBL-ART9-RISK-MANAGEMENT",
+        "EU-OBL-ART14-HUMAN-OVERSIGHT",
+        "EU-OBL-ART15-ACCURACY-ROBUSTNESS"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-ART6-1-HIGH-RISK-REVIEW",
+      "name": "Review Art. 6(1) high-risk pathway when applicable and evidence missing",
+      "phase": "input",
+      "priority": 170,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2027-08-02",
+      "note": "Art. 6(1) product-safety high-risk pathway — later application date (Art. 113).",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "high_risk_art6_1_declared": true,
+        "high_risk_obligations_satisfied": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "EU_AI_ACT_ART6_1_HIGH_RISK_OBLIGATION_REVIEW"
+      ],
+      "obligation_ids": [
+        "EU-OBL-ART6-HIGH-RISK"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-ART50-INTERACTION-DISCLOSURE-REVIEW",
+      "name": "Review when Art. 50 AI-interaction disclosure evidence is not established",
+      "phase": "input",
+      "priority": 160,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2026-08-02",
+      "note": "Direct AI interaction transparency — Art. 50.",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "art50_interaction_applicable": true,
+        "ai_interaction_disclosure": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "EU_AI_ACT_ART50_INTERACTION_DISCLOSURE_MISSING"
+      ],
+      "obligation_ids": [
+        "EU-OBL-ART50-TRANSPARENCY"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-ART50-SYNTHETIC-MARKING-REVIEW",
+      "name": "Review when Art. 50 synthetic-content marking evidence is not established",
+      "phase": "input",
+      "priority": 155,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2026-08-02",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "art50_synthetic_applicable": true,
+        "synthetic_content_marking": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "EU_AI_ACT_ART50_SYNTHETIC_MARKING_MISSING"
+      ],
+      "obligation_ids": [
+        "EU-OBL-ART50-TRANSPARENCY"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-ART50-DEEPFAKE-LABELING-REVIEW",
+      "name": "Review when Art. 50 deepfake labeling evidence is not established",
+      "phase": "input",
+      "priority": 150,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2026-08-02",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "art50_deepfake_applicable": true,
+        "deepfake_labeling": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "EU_AI_ACT_ART50_DEEPFAKE_LABELING_MISSING"
+      ],
+      "obligation_ids": [
+        "EU-OBL-ART50-TRANSPARENCY"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-ART50-PUBLIC-INTEREST-TEXT-REVIEW",
+      "name": "Review when Art. 50 public-interest text editorial-control evidence is missing",
+      "phase": "input",
+      "priority": 145,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2026-08-02",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "art50_public_interest_text_applicable": true,
+        "human_review_or_editorial_control": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "EU_AI_ACT_ART50_PUBLIC_INTEREST_EDITORIAL_CONTROL_MISSING"
+      ],
+      "obligation_ids": [
+        "EU-OBL-ART50-TRANSPARENCY"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-ART50-TRANSPARENCY-SATISFIED",
+      "name": "Allow with controls when applicable Art. 50 transparency evidence is established",
+      "phase": "input",
+      "priority": 70,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2026-08-02",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "art50_any_applicable": true,
+        "art50_obligations_satisfied": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "EU_AI_ACT_ART50_TRANSPARENCY_EVIDENCE_ESTABLISHED"
+      ],
+      "obligation_ids": [
+        "EU-OBL-ART50-TRANSPARENCY"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-GPAI-PROVIDER-ROLE-REVIEW",
+      "name": "Review when GPAI provider role/evidence cannot be established",
+      "phase": "input",
+      "priority": 140,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2025-08-02",
+      "note": "GPAI obligations attach to provider role — missing role → REVIEW.",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "gpai_model": true,
+        "actor_role_missing": true
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "EU_AI_ACT_GPAI_ACTOR_ROLE_MISSING"
+      ],
+      "obligation_ids": [
+        "EU-OBL-GPAI-PROVIDER"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-GPAI-PROVIDER-OBLIGATIONS-REVIEW",
+      "name": "Review when GPAI provider obligation evidence is not established",
+      "phase": "input",
+      "priority": 135,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2025-08-02",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "gpai_provider": true,
+        "gpai_provider_obligations_satisfied": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "EU_AI_ACT_GPAI_PROVIDER_OBLIGATION_EVIDENCE_MISSING"
+      ],
+      "obligation_ids": [
+        "EU-OBL-GPAI-PROVIDER"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-GPAI-SYSTEMIC-RISK-REVIEW",
+      "name": "Review when GPAI systemic-risk obligation evidence is not established",
+      "phase": "input",
+      "priority": 130,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2025-08-02",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "gpai_systemic_risk_provider": true,
+        "gpai_systemic_risk_obligations_satisfied": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "EU_AI_ACT_GPAI_SYSTEMIC_RISK_OBLIGATION_EVIDENCE_MISSING"
+      ],
+      "obligation_ids": [
+        "EU-OBL-GPAI-SYSTEMIC-RISK"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-GPAI-PROVIDER-OBLIGATIONS-SATISFIED",
+      "name": "Allow with controls when GPAI provider obligation evidence is established",
+      "phase": "input",
+      "priority": 60,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "application_date": "2025-08-02",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "gpai_provider": true,
+        "gpai_provider_obligations_satisfied": true,
+        "gpai_systemic_risk_gate_ok": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "EU_AI_ACT_GPAI_PROVIDER_OBLIGATION_EVIDENCE_ESTABLISHED"
+      ],
+      "obligation_ids": [
+        "EU-OBL-GPAI-PROVIDER"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-JURISDICTION-UNCERTAIN",
+      "name": "Review when territorial application facts are not established",
+      "phase": "input",
+      "priority": 120,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "note": "Does not assume EU user = Act applies or US org = Act does not apply.",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "jurisdiction_facts_missing": true
+      },
+      "decision": "REVIEW",
+      "reason_codes": [
+        "EU_AI_ACT_TERRITORIAL_APPLICABILITY_UNCERTAIN"
+      ],
+      "obligation_ids": [
+        "EU-OBL-ART1-SCOPE"
+      ],
+      "control_ids": [
+        "ctrl_enigma_human_review"
+      ],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-MINIMAL-RISK-ALLOW",
+      "name": "Allow when declared minimal/no-risk and no other EU obligation gate fires",
+      "phase": "input",
+      "priority": 30,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "note": "Explicit MINIMAL_OR_NO_RISK declaration with no prohibited/high-risk/GPAI/Art50 gates.",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT",
+        "minimal_or_no_risk": true,
+        "no_elevated_eu_gates": true
+      },
+      "decision": "ALLOW",
+      "reason_codes": [
+        "EU_AI_ACT_MINIMAL_OR_NO_RISK"
+      ],
+      "obligation_ids": [
+        "EU-OBL-ART1-SCOPE"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    },
+    {
+      "rule_id": "EU-AI-ACT-OUTPUT-GOVERNANCE-LOG",
+      "name": "Log governance event for EU AI Act-scoped output",
+      "phase": "output",
+      "priority": 50,
+      "requirement_type": "REGULATORY_OBLIGATION",
+      "conditions": {
+        "regulatory_applicability": "EU_AI_ACT"
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": [
+        "EU_AI_ACT_OUTPUT_GOVERNANCE_LOG"
+      ],
+      "obligation_ids": [
+        "EU-OBL-ART12-RECORD-KEEPING"
+      ],
+      "control_ids": [
+        "ctrl_audit_logging"
+      ],
+      "enigma_obligations": [
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": [
+        "src_eu_ai_act_2024_1689"
+      ],
+      "derived_from": [
+        "src_eu_ai_act_2024_1689"
+      ]
+    }
+  ]
+}

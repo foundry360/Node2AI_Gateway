@@ -19,6 +19,12 @@ type RequestContext = {
   purpose?: string;
   recipient?: string;
   authorization?: string;
+  governance?: {
+    accountability_documented?: boolean;
+    system_context_documented?: boolean;
+    measurement_documented?: boolean;
+    risk_response_documented?: boolean;
+  };
   source?: string;
   processing_location?: string;
   regulatory_applicability?: string[];
@@ -72,6 +78,25 @@ function rowsFromContext(
   if (ctx.recipient) rows.push({ label: 'Recipient', value: ctx.recipient });
   if (ctx.authorization) {
     rows.push({ label: 'Authorization Context', value: ctx.authorization });
+  }
+  if (ctx.governance) {
+    const bits = [
+      ctx.governance.accountability_documented != null
+        ? `accountability=${ctx.governance.accountability_documented}`
+        : null,
+      ctx.governance.system_context_documented != null
+        ? `system_context=${ctx.governance.system_context_documented}`
+        : null,
+      ctx.governance.measurement_documented != null
+        ? `measurement=${ctx.governance.measurement_documented}`
+        : null,
+      ctx.governance.risk_response_documented != null
+        ? `risk_response=${ctx.governance.risk_response_documented}`
+        : null,
+    ].filter(Boolean);
+    if (bits.length) {
+      rows.push({ label: 'Governance Context', value: bits.join(', ') });
+    }
   }
   if (ctx.regulatory_applicability?.length) {
     rows.push({

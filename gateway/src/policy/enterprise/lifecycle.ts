@@ -23,6 +23,12 @@ export interface PolicyTestFixture {
   regulatory_applicability?: string[];
   purpose?: string;
   authorization_context?: string;
+  governance_context?: {
+    accountability_documented?: boolean;
+    system_context_documented?: boolean;
+    measurement_documented?: boolean;
+    risk_response_documented?: boolean;
+  };
   recipient?: string;
   processing_location?: string;
 }
@@ -121,6 +127,7 @@ export function fixtureToFacts(fixture: PolicyTestFixture): BaselineFacts {
     regulatory_applicability: fixture.regulatory_applicability,
     purpose: fixture.purpose,
     authorization_context: fixture.authorization_context,
+    governance_context: fixture.governance_context,
     recipient: fixture.recipient,
     processing_location: fixture.processing_location,
   };
@@ -171,6 +178,7 @@ export function fixtureToRequestContext(fixture: PolicyTestFixture): PolicyReque
     recipient: facts.recipient,
     processing_location: facts.processing_location,
     authorization_context: facts.authorization_context,
+    governance_context: facts.governance_context,
   };
 }
 

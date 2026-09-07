@@ -45,6 +45,7 @@ function parseSourcesCatalog(raw: unknown): PackProvenanceGraph['sources'] {
         s.authority_type ?? 'SECONDARY',
       ) as RegulatorySourceRecord['authority_type'],
       legal_authority: s.legal_authority === true,
+      authority_id: s.authority_id != null ? String(s.authority_id) : undefined,
       title: s.title != null ? String(s.title) : undefined,
       publisher: s.publisher != null ? String(s.publisher) : undefined,
       citation: s.citation != null ? String(s.citation) : undefined,

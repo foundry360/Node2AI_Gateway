@@ -73,6 +73,15 @@ function factsFromRequest(context: PolicyRequestContext): BaselineFacts {
     source_system: context.source_system,
     processing_location: context.processing_location,
     authorization_context: context.authorization_context,
+    governance_context: context.governance_context,
+    evaluation_as_of: context.evaluation_as_of ?? new Date().toISOString(),
+    nist_governance_documented:
+      context.governance_context?.accountability_documented,
+    nist_map_context_documented:
+      context.governance_context?.system_context_documented,
+    nist_measure_documented: context.governance_context?.measurement_documented,
+    nist_manage_response_documented:
+      context.governance_context?.risk_response_documented,
   };
 }
 
@@ -113,6 +122,15 @@ function factsFromResponse(
     purpose: context.purpose,
     recipient: context.recipient,
     authorization_context: context.authorization_context,
+    governance_context: context.governance_context,
+    evaluation_as_of: context.evaluation_as_of ?? new Date().toISOString(),
+    nist_governance_documented:
+      context.governance_context?.accountability_documented,
+    nist_map_context_documented:
+      context.governance_context?.system_context_documented,
+    nist_measure_documented: context.governance_context?.measurement_documented,
+    nist_manage_response_documented:
+      context.governance_context?.risk_response_documented,
   };
 }
 
@@ -184,6 +202,7 @@ function toEpaDecision(
               authority_tier: s.authority_tier,
               authority_type: s.authority_type,
               legal_authority: s.legal_authority,
+              authority_id: s.authority_id,
               citation: s.citation,
               title: s.title,
               publisher: s.publisher,
@@ -331,6 +350,16 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
       source_system: request.context.source,
       processing_location: request.context.processing_location,
       authorization_context: request.context.authorization,
+      governance_context: request.context.governance,
+      evaluation_as_of:
+        request.context.time ?? new Date().toISOString(),
+      nist_governance_documented:
+        request.context.governance?.accountability_documented,
+      nist_map_context_documented:
+        request.context.governance?.system_context_documented,
+      nist_measure_documented: request.context.governance?.measurement_documented,
+      nist_manage_response_documented:
+        request.context.governance?.risk_response_documented,
     };
 
     if (request.evaluation_phase === 'output') {

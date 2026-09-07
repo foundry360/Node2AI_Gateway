@@ -1,0 +1,41 @@
+{
+  "pack_id": "pack_iso_23894",
+  "name": "ISO/IEC 23894",
+  "domain": "ai_risk",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "authority_id": "auth_iso_23894",
+  "scope": "AI_RISK_MANAGEMENT_GOVERNANCE",
+  "not": "ISO_CERTIFICATION_OR_RISK_SCORE",
+  "description": "Focused ISO/IEC 23894:2023 pack. Operationalizes AI risk-management evidence gates as Enigma controls. Standard — not legal authority, not a certification, not a risk score.",
+  "interpreters": {
+    "input": "iso_23894_pack_v1",
+    "output": "iso_23894_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_iso_23894_input",
+      "version": 1,
+      "phase": "input",
+      "name": "ISO/IEC 23894 input governance"
+    },
+    {
+      "policy_id": "pol_iso_23894_output",
+      "version": 1,
+      "phase": "output",
+      "name": "ISO/IEC 23894 output governance"
+    }
+  ],
+  "semantic_notes": [
+    "ISO 23894 is STANDARD — treatsAsLegalAuthority === false",
+    "Distinct from ISO 42001 (AIMS) — independent pack contributions",
+    "Applicability is opt-in via REGULATORY_APPLICABILITY:ISO_23894",
+    "No risk score, heatmap, certification, or ISO-specific evaluator"
+  ],
+  "deliberately_not_implemented": [
+    "ISO/IEC 42005 / 42006 / 42003",
+    "Quantitative risk scoring / heatmaps",
+    "Certification-body workflows",
+    "Automatic AI risk detection from prompts"
+  ]
+}

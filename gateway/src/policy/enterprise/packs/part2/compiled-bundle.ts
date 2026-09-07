@@ -4,6 +4,7 @@
  */
 
 import type { PackProvenanceGraph } from '../../provenance.js';
+import { POLICY_AUTHORITY_IDS } from '../../authority.js';
 
 export type Part2CompiledRule = {
   rule_id: string;
@@ -206,6 +207,7 @@ export const PART2_PROVENANCE_GRAPH: PackProvenanceGraph = {
       authority_tier: 1,
       authority_type: 'PRIMARY_REGULATORY',
       legal_authority: true,
+      authority_id: POLICY_AUTHORITY_IDS.part2,
       title: 'Confidentiality of Substance Use Disorder Patient Records',
       publisher: 'U.S. Department of Health and Human Services',
       citation: '42 CFR Part 2',

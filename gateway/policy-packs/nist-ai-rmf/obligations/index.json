@@ -1,0 +1,50 @@
+{
+  "version": "1.0.0",
+  "obligations": [
+    {
+      "obligation_id": "NIST-OBL-GOVERN-ACCOUNTABILITY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST AI RMF 1.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST AI 100-1 GOVERN 2.1",
+        "NIST AI 100-1 GOVERN 1.1"
+      ],
+      "source_ids": ["src_nist_ai_rmf_100_1"],
+      "informational": false
+    },
+    {
+      "obligation_id": "NIST-OBL-MAP-CONTEXT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST AI RMF 1.0",
+      "authority_tier": 4,
+      "citations": ["NIST AI 100-1 MAP 1.1"],
+      "source_ids": ["src_nist_ai_rmf_100_1"],
+      "informational": false
+    },
+    {
+      "obligation_id": "NIST-OBL-MEASURE-MONITOR",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST AI RMF 1.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST AI 100-1 MEASURE 2.4",
+        "NIST AI 100-1 MEASURE 2.5"
+      ],
+      "source_ids": ["src_nist_ai_rmf_100_1"],
+      "informational": false
+    },
+    {
+      "obligation_id": "NIST-OBL-MANAGE-RESPONSE",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "NIST AI RMF 1.0",
+      "authority_tier": 4,
+      "citations": [
+        "NIST AI 100-1 MANAGE 1.1",
+        "NIST AI 100-1 MANAGE 1.3"
+      ],
+      "source_ids": ["src_nist_ai_rmf_100_1", "src_nist_ai_rmf_playbook"],
+      "informational": false
+    }
+  ]
+}

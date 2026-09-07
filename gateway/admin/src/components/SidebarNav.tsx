@@ -5,10 +5,10 @@ import type { LucideIcon } from 'lucide-react';
 import {
   AppWindow,
   Boxes,
+  Eye,
   FileText,
   Gavel,
   LayoutDashboard,
-  ScrollText,
   Settings,
 } from 'lucide-react';
 
@@ -18,7 +18,7 @@ const primary: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: '/policies', label: 'Policies', icon: FileText },
   { href: '/decisions', label: 'Decisions', icon: Gavel },
   { href: '/models', label: 'Models', icon: Boxes },
-  { href: '/audit', label: 'Audit', icon: ScrollText },
+  { href: '/audit', label: 'Observability', icon: Eye },
 ];
 
 function isNavActive(pathname: string, href: string): boolean {

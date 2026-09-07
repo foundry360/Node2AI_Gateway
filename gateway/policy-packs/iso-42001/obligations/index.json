@@ -1,0 +1,127 @@
+{
+  "version": "1.0.0",
+  "obligations": [
+    {
+      "obligation_id": "ISO42001-OBL-AIMS-GOVERNANCE",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42001:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42001:2023 — Clause 5 (Leadership)",
+        "ISO/IEC 42001:2023 — Clause 4 (Context)"
+      ],
+      "source_ids": [
+        "src_iso_iec_42001_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO42001-OBL-SCOPE-INVENTORY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42001:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42001:2023 — Clause 4 (Context of the organization)"
+      ],
+      "source_ids": [
+        "src_iso_iec_42001_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO42001-OBL-RISK-MANAGEMENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42001:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42001:2023 — Clause 6 (Planning)"
+      ],
+      "source_ids": [
+        "src_iso_iec_42001_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO42001-OBL-IMPACT-ASSESSMENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42001:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42001:2023 — Clause 6 (Planning)"
+      ],
+      "source_ids": [
+        "src_iso_iec_42001_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO42001-OBL-DATA-GOVERNANCE",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42001:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42001:2023 — Clause 8 (Operation)"
+      ],
+      "source_ids": [
+        "src_iso_iec_42001_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO42001-OBL-HUMAN-OVERSIGHT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42001:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42001:2023 — Clause 8 (Operation)"
+      ],
+      "source_ids": [
+        "src_iso_iec_42001_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO42001-OBL-OPERATIONAL-CONTROLS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42001:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42001:2023 — Clause 8 (Operation)"
+      ],
+      "source_ids": [
+        "src_iso_iec_42001_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO42001-OBL-MONITORING-EVALUATION",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42001:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42001:2023 — Clause 9 (Performance evaluation)"
+      ],
+      "source_ids": [
+        "src_iso_iec_42001_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO42001-OBL-INCIDENT-MANAGEMENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42001:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42001:2023 — Clause 8 (Operation)",
+        "ISO/IEC 42001:2023 — Clause 10 (Improvement)"
+      ],
+      "source_ids": [
+        "src_iso_iec_42001_2023"
+      ]
+    },
+    {
+      "obligation_id": "ISO42001-OBL-CONTINUAL-IMPROVEMENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42001:2023",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42001:2023 — Clause 10 (Improvement)"
+      ],
+      "source_ids": [
+        "src_iso_iec_42001_2023"
+      ]
+    }
+  ]
+}

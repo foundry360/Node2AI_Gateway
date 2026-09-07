@@ -19,6 +19,11 @@ export interface RegulatorySourceRecord {
   authority_tier: number;
   authority_type: AuthorityType;
   legal_authority: boolean;
+  /**
+   * Optional link to platform PolicyAuthority catalog (pack-agnostic).
+   * Does not replace citation strings or authority_tier ranking.
+   */
+  authority_id?: string;
   title?: string;
   publisher?: string;
   citation?: string;

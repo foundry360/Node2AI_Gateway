@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "authority_hierarchy": [
+    {
+      "rank": 4,
+      "class": "OWASP_LLM_TOP10_2025",
+      "authority_type": "SECURITY_GUIDANCE",
+      "label": "OWASP Top 10 for LLM Applications 2025",
+      "note": "Security guidance — NOT legal authority for DENY alone"
+    }
+  ],
+  "sources": [
+    {
+      "id": "src_owasp_llm_top10_2025",
+      "source_id": "src_owasp_llm_top10_2025",
+      "authority": "OWASP Top 10 for LLM Applications 2025",
+      "authority_tier": 4,
+      "authority_rank": 4,
+      "authority_type": "SECURITY_GUIDANCE",
+      "legal_authority": false,
+      "authority_id": "auth_owasp_llm_2025",
+      "citation": "OWASP Top 10 for LLM Applications 2025",
+      "title": "OWASP Top 10 for Large Language Model Applications 2025",
+      "publisher": "OWASP Foundation / OWASP GenAI Security Project",
+      "canonical_url": "https://genai.owasp.org/llm-top-10/",
+      "effective_date": "2024-11-01",
+      "retrieved_date": null,
+      "version": "2025",
+      "note": "Official OWASP GenAI Security Project publication. Voluntary security guidance; not a statute or regulation."
+    }
+  ]
+}

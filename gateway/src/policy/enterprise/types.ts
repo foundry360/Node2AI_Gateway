@@ -3,6 +3,8 @@
  * Production types — PDP/PEP boundary. See docs/enigma/policy-evaluation-contract.md.
  */
 
+import type { GovernanceContext } from '../types.js';
+
 export type EnigmaAction =
   | 'READ'
   | 'RETRIEVE'
@@ -68,7 +70,13 @@ export interface PolicyContext {
   recipient?: string;
   source?: string;
   processing_location?: string;
+  /** Authorization/consent basis only. */
   authorization?: string;
+  /**
+   * Generic governance evidence (accountability, system context, measurement,
+   * risk response). Distinct from authorization.
+   */
+  governance?: GovernanceContext;
 }
 
 export interface PolicyAIContext {
@@ -198,6 +206,7 @@ export interface PolicyExplanationProvenance {
     authority_tier: number;
     authority_type?: string;
     legal_authority?: boolean;
+    authority_id?: string;
     citation?: string;
     title?: string;
     publisher?: string;

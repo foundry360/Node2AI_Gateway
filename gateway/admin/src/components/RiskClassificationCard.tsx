@@ -60,7 +60,7 @@ function DonutChart({
 
   return (
     <div className="risk-donut" aria-hidden={total === 0}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <svg viewBox={`0 0 ${size} ${size}`} preserveAspectRatio="xMidYMid meet">
         <circle
           cx={center}
           cy={center}
@@ -178,7 +178,7 @@ export function RiskClassificationCard() {
         <div>
           <h3 className="action-items-title">Risk classification</h3>
           <p className="action-items-lede muted">
-            Analyzed and classified application risk from live console signals.
+            Analyzed and classified application risk from console signals.
           </p>
         </div>
         <button

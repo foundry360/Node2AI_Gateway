@@ -51,6 +51,11 @@
         "SECONDARY"
       ]
     },
+    "policy_authority_type": {
+      "type": "string",
+      "enum": ["REGULATION", "STANDARD", "FRAMEWORK", "SECURITY_GUIDANCE"],
+      "description": "Platform PolicyAuthority classification. Distinct from evidentiary authority_type / authority_tier."
+    },
     "source_record": {
       "type": "object",
       "required": ["source_id", "authority", "authority_tier", "authority_type", "legal_authority"],
@@ -60,6 +65,10 @@
         "authority_tier": { "$ref": "#/$defs/authority_rank" },
         "authority_type": { "$ref": "#/$defs/authority_type" },
         "legal_authority": { "type": "boolean" },
+        "authority_id": {
+          "type": "string",
+          "description": "Optional link to PolicyAuthority catalog id."
+        },
         "title": { "type": "string" },
         "publisher": { "type": "string" },
         "citation": { "type": "string" },

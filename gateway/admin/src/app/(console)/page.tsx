@@ -115,7 +115,7 @@ export default async function OverviewPage() {
                       </span>
                     </div>
                     <div className="status-kv-row">
-                      <span className="status-kv-label">Audit events</span>
+                      <span className="status-kv-label">Observability events</span>
                       <span className="status-kv-value">{data.totals.audit_events}</span>
                     </div>
                   </div>
@@ -206,7 +206,7 @@ export default async function OverviewPage() {
                       <span aria-hidden>→</span>
                     </Link>
                     <Link href="/audit">
-                      <span>Audit trail</span>
+                      <span>Observability</span>
                       <span aria-hidden>→</span>
                     </Link>
                   </nav>

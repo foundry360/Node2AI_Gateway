@@ -139,15 +139,13 @@ export function ConsoleInsightsPanel({
         afterBanner={
           <ActivitySparklines className="spark-grid spark-grid-4 console-spark-row" />
         }
-        beforeRecent={
-          <div className="stack-tight">
-            <div className="console-banner-scores">
-              <RiskClassificationCard />
-              <ComplianceScoreCard />
-            </div>
-            <TopActionItemsCard />
-          </div>
+        midRow={
+          <>
+            <RiskClassificationCard />
+            <ComplianceScoreCard />
+          </>
         }
+        beforeRecent={<TopActionItemsCard />}
       />
     </div>
   );

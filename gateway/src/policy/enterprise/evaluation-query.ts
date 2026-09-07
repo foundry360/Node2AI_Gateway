@@ -8,6 +8,7 @@ import type { PolicyEvaluationRecord } from './evaluation-record.js';
 import type { PolicyExplanation } from './types.js';
 import { withOperatorExplanation } from './decision-explanation.js';
 import type { PolicyDecision } from './types.js';
+import type { GovernanceContext } from '../types.js';
 import {
   expectedActionFromDecision,
   projectEnforcementResult,
@@ -171,9 +172,11 @@ export interface ProjectedRequestContext {
   purpose?: string;
   recipient?: string;
   authorization?: string;
+  governance?: GovernanceContext;
   source?: string;
   processing_location?: string;
   regulatory_applicability?: string[];
+  evaluation_as_of?: string;
   environment?: string;
   deployment_mode?: string;
   risk_level?: string;
@@ -241,6 +244,47 @@ export function projectRequestContext(
 
   const authorization = optionalString(ctx.authorization);
   if (authorization) projected.authorization = authorization;
+
+  const governanceRaw = ctx.governance;
+  if (governanceRaw && typeof governanceRaw === 'object') {
+    const g = governanceRaw as Record<string, unknown>;
+    const governance: NonNullable<ProjectedRequestContext['governance']> = {};
+    if (typeof g.accountability_documented === 'boolean') {
+      governance.accountability_documented = g.accountability_documented;
+    }
+    if (typeof g.system_context_documented === 'boolean') {
+      governance.system_context_documented = g.system_context_documented;
+    }
+    if (typeof g.measurement_documented === 'boolean') {
+      governance.measurement_documented = g.measurement_documented;
+    }
+    if (typeof g.risk_response_documented === 'boolean') {
+      governance.risk_response_documented = g.risk_response_documented;
+    }
+    if (g.security_controls && typeof g.security_controls === 'object') {
+      governance.security_controls = g.security_controls as NonNullable<
+        GovernanceContext['security_controls']
+      >;
+    }
+    if (g.regulatory && typeof g.regulatory === 'object') {
+      governance.regulatory = g.regulatory as NonNullable<GovernanceContext['regulatory']>;
+    }
+    if (g.management_system && typeof g.management_system === 'object') {
+      governance.management_system = g.management_system as NonNullable<
+        GovernanceContext['management_system']
+      >;
+    }
+    if (g.ai_risk && typeof g.ai_risk === 'object') {
+      governance.ai_risk = g.ai_risk as NonNullable<GovernanceContext['ai_risk']>;
+    }
+    if (g.impact && typeof g.impact === 'object') {
+      governance.impact = g.impact as NonNullable<GovernanceContext['impact']>;
+    }
+    if (Object.keys(governance).length > 0) projected.governance = governance;
+  }
+
+  const evaluationAsOf = optionalString(ctx.time);
+  if (evaluationAsOf) projected.evaluation_as_of = evaluationAsOf;
 
   const source = optionalString(ctx.source);
   if (source) projected.source = source;

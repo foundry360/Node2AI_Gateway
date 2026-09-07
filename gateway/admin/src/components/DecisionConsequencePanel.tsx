@@ -106,11 +106,18 @@ function GatewayResultView({
 }
 
 function verificationLabel(enforcement?: Enforcement | null): string {
-  if (!enforcement) return 'UNKNOWN';
-  if (enforcement.status === 'NOT_EXECUTED') return 'NOT_EXECUTED';
-  if (enforcement.verified) return 'VERIFIED';
+  if (!enforcement) return 'UNVERIFIED';
   if (enforcement.status === 'FAILED') return 'FAILED';
-  return 'UNKNOWN';
+  if (enforcement.status === 'NOT_EXECUTED') return 'NOT_EXECUTED';
+  if (
+    enforcement.verified &&
+    (enforcement.status === 'ALLOWED' ||
+      enforcement.status === 'CONTROLS_APPLIED' ||
+      enforcement.status === 'BLOCKED')
+  ) {
+    return 'VERIFIED';
+  }
+  return 'UNVERIFIED';
 }
 
 async function loadAuditEvent(opts: {
@@ -128,12 +135,12 @@ async function loadAuditEvent(opts: {
   const events = data.events ?? [];
   if (opts.auditId) {
     const match = events.find((e) => e.audit_id === opts.auditId);
-    if (!match) throw new Error('Audit event not found in recent trail');
+    if (!match) throw new Error('Observability event not found in recent trail');
     return match;
   }
   if (opts.requestId) {
     const match = events.find((e) => e.request_id === opts.requestId);
-    if (!match) throw new Error('No audit event found for this request');
+    if (!match) throw new Error('No observability event found for this request');
     return match;
   }
   throw new Error('No audit reference available');
@@ -181,7 +188,7 @@ export function DecisionConsequencePanel({
       });
       setAuditEvent(event);
     } catch (err) {
-      setAuditError(err instanceof Error ? err.message : 'Failed to open audit');
+      setAuditError(err instanceof Error ? err.message : 'Failed to open observability');
     } finally {
       setAuditBusy(false);
     }
@@ -235,7 +242,7 @@ export function DecisionConsequencePanel({
               {formatDisplayDateTime(enforcement.occurred_at)}
             </AttrRow>
           ) : null}
-          <AttrRow label="Audit">
+          <AttrRow label="Observability">
             {canOpenAudit ? (
               <span>
                 <button
@@ -244,7 +251,7 @@ export function DecisionConsequencePanel({
                   onClick={() => void openAudit()}
                   disabled={auditBusy}
                 >
-                  {auditBusy ? 'Opening…' : 'Open Audit'}
+                  {auditBusy ? 'Opening…' : 'Open Observability'}
                 </button>
                 <span className="mono muted">
                   {' '}

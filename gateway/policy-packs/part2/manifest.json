@@ -4,6 +4,7 @@
   "domain": "healthcare",
   "pack_version": "1.0.0",
   "status": "active",
+  "authority_id": "auth_42_cfr_part_2",
   "scope": "AI_DATA_GOVERNANCE",
   "not": "PART2_COMPLIANCE_CERTIFICATION",
   "description": "Minimum viable 42 CFR Part 2 policy pack for AI/data governance of SUD patient records. Architecture-validation Pack #2 under the Healthcare Domain — not a Part 2 compliance application or checklist.",

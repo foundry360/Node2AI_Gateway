@@ -1,0 +1,43 @@
+{
+  "pack_id": "pack_iso_42005",
+  "name": "ISO/IEC 42005",
+  "domain": "ai_risk",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "authority_id": "auth_iso_42005",
+  "scope": "AI_SYSTEM_IMPACT_ASSESSMENT_GOVERNANCE",
+  "not": "ISO_CERTIFICATION_OR_IMPACT_SCORE_OR_ASSESSMENT_WORKFLOW",
+  "description": "Focused ISO/IEC 42005:2025 pack. Operationalizes AI system impact-assessment evidence gates as Enigma controls. Standard — not legal authority, not a certification, not an impact score, not an assessment workflow.",
+  "interpreters": {
+    "input": "iso_42005_pack_v1",
+    "output": "iso_42005_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_iso_42005_input",
+      "version": 1,
+      "phase": "input",
+      "name": "ISO/IEC 42005 input governance"
+    },
+    {
+      "policy_id": "pol_iso_42005_output",
+      "version": 1,
+      "phase": "output",
+      "name": "ISO/IEC 42005 output governance"
+    }
+  ],
+  "semantic_notes": [
+    "ISO 42005 is STANDARD — treatsAsLegalAuthority === false",
+    "Distinct from ISO 42001 (AIMS) and ISO 23894 (risk management) — independent pack contributions",
+    "Applicability is opt-in via REGULATORY_APPLICABILITY:ISO_42005",
+    "Uses governance_context.impact — not iso_42005-specific context",
+    "No impact score, assessment workflow, certification, or ISO-specific evaluator"
+  ],
+  "deliberately_not_implemented": [
+    "ISO/IEC 42006 certification-body functionality",
+    "ISO/IEC 42003 conformity-assessment workflows",
+    "Impact assessment management application",
+    "Organization-wide impact scorecards / heatmaps",
+    "Automatic impact classification from prompts"
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "version": "1.0.0",
+  "authority_hierarchy": [
+    {
+      "rank": 4,
+      "class": "NIST_AI_RMF",
+      "authority_type": "IMPLEMENTATION_GUIDANCE",
+      "label": "NIST AI Risk Management Framework",
+      "note": "Voluntary framework guidance — NOT legal authority for DENY alone"
+    }
+  ],
+  "sources": [
+    {
+      "id": "src_nist_ai_rmf_100_1",
+      "source_id": "src_nist_ai_rmf_100_1",
+      "authority": "NIST AI RMF 1.0",
+      "authority_tier": 4,
+      "authority_rank": 4,
+      "authority_type": "IMPLEMENTATION_GUIDANCE",
+      "legal_authority": false,
+      "authority_id": "auth_nist_ai_rmf",
+      "citation": "NIST AI 100-1 — Artificial Intelligence Risk Management Framework (AI RMF 1.0)",
+      "title": "Artificial Intelligence Risk Management Framework (AI RMF 1.0)",
+      "publisher": "National Institute of Standards and Technology",
+      "canonical_url": "https://doi.org/10.6028/NIST.AI.100-1",
+      "effective_date": "2023-01-26",
+      "retrieved_date": null,
+      "version": "1.0",
+      "note": "Primary framework publication. Voluntary; not a statute or regulation."
+    },
+    {
+      "id": "src_nist_ai_rmf_playbook",
+      "source_id": "src_nist_ai_rmf_playbook",
+      "authority": "NIST AI RMF Playbook",
+      "authority_tier": 4,
+      "authority_rank": 4,
+      "authority_type": "IMPLEMENTATION_GUIDANCE",
+      "legal_authority": false,
+      "authority_id": "auth_nist_ai_rmf",
+      "citation": "NIST AI RMF Playbook — suggested actions for AI RMF Core functions",
+      "title": "AI RMF Playbook",
+      "publisher": "National Institute of Standards and Technology",
+      "canonical_url": "https://www.nist.gov/itl/ai-risk-management-framework",
+      "effective_date": null,
+      "retrieved_date": null,
+      "version": null,
+      "note": "Supporting implementation guidance for AI RMF Core outcomes."
+    }
+  ]
+}

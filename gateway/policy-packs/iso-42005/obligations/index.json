@@ -1,0 +1,137 @@
+{
+  "version": "1.0.0",
+  "obligations": [
+    {
+      "obligation_id": "ISO42005-OBL-IMPACT-SCOPE",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42005:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42005:2025 — Impact assessment scope"
+      ],
+      "source_ids": [
+        "src_iso_iec_42005_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO42005-OBL-STAKEHOLDERS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42005:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42005:2025 — Affected individuals and societies"
+      ],
+      "source_ids": [
+        "src_iso_iec_42005_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO42005-OBL-IMPACTS-IDENTIFIED",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42005:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42005:2025 — Identifying potential impacts"
+      ],
+      "source_ids": [
+        "src_iso_iec_42005_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO42005-OBL-IMPACT-ASSESSMENT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42005:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42005:2025 — Performing AI system impact assessment"
+      ],
+      "source_ids": [
+        "src_iso_iec_42005_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO42005-OBL-IMPACT-SEVERITY",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42005:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42005:2025 — Evaluating impacts"
+      ],
+      "source_ids": [
+        "src_iso_iec_42005_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO42005-OBL-IMPACT-LIKELIHOOD",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42005:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42005:2025 — Evaluating impacts"
+      ],
+      "source_ids": [
+        "src_iso_iec_42005_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO42005-OBL-MITIGATIONS",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42005:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42005:2025 — Addressing impacts"
+      ],
+      "source_ids": [
+        "src_iso_iec_42005_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO42005-OBL-MITIGATIONS-IMPLEMENTED",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42005:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42005:2025 — Addressing impacts"
+      ],
+      "source_ids": [
+        "src_iso_iec_42005_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO42005-OBL-RESIDUAL-IMPACT",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42005:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42005:2025 — Documentation and review"
+      ],
+      "source_ids": [
+        "src_iso_iec_42005_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO42005-OBL-IMPACT-MONITORING",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42005:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42005:2025 — Lifecycle considerations"
+      ],
+      "source_ids": [
+        "src_iso_iec_42005_2025"
+      ]
+    },
+    {
+      "obligation_id": "ISO42005-OBL-IMPACT-REVIEW",
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "authority": "ISO/IEC 42005:2025",
+      "authority_tier": 3,
+      "citations": [
+        "ISO/IEC 42005:2025 — Documentation and review"
+      ],
+      "source_ids": [
+        "src_iso_iec_42005_2025"
+      ]
+    }
+  ]
+}

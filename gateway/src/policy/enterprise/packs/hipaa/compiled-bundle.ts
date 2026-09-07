@@ -4,6 +4,7 @@
  */
 
 import type { PackProvenanceGraph } from '../../provenance.js';
+import { POLICY_AUTHORITY_IDS } from '../../authority.js';
 
 export const HIPAA_CLASS_PROFILE = {
   profile_id: 'hipaa_class_profile_v3',
@@ -244,6 +245,7 @@ export const HIPAA_PROVENANCE_GRAPH: PackProvenanceGraph = {
       authority_tier: 1,
       authority_type: 'PRIMARY_REGULATORY',
       legal_authority: true,
+      authority_id: POLICY_AUTHORITY_IDS.hipaa,
       title: 'General Administrative Requirements',
       publisher: 'U.S. Department of Health and Human Services',
       citation: '45 CFR Part 160',
@@ -258,6 +260,7 @@ export const HIPAA_PROVENANCE_GRAPH: PackProvenanceGraph = {
       authority_tier: 1,
       authority_type: 'PRIMARY_REGULATORY',
       legal_authority: true,
+      authority_id: POLICY_AUTHORITY_IDS.hipaa,
       title: 'Security and Privacy',
       publisher: 'U.S. Department of Health and Human Services',
       citation: '45 CFR Part 164',

@@ -41,12 +41,15 @@ type EvaluationsResponse = {
 export function GovernanceAttentionPanel({
   leadLeft,
   afterBanner,
+  midRow,
   beforeRecent,
 }: {
-  /** Optional left column (e.g. overview microcards) paired with the attention card. */
+  /** Optional left column (e.g. overview microcards) paired with the top-right slot. */
   leadLeft?: ReactNode;
-  /** Optional full-width content directly under microcards + attention. */
+  /** Optional top-right content (e.g. spark charts). When set, attention moves below. */
   afterBanner?: ReactNode;
+  /** Optional siblings rendered with the attention card in one row (e.g. risk + compliance). */
+  midRow?: ReactNode;
   /** Optional content rendered above Recent decisions (always shown when provided). */
   beforeRecent?: ReactNode;
 } = {}) {
@@ -83,8 +86,16 @@ export function GovernanceAttentionPanel({
           <div className="console-banner">
             <div className="console-banner-top">
               {leadLeft}
-              <div className="error">{error}</div>
+              {afterBanner ?? <div className="error">{error}</div>}
             </div>
+            {midRow ? (
+              <div className="console-banner-mid">
+                {midRow}
+                <div className="error">{error}</div>
+              </div>
+            ) : afterBanner ? (
+              <div className="error">{error}</div>
+            ) : null}
           </div>
         ) : (
           <div className="error">{error}</div>
@@ -94,16 +105,27 @@ export function GovernanceAttentionPanel({
   }
 
   if (!data) {
+    const loadingCard = (
+      <div className="section-card">
+        <p className="muted">Loading governance activity…</p>
+      </div>
+    );
     return (
       <div className="stack">
         {leadLeft ? (
           <div className="console-banner">
             <div className="console-banner-top">
               {leadLeft}
-              <div className="section-card">
-                <p className="muted">Loading governance activity…</p>
-              </div>
+              {afterBanner ?? (midRow ? null : loadingCard)}
             </div>
+            {midRow ? (
+              <div className="console-banner-mid">
+                {midRow}
+                {loadingCard}
+              </div>
+            ) : afterBanner ? (
+              loadingCard
+            ) : null}
           </div>
         ) : (
           <p className="muted">Loading governance activity…</p>
@@ -134,7 +156,7 @@ export function GovernanceAttentionPanel({
     <div className="section-card console-attention-card">
       <div className="section-card-header">
         <h3>What requires governance attention?</h3>
-        <Link href="/decisions" className="table-link">
+        <Link href="/decisions" className="table-link section-card-header-link">
           All decisions
         </Link>
       </div>
@@ -158,11 +180,6 @@ export function GovernanceAttentionPanel({
           </div>
         </div>
       </div>
-      <p className="muted">
-        Counts reflect recent recorded evaluations (this window), not a complete operational
-        review queue. Source: <code className="mono">policy_evaluations</code>. Gateway
-        enforces; Audit remains operational history.
-      </p>
     </div>
   );
 
@@ -172,13 +189,29 @@ export function GovernanceAttentionPanel({
         <div className="console-banner">
           <div className="console-banner-top">
             {leadLeft}
-            {attentionCard}
+            {afterBanner ?? (midRow ? null : attentionCard)}
           </div>
-          {afterBanner}
+          {afterBanner || midRow ? (
+            midRow ? (
+              <div className="console-banner-mid">
+                {midRow}
+                {attentionCard}
+              </div>
+            ) : (
+              attentionCard
+            )
+          ) : null}
         </div>
       ) : (
         <>
-          {attentionCard}
+          {midRow ? (
+            <div className="console-banner-mid">
+              {midRow}
+              {attentionCard}
+            </div>
+          ) : (
+            attentionCard
+          )}
           {afterBanner}
         </>
       )}
@@ -241,7 +274,7 @@ export function GovernanceAttentionPanel({
       <div className="section-card">
         <div className="section-card-header">
           <h3>Recent decisions</h3>
-          <Link href="/decisions" className="table-link">
+          <Link href="/decisions" className="table-link section-card-header-link">
             View all
           </Link>
         </div>

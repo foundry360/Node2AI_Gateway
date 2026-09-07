@@ -11,7 +11,7 @@ type FrameworkRow = {
   score: number;
   status: 'strong' | 'partial' | 'weak' | 'unknown';
   detail: string;
-  compliant_controls: number;
+  controls_evaluated: number;
   total_controls: number;
   high_priority_issues: number;
 };
@@ -27,6 +27,21 @@ function scoreColor(score: number): string {
   if (score >= 50) return '#e0c952';
   if (score > 0) return '#d92626';
   return '#6b7280';
+}
+
+const FINANCIAL_ORANGE = '#e67e22';
+const LEGAL_BLUE = '#3b82f6';
+
+function frameworkColor(framework: Pick<FrameworkRow, 'framework_id' | 'name' | 'score'>): string {
+  const id = framework.framework_id.toLowerCase();
+  const name = framework.name.toLowerCase();
+  if (id === 'financial' || name.includes('financial')) {
+    return FINANCIAL_ORANGE;
+  }
+  if (id === 'legal' || name.includes('legal')) {
+    return LEGAL_BLUE;
+  }
+  return scoreColor(framework.score);
 }
 
 function DonutChart({
@@ -54,7 +69,7 @@ function DonutChart({
           const length = usable / count;
           const segment = {
             id: f.framework_id,
-            color: scoreColor(f.score),
+            color: frameworkColor(f),
             length,
             dashoffset: -offset,
           };
@@ -63,8 +78,8 @@ function DonutChart({
         });
 
   return (
-    <div className="risk-donut" aria-label={`Overall compliance ${clamped}%`}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <div className="risk-donut" aria-label={`Overall policy posture ${clamped}%`}>
+      <svg viewBox={`0 0 ${size} ${size}`} preserveAspectRatio="xMidYMid meet">
         <circle
           cx={center}
           cy={center}
@@ -91,7 +106,7 @@ function DonutChart({
       </svg>
       <div className="risk-donut-center">
         <div className="risk-donut-total">{clamped}%</div>
-        <div className="risk-donut-label">Compliance</div>
+        <div className="risk-donut-label">Posture</div>
       </div>
     </div>
   );
@@ -124,7 +139,7 @@ export function ComplianceScoreCard() {
           setEnhancing(false);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to score compliance');
+        setError(err instanceof Error ? err.message : 'Failed to load policy posture');
       }
     });
   };
@@ -152,7 +167,7 @@ export function ComplianceScoreCard() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to score compliance');
+          setError(err instanceof Error ? err.message : 'Failed to load policy posture');
         }
       }
     })();
@@ -165,16 +180,16 @@ export function ComplianceScoreCard() {
     <section className="risk-card">
       <div className="action-items-head">
         <div>
-          <h3 className="action-items-title">Compliance score</h3>
+          <h3 className="action-items-title">Policy posture</h3>
           <p className="action-items-lede muted">
-            Scored priority framework compliance from live pack posture.
+            Priority framework coverage from loaded policy packs — not a certification score.
           </p>
         </div>
         <button
           type="button"
           className="icon-btn"
-          aria-label="Refresh compliance score"
-          title="Refresh compliance score"
+          aria-label="Refresh policy posture"
+          title="Refresh policy posture"
           disabled={pending || enhancing}
           onClick={() => load(true)}
         >
@@ -200,7 +215,7 @@ export function ComplianceScoreCard() {
               <li key={f.framework_id} className="risk-legend-item" title={f.detail}>
                 <span
                   className="risk-legend-swatch"
-                  style={{ background: scoreColor(f.score) }}
+                  style={{ background: frameworkColor(f) }}
                   aria-hidden
                 />
                 <span className="risk-legend-label">{f.name}</span>

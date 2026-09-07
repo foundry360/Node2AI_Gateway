@@ -84,6 +84,12 @@ export function toInputEvaluationRequest(
       ...(context.authorization_context != null
         ? { authorization: context.authorization_context }
         : {}),
+      ...(context.governance_context != null
+        ? { governance: context.governance_context }
+        : {}),
+      ...(context.evaluation_as_of != null
+        ? { time: context.evaluation_as_of }
+        : {}),
     },
     ai_context: {
       requested_model: context.requestedModel,
@@ -156,6 +162,12 @@ export function toOutputEvaluationRequest(
       ...(context.recipient != null ? { recipient: context.recipient } : {}),
       ...(context.authorization_context != null
         ? { authorization: context.authorization_context }
+        : {}),
+      ...(context.governance_context != null
+        ? { governance: context.governance_context }
+        : {}),
+      ...(context.evaluation_as_of != null
+        ? { time: context.evaluation_as_of }
         : {}),
     },
     ai_context: {

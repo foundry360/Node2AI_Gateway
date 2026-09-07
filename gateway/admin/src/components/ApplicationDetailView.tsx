@@ -52,8 +52,18 @@ export function ApplicationDetailView({
   ];
   const doneCount = checklist.filter((c) => c.done && !c.pending).length;
   const activeKeys = keys.filter((k) => k.status === 'active').length;
+  const allowlistTotal =
+    app.allowed_models.length +
+    app.allowed_operations.length +
+    app.allowed_datasets.length;
   const capitalize = (value: string) =>
     value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+
+  const allowlistGroups: Array<{ label: string; items: string[] }> = [
+    { label: 'Models', items: app.allowed_models },
+    { label: 'Operations', items: app.allowed_operations },
+    { label: 'Datasets', items: app.allowed_datasets },
+  ];
 
   return (
     <div className="stack">
@@ -92,7 +102,7 @@ export function ApplicationDetailView({
                 <span className="leader-dots" aria-hidden />
                 <span className="leader-value">
                   {app.allowed_models.length > 0
-                    ? `${app.allowed_models.length} Allow listed`
+                    ? `${app.allowed_models.length} allowlisted`
                     : 'Not enough data'}
                 </span>
               </div>
@@ -207,27 +217,33 @@ export function ApplicationDetailView({
         <div className="section-card">
           <div className="section-card-header">
             <h3>Allowlists</h3>
-            <span className="count">{app.allowed_models.length} models</span>
+            <span className="count">{allowlistTotal}</span>
           </div>
-          {app.allowed_models.length === 0 ? (
-            <p className="muted">No models allowlisted.</p>
+          {allowlistTotal === 0 ? (
+            <p className="muted">No models, operations, or datasets allowlisted.</p>
           ) : (
-            app.allowed_models.map((m) => (
-              <div className="list-item" key={m}>
-                <span className="mono">{m}</span>
-              </div>
-            ))
-          )}
-          <div style={{ marginTop: '0.75rem' }}>
-            <div className="muted" style={{ marginBottom: '0.35rem' }}>
-              Operations
+            <div className="allowlist-groups">
+              {allowlistGroups.map((group) => (
+                <div className="allowlist-group" key={group.label}>
+                  <div className="allowlist-group-label">
+                    <span>{group.label}</span>
+                    <span className="allowlist-group-count">{group.items.length}</span>
+                  </div>
+                  {group.items.length === 0 ? (
+                    <p className="muted allowlist-empty">None</p>
+                  ) : (
+                    <ul className="allowlist-chips">
+                      {group.items.map((item) => (
+                        <li key={item} className="allowlist-chip mono">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
             </div>
-            {app.allowed_operations.map((op) => (
-              <div className="list-item" key={op}>
-                <span className="mono">{op}</span>
-              </div>
-            ))}
-          </div>
+          )}
         </div>
 
         <div className="section-card">

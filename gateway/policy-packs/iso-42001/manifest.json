@@ -1,0 +1,41 @@
+{
+  "pack_id": "pack_iso_42001",
+  "name": "ISO/IEC 42001",
+  "domain": "ai_risk",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "authority_id": "auth_iso_42001",
+  "scope": "AI_MANAGEMENT_SYSTEM_GOVERNANCE",
+  "not": "ISO_CERTIFICATION",
+  "description": "Focused ISO/IEC 42001:2023 pack. Operationalizes AI management-system evidence gates as Enigma controls. Standard — not legal authority, not a certification.",
+  "interpreters": {
+    "input": "iso_42001_pack_v1",
+    "output": "iso_42001_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_iso_42001_input",
+      "version": 1,
+      "phase": "input",
+      "name": "ISO/IEC 42001 input governance"
+    },
+    {
+      "policy_id": "pol_iso_42001_output",
+      "version": 1,
+      "phase": "output",
+      "name": "ISO/IEC 42001 output governance"
+    }
+  ],
+  "semantic_notes": [
+    "ISO 42001 is STANDARD — treatsAsLegalAuthority === false",
+    "Applicability is opt-in via REGULATORY_APPLICABILITY:ISO_42001",
+    "Executable REVIEW/ALLOW_WITH_CONTROLS are Enigma controls informed by ISO 42001, not certification",
+    "No ISO-specific evaluator, resolver, Decision type, Gateway branch, or compliance score"
+  ],
+  "deliberately_not_implemented": [
+    "ISO/IEC 42005 / 42006",
+    "Certification-body workflows",
+    "Clause-by-clause assessment UI",
+    "ISO compliance percentage / certification badge"
+  ]
+}

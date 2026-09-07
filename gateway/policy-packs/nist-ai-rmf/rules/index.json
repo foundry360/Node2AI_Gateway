@@ -1,0 +1,126 @@
+{
+  "version": "1.0.0",
+  "rules": [
+    {
+      "rule_id": "NIST-R-INPUT-GOVERN-CONTEXT-REVIEW",
+      "name": "Review when AI governance accountability context is not documented",
+      "phase": "input",
+      "priority": 80,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Enigma REVIEW control informed by NIST GOVERN guidance — NIST does not mandate REVIEW.",
+      "conditions": {
+        "regulatory_applicability": "NIST_AI_RMF",
+        "nist_governance_documented": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": ["NIST_RMF_GOVERNANCE_CONTEXT_REVIEW"],
+      "obligation_ids": ["NIST-OBL-GOVERN-ACCOUNTABILITY"],
+      "control_ids": ["ctrl_enigma_human_review"],
+      "enigma_obligations": ["REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_nist_ai_rmf_100_1"],
+      "derived_from": ["src_nist_ai_rmf_100_1"]
+    },
+    {
+      "rule_id": "NIST-R-INPUT-MAP-CONTEXT-REVIEW",
+      "name": "Review when AI system context and intended purpose are not documented",
+      "phase": "input",
+      "priority": 75,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Enigma REVIEW control informed by NIST MAP 1.1 — framework guidance, not legal mandate.",
+      "conditions": {
+        "regulatory_applicability": "NIST_AI_RMF",
+        "nist_map_context_documented": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": ["NIST_RMF_MAP_CONTEXT_REVIEW"],
+      "obligation_ids": ["NIST-OBL-MAP-CONTEXT"],
+      "control_ids": ["ctrl_enigma_human_review"],
+      "enigma_obligations": ["REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_nist_ai_rmf_100_1"],
+      "derived_from": ["src_nist_ai_rmf_100_1"]
+    },
+    {
+      "rule_id": "NIST-R-INPUT-MEASURE-GAP-REVIEW",
+      "name": "Review when measurement or monitoring evidence is not documented",
+      "phase": "input",
+      "priority": 70,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Enigma REVIEW control informed by NIST MEASURE 2.4/2.5.",
+      "conditions": {
+        "regulatory_applicability": "NIST_AI_RMF",
+        "nist_measure_documented": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": ["NIST_RMF_MEASURE_EVIDENCE_REVIEW"],
+      "obligation_ids": ["NIST-OBL-MEASURE-MONITOR"],
+      "control_ids": ["ctrl_enigma_human_review"],
+      "enigma_obligations": ["REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_nist_ai_rmf_100_1"],
+      "derived_from": ["src_nist_ai_rmf_100_1"]
+    },
+    {
+      "rule_id": "NIST-R-INPUT-MANAGE-RESPONSE-REVIEW",
+      "name": "Review when prioritized AI risk response is not documented",
+      "phase": "input",
+      "priority": 65,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Enigma REVIEW control informed by NIST MANAGE 1.1/1.3.",
+      "conditions": {
+        "regulatory_applicability": "NIST_AI_RMF",
+        "nist_manage_response_documented": false
+      },
+      "decision": "REVIEW",
+      "reason_codes": ["NIST_RMF_MANAGE_RESPONSE_REVIEW"],
+      "obligation_ids": ["NIST-OBL-MANAGE-RESPONSE"],
+      "control_ids": ["ctrl_enigma_human_review"],
+      "enigma_obligations": ["REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_nist_ai_rmf_100_1", "src_nist_ai_rmf_playbook"],
+      "derived_from": ["src_nist_ai_rmf_100_1"]
+    },
+    {
+      "rule_id": "NIST-R-INPUT-CONTROLS-SATISFIED",
+      "name": "Allow with logging when NIST AI RMF documentation controls are satisfied",
+      "phase": "input",
+      "priority": 40,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Complementary Enigma logging control when framework documentation gates are met.",
+      "conditions": {
+        "regulatory_applicability": "NIST_AI_RMF",
+        "nist_governance_documented": true,
+        "nist_map_context_documented": true,
+        "nist_measure_documented": true,
+        "nist_manage_response_documented": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": ["NIST_RMF_CONTROLS_SATISFIED"],
+      "obligation_ids": [
+        "NIST-OBL-GOVERN-ACCOUNTABILITY",
+        "NIST-OBL-MAP-CONTEXT",
+        "NIST-OBL-MEASURE-MONITOR",
+        "NIST-OBL-MANAGE-RESPONSE"
+      ],
+      "control_ids": ["ctrl_audit_logging"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_nist_ai_rmf_100_1"],
+      "derived_from": ["src_nist_ai_rmf_100_1"]
+    },
+    {
+      "rule_id": "NIST-R-OUTPUT-MONITOR-LOG",
+      "name": "Log governance event for NIST-scoped output monitoring",
+      "phase": "output",
+      "priority": 50,
+      "requirement_type": "DERIVED_CONTROL",
+      "note": "Complementary Enigma logging informed by MEASURE monitoring guidance.",
+      "conditions": {
+        "regulatory_applicability": "NIST_AI_RMF"
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": ["NIST_RMF_OUTPUT_MONITOR_LOG"],
+      "obligation_ids": ["NIST-OBL-MEASURE-MONITOR"],
+      "control_ids": ["ctrl_audit_logging"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_nist_ai_rmf_100_1"],
+      "derived_from": ["src_nist_ai_rmf_100_1"]
+    }
+  ]
+}

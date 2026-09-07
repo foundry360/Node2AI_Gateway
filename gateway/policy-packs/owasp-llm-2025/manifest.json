@@ -1,0 +1,43 @@
+{
+  "pack_id": "pack_owasp_llm_2025",
+  "name": "OWASP LLM Top 10 2025",
+  "domain": "ai_risk",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "authority_id": "auth_owasp_llm_2025",
+  "scope": "AI_SECURITY_GOVERNANCE",
+  "not": "OWASP_CERTIFICATION",
+  "description": "Focused OWASP Top 10 for LLM Applications 2025 policy pack. Operationalizes security-control evidence gates as Enigma controls. Security guidance — not legal authority, not a certification or compliance score.",
+  "interpreters": {
+    "input": "owasp_llm_2025_pack_v1",
+    "output": "owasp_llm_2025_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_owasp_llm_2025_input",
+      "version": 1,
+      "phase": "input",
+      "name": "OWASP LLM Top 10 2025 input governance"
+    },
+    {
+      "policy_id": "pol_owasp_llm_2025_output",
+      "version": 1,
+      "phase": "output",
+      "name": "OWASP LLM Top 10 2025 output governance"
+    }
+  ],
+  "semantic_notes": [
+    "OWASP is SECURITY_GUIDANCE — treatsAsLegalAuthority === false",
+    "Executable REVIEW/ALLOW_WITH_CONTROLS behaviors are Enigma controls informed by OWASP, not OWASP legal mandates",
+    "Applicability is opt-in via REGULATORY_APPLICABILITY:OWASP_LLM_2025",
+    "No prompt-injection detector, supply-chain scanner, or fact-checker is implied",
+    "No implicit precedence vs HIPAA, Part 2, or NIST AI RMF"
+  ],
+  "deliberately_not_implemented": [
+    "Runtime prompt-injection detection / keyword scanners",
+    "Supply-chain or model-poisoning forensics",
+    "Factuality / misinformation classifiers",
+    "OWASP Agentic Applications Top 10 (separate future pack)",
+    "Certification or readiness percentages"
+  ]
+}

@@ -4,6 +4,7 @@
   "domain": "hipaa",
   "pack_version": "3.1.0",
   "status": "active",
+  "authority_id": "auth_hipaa",
   "scope": "AI_DATA_GOVERNANCE",
   "not": "HIPAA_COMPLIANCE_CERTIFICATION",
   "description": "Versioned HIPAA regulatory policy pack for AI/data governance. Distinguishes Enigma health-sensitive context from regulatory PHI. Determines obligations and controls when PHI is processed — does not certify HIPAA compliance. v3.1 adds end-to-end citation provenance on decisions.",

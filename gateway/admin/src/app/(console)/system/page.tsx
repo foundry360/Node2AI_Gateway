@@ -60,7 +60,7 @@ export default async function SystemPage() {
             <div className="settings-section-aside">
               <h2 className="settings-section-title">Database</h2>
               <p className="settings-section-explainer">
-                Persistence backend for applications, policies, audit, and vault. Connection status,
+                Persistence backend for applications, policies, observability, and vault. Connection status,
                 size, and activity metrics from Postgres when configured.
               </p>
             </div>
@@ -128,7 +128,7 @@ export default async function SystemPage() {
                     <th>Mode</th>
                     <td className="muted">
                       {data.persistence === 'postgres'
-                        ? 'PostgreSQL - applications, policies, audit, and vault persist across restarts.'
+                        ? 'PostgreSQL - applications, policies, observability, and vault persist across restarts.'
                         : 'In-memory - data resets when the gateway process restarts. Set DATABASE_URL to connect Postgres.'}
                     </td>
                   </tr>

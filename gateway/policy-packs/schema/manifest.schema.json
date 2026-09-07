@@ -52,6 +52,11 @@
       "type": "string",
       "description": "Primary authority label (optional)."
     },
+    "authority_id": {
+      "type": "string",
+      "pattern": "^auth_[a-z0-9_]+$",
+      "description": "Optional PolicyAuthority catalog id (provenance only; not evaluation precedence)."
+    },
     "jurisdiction": { "type": "string" },
     "effective_date": { "type": "string" },
     "supersedes": { "type": "string" },

@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "sources": [
+    {
+      "id": "src_iso_iec_23894_2023",
+      "source_id": "src_iso_iec_23894_2023",
+      "authority": "ISO/IEC 23894:2023",
+      "authority_tier": 3,
+      "authority_type": "STANDARD",
+      "legal_authority": false,
+      "authority_id": "auth_iso_23894",
+      "title": "ISO/IEC 23894:2023 Information technology — Artificial intelligence — Guidance on risk management",
+      "publisher": "ISO / IEC",
+      "citation": "ISO/IEC 23894:2023",
+      "canonical_url": "https://www.iso.org/standard/77304.html",
+      "effective_date": "2023-02-06",
+      "retrieved_date": null,
+      "version": "2023",
+      "note": "International Standard providing guidance on AI risk management. Not statute; not Enigma certification or risk score."
+    }
+  ]
+}
