@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import {
-  LegacyRulesEditor,
   PolicyLifecycleActions,
   PolicySimulatePanel,
 } from '@/components/PolicyLifecycle';
@@ -144,7 +143,7 @@ function ReasonCodeList({ codes }: { codes: string[] }) {
 
 export function PolicyDetailView({ detail }: { detail: PolicyDetail }) {
   const [tab, setTab] = useState<Tab>('Overview');
-  const { policy, pack, definition, store, versions, evaluations, engine_mode } =
+  const { policy, pack, definition, versions, evaluations, engine_mode } =
     detail;
   const domainLabel = formatDomainLabel(
     policy.domain ?? pack?.domain ?? definition?.domain,
@@ -781,21 +780,6 @@ export function PolicyDetailView({ detail }: { detail: PolicyDetail }) {
           <PolicySimulatePanel policyId={policy.policy_id} />
         ) : null}
       </div>
-
-      {store ? (
-        <div className="section-card">
-          <div className="section-card-header">
-            <h3>Advanced - Legacy Store Metadata</h3>
-          </div>
-          <div className="stack-tight">
-            <p className="muted">{store.summary || 'No summary'}</p>
-            <LegacyRulesEditor
-              policyId={store.policy_id}
-              rulesJson={JSON.stringify(store.rules, null, 2)}
-            />
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

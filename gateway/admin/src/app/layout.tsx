@@ -11,6 +11,15 @@ const inter = Inter({
 export const metadata = {
   title: 'Enigma Admin',
   description: 'Governance console for the Enigma AI Governance Gateway',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon.png', type: 'image/png', sizes: '32x32' },
+      { url: '/brand/enigma-favicon.png', type: 'image/png', sizes: '32x32' },
+      { url: '/brand/enigma-mark-192.png', type: 'image/png', sizes: '192x192' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
 };
 
 export default function RootLayout({

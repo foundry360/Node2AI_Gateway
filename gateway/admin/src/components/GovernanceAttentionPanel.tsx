@@ -40,10 +40,13 @@ type EvaluationsResponse = {
 
 export function GovernanceAttentionPanel({
   leadLeft,
+  afterBanner,
   beforeRecent,
 }: {
   /** Optional left column (e.g. overview microcards) paired with the attention card. */
   leadLeft?: ReactNode;
+  /** Optional full-width content directly under microcards + attention. */
+  afterBanner?: ReactNode;
   /** Optional content rendered above Recent decisions (always shown when provided). */
   beforeRecent?: ReactNode;
 } = {}) {
@@ -171,9 +174,13 @@ export function GovernanceAttentionPanel({
             {leadLeft}
             {attentionCard}
           </div>
+          {afterBanner}
         </div>
       ) : (
-        attentionCard
+        <>
+          {attentionCard}
+          {afterBanner}
+        </>
       )}
 
       {(reviewRows.length > 0 || conflictRows.length > 0) && (

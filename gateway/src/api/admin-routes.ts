@@ -114,6 +114,80 @@ function parseCsv(value: unknown): string[] {
   return [];
 }
 
+type ActivityAuditEvent = {
+  timestamp: string;
+  policy_decision?: string;
+  response_decision?: string;
+  input_transformation?: string;
+  reason_codes?: string[];
+};
+
+/** Hourly buckets for Requests / Allowed / Blocked / Tokenize over a rolling window. */
+function buildRollingActivitySeries(
+  events: ActivityAuditEvent[],
+  nowMs: number,
+  hours: number,
+) {
+  const endHour = new Date(nowMs);
+  endHour.setMinutes(0, 0, 0);
+  const bucketStarts: number[] = [];
+  for (let i = hours - 1; i >= 0; i -= 1) {
+    bucketStarts.push(endHour.getTime() - i * 60 * 60 * 1000);
+  }
+
+  const isBlocked = (e: ActivityAuditEvent) =>
+    e.response_decision === 'BLOCK' || e.policy_decision === 'BLOCK';
+  const isTokenize = (e: ActivityAuditEvent) => {
+    const decision = (e.policy_decision ?? '').toUpperCase();
+    const transform = (e.input_transformation ?? '').toLowerCase();
+    const reasons = (e.reason_codes ?? []).map((c) => c.toUpperCase());
+    return (
+      decision === 'TOKENIZE' ||
+      transform.includes('token') ||
+      reasons.some((c) => c.includes('TOKENIZE'))
+    );
+  };
+  const isAllowed = (e: ActivityAuditEvent) =>
+    !isBlocked(e) &&
+    ((e.policy_decision ?? '').toUpperCase() === 'ALLOW' ||
+      e.response_decision === 'RELEASE' ||
+      e.response_decision === 'ALLOW');
+
+  const bucketize = (predicate: (e: ActivityAuditEvent) => boolean) =>
+    bucketStarts.map((startMs, idx) => {
+      const endMs =
+        idx === bucketStarts.length - 1 ? nowMs : bucketStarts[idx + 1]!;
+      const count = events.filter((e) => {
+        const t = Date.parse(e.timestamp);
+        return t >= startMs && t < endMs && predicate(e);
+      }).length;
+      return {
+        start: new Date(startMs).toISOString(),
+        end: new Date(endMs).toISOString(),
+        label: new Date(startMs).toLocaleTimeString([], {
+          hour: 'numeric',
+          minute: '2-digit',
+        }),
+        value: count,
+      };
+    });
+
+  const seriesOf = (predicate: (e: ActivityAuditEvent) => boolean) => {
+    const buckets = bucketize(predicate);
+    return {
+      total: buckets.reduce((sum, b) => sum + b.value, 0),
+      buckets,
+    };
+  };
+
+  return {
+    requests: seriesOf(() => true),
+    allowed: seriesOf(isAllowed),
+    blocked: seriesOf(isBlocked),
+    tokenize: seriesOf(isTokenize),
+  };
+}
+
 export function registerAdminRoutes(
   app: FastifyInstance,
   ctx: AdminContext,
@@ -165,11 +239,16 @@ export function registerAdminRoutes(
       ? await ctx.checkLocalRuntime()
       : { mode: 'stub', active_runtime: 'stub-local', available: true, airgap: false };
 
+    const activePolicies = ctx.policyRepository
+      ? ctx.policyRepository.getSnapshot().policies.filter((p) => p.status === 'active')
+          .length
+      : policies.filter((p) => p.status === 'active').length;
+
     return {
       gateway: { status: 'ok', mode: ctx.config.deploymentMode },
       policy: {
         status: 'ready',
-        active_policies: policies.filter((p) => p.status === 'active').length,
+        active_policies: activePolicies,
       },
       models: {
         status: localRuntime.available ? 'ready' : 'degraded',
@@ -250,76 +329,37 @@ export function registerAdminRoutes(
     const hours = 24;
     const now = Date.now();
     const windowStart = now - hours * 60 * 60 * 1000;
-    const endHour = new Date(now);
-    endHour.setMinutes(0, 0, 0);
-    const bucketStarts: number[] = [];
-    for (let i = hours - 1; i >= 0; i -= 1) {
-      bucketStarts.push(endHour.getTime() - i * 60 * 60 * 1000);
-    }
-
     const events = (await ctx.audit.list()).filter((e) => {
       if (e.application_id !== applicationId) return false;
       const t = Date.parse(e.timestamp);
       return Number.isFinite(t) && t >= windowStart;
     });
 
-    const isBlocked = (e: (typeof events)[number]) =>
-      e.response_decision === 'BLOCK' || e.policy_decision === 'BLOCK';
-    const isTokenize = (e: (typeof events)[number]) => {
-      const decision = (e.policy_decision ?? '').toUpperCase();
-      const transform = (e.input_transformation ?? '').toLowerCase();
-      const reasons = (e.reason_codes ?? []).map((c) => c.toUpperCase());
-      return (
-        decision === 'TOKENIZE' ||
-        transform.includes('token') ||
-        reasons.some((c) => c.includes('TOKENIZE'))
-      );
-    };
-    const isAllowed = (e: (typeof events)[number]) =>
-      !isBlocked(e) &&
-      ((e.policy_decision ?? '').toUpperCase() === 'ALLOW' ||
-        e.response_decision === 'RELEASE' ||
-        e.response_decision === 'ALLOW');
-
-    const bucketize = (
-      predicate: (e: (typeof events)[number]) => boolean,
-    ) =>
-      bucketStarts.map((startMs, idx) => {
-        const endMs =
-          idx === bucketStarts.length - 1 ? now : bucketStarts[idx + 1]!;
-        const count = events.filter((e) => {
-          const t = Date.parse(e.timestamp);
-          return t >= startMs && t < endMs && predicate(e);
-        }).length;
-        return {
-          start: new Date(startMs).toISOString(),
-          end: new Date(endMs).toISOString(),
-          label: new Date(startMs).toLocaleTimeString([], {
-            hour: 'numeric',
-            minute: '2-digit',
-          }),
-          value: count,
-        };
-      });
-
-    const seriesOf = (predicate: (e: (typeof events)[number]) => boolean) => {
-      const buckets = bucketize(predicate);
-      return {
-        total: buckets.reduce((sum, b) => sum + b.value, 0),
-        buckets,
-      };
-    };
-
     return {
       application_id: applicationId,
       window_hours: hours,
       generated_at: new Date(now).toISOString(),
-      series: {
-        requests: seriesOf(() => true),
-        allowed: seriesOf(isAllowed),
-        blocked: seriesOf(isBlocked),
-        tokenize: seriesOf(isTokenize),
-      },
+      series: buildRollingActivitySeries(events, now, hours),
+    };
+  });
+
+  /** Org-wide rolling activity (all applications) for Authority Console sparklines. */
+  app.get('/v1/admin/activity', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    const hours = 24;
+    const now = Date.now();
+    const windowStart = now - hours * 60 * 60 * 1000;
+    const events = (await ctx.audit.list()).filter((e) => {
+      const t = Date.parse(e.timestamp);
+      return Number.isFinite(t) && t >= windowStart;
+    });
+
+    return {
+      window_hours: hours,
+      generated_at: new Date(now).toISOString(),
+      series: buildRollingActivitySeries(events, now, hours),
     };
   });
 
@@ -1510,13 +1550,18 @@ export function registerAdminRoutes(
       .sort((a, b) => b[1] - a[1])
       .map(([code]) => code);
 
+    const activePolicies = ctx.policyRepository
+      ? ctx.policyRepository.getSnapshot().policies.filter((p) => p.status === 'active')
+          .length
+      : policies.filter((p) => p.status === 'active').length;
+
     const facts: ActionItemFacts = {
       gateway_ok: true,
       database_ok: !!db.ok && db.detail !== 'not_configured',
       database_detail: db.detail,
       runtime_available: localRuntimeStatus.available,
       runtime_id: localRuntimeStatus.active_runtime,
-      active_policies: policies.filter((p) => p.status === 'active').length,
+      active_policies: activePolicies,
       active_models: ctx.registry.listActive().length,
       applications: applications.length,
       audit_events: inWindow.length,

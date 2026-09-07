@@ -7,8 +7,17 @@ export function TopChrome({ userName = 'admin' }: { userName?: string }) {
   return (
     <header className="topchrome">
       <div className="topchrome-left">
-        <a href="/" className="topchrome-brand">
-          Enigma
+        <a href="/" className="topchrome-brand" aria-label="Enigma home">
+          <img
+            src="/brand/enigma-logo.png"
+            alt="Enigma"
+            className="topchrome-logo topchrome-logo-on-dark"
+          />
+          <img
+            src="/brand/enigma-logo-on-light.png"
+            alt="Enigma"
+            className="topchrome-logo topchrome-logo-on-light"
+          />
         </a>
       </div>
       <div className="topchrome-right">

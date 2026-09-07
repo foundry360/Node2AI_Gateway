@@ -176,7 +176,14 @@ function SparkCard({
   );
 }
 
-export function ApplicationSparklines({ applicationId }: { applicationId: string }) {
+export function ActivitySparklines({
+  applicationId,
+  className,
+}: {
+  /** When set, scopes series to one application; otherwise org-wide. */
+  applicationId?: string;
+  className?: string;
+}) {
   const [data, setData] = useState<ActivityResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -186,10 +193,10 @@ export function ApplicationSparklines({ applicationId }: { applicationId: string
     startTransition(async () => {
       try {
         setError(null);
-        const res = (await proxyJson(
-          `applications/${applicationId}/activity`,
-          'GET',
-        )) as ActivityResponse;
+        const path = applicationId
+          ? `applications/${applicationId}/activity`
+          : 'activity';
+        const res = (await proxyJson(path, 'GET')) as ActivityResponse;
         if (!cancelled) setData(res);
       } catch (err) {
         if (!cancelled) {
@@ -203,7 +210,7 @@ export function ApplicationSparklines({ applicationId }: { applicationId: string
   }, [applicationId]);
 
   return (
-    <div className="spark-grid spark-grid-4">
+    <div className={className ?? 'spark-grid spark-grid-4'}>
       <SparkCard
         title="Requests"
         subtitle="Rolling 24 hours"
@@ -235,4 +242,8 @@ export function ApplicationSparklines({ applicationId }: { applicationId: string
       {error ? <div className="error spark-grid-error">{error}</div> : null}
     </div>
   );
+}
+
+export function ApplicationSparklines({ applicationId }: { applicationId: string }) {
+  return <ActivitySparklines applicationId={applicationId} />;
 }

@@ -78,6 +78,9 @@ dist
 # Gatsby files
 .cache/
 public
+# Keep Enigma admin static brand assets (Next.js public/)
+!gateway/admin/public/
+!gateway/admin/public/**
 
 # Storybook build outputs
 .out

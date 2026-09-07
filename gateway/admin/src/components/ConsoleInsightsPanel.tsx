@@ -6,6 +6,7 @@ import { TopActionItemsCard } from '@/components/TopActionItemsCard';
 import { RiskClassificationCard } from '@/components/RiskClassificationCard';
 import { ComplianceScoreCard } from '@/components/ComplianceScoreCard';
 import { GovernanceAttentionPanel } from '@/components/GovernanceAttentionPanel';
+import { ActivitySparklines } from '@/components/ApplicationSparklines';
 import { useConsoleTimeframe } from '@/components/ConsoleTabs';
 import { proxyJson } from '@/lib/client-api';
 
@@ -80,10 +81,10 @@ export function ConsoleInsightsPanel({
   }
 
   const runtimeOk = data.models.local_runtime?.available !== false;
-  const activeEpa = data.policy.active_policies || activePoliciesFallback;
+  const activeEpa = data.policy.active_policies ?? activePoliciesFallback;
 
   const microcards = (
-    <div className="metrics metrics-2x4">
+    <div className="metrics metrics-2x3">
       <div className="metric">
         <div className="metric-label">Gateway</div>
         <div className="metric-value">
@@ -101,10 +102,6 @@ export function ConsoleInsightsPanel({
             status={postureLabel(data.database.ok, data.database.detail)}
           />
         </div>
-      </div>
-      <div className="metric">
-        <div className="metric-label">Mode</div>
-        <div className="metric-value mono">{data.gateway.mode}</div>
       </div>
       <div className="metric">
         <div className="metric-label">Runtime</div>
@@ -132,10 +129,6 @@ export function ConsoleInsightsPanel({
         <div className="metric-label">Applications</div>
         <div className="metric-value">{data.totals.applications}</div>
       </div>
-      <div className="metric">
-        <div className="metric-label">Blocked (ops)</div>
-        <div className="metric-value">{data.security_events}</div>
-      </div>
     </div>
   );
 
@@ -143,6 +136,9 @@ export function ConsoleInsightsPanel({
     <div className={`stack${pending ? ' is-refreshing' : ''}`}>
       <GovernanceAttentionPanel
         leadLeft={microcards}
+        afterBanner={
+          <ActivitySparklines className="spark-grid spark-grid-4 console-spark-row" />
+        }
         beforeRecent={
           <div className="stack-tight">
             <div className="console-banner-scores">

@@ -276,6 +276,32 @@ input:focus-visible,
 .topchrome-brand {
   color: var(--ink);
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  text-decoration: none;
+}
+
+.topchrome-brand:hover {
+  color: var(--ink);
+}
+
+.topchrome-logo {
+  display: block;
+  height: 36px;
+  width: auto;
+}
+
+.topchrome-logo-on-light {
+  display: none;
+}
+
+[data-theme='light'] .topchrome-logo-on-dark {
+  display: none;
+}
+
+[data-theme='light'] .topchrome-logo-on-light {
+  display: block;
 }
 
 .topchrome-sep {
@@ -1624,6 +1650,10 @@ table th,
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.console-spark-row {
+  margin: 0;
+}
+
 .spark-grid-error {
   grid-column: 1 / -1;
 }
@@ -2266,6 +2296,11 @@ table th,
   border-radius: 10px;
 }
 
+.metrics-2x3 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(3, minmax(0, auto));
+}
+
 .metrics-2x4 {
   grid-template-columns: 1fr 1fr;
   grid-template-rows: repeat(4, minmax(0, auto));
@@ -2801,24 +2836,40 @@ button.table-link.audit-open-btn:disabled {
   table-layout: fixed;
 }
 
+.policies-table th,
+.policies-table td {
+  padding-left: 0.7rem;
+  padding-right: 0.7rem;
+}
+
+.policies-table th:first-child,
+.policies-table td:first-child {
+  padding-left: 0.95rem;
+}
+
+.policies-table th:last-child,
+.policies-table td:last-child {
+  padding-right: 0.95rem;
+}
+
 .policies-col-name {
-  width: 28%;
+  width: 34%;
 }
 
 .policies-col-domain {
-  width: 14%;
-}
-
-.policies-col-pack {
-  width: 20%;
-}
-
-.policies-col-status {
   width: 12%;
 }
 
+.policies-col-pack {
+  width: 18%;
+}
+
+.policies-col-status {
+  width: 11%;
+}
+
 .policies-col-version {
-  width: 8%;
+  width: 7%;
 }
 
 .policies-col-phase {
@@ -2833,6 +2884,13 @@ button.table-link.audit-open-btn:disabled {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.policies-table td:nth-child(4),
+.policies-table td:nth-child(5),
+.policies-table td:nth-child(6) {
+  padding-left: 0.55rem;
+  padding-right: 0.55rem;
 }
 
 .table-sort-btn {
@@ -2870,12 +2928,6 @@ button.table-link.audit-open-btn:disabled {
 .table-sort-btn:hover .table-sort-icon,
 .table-sort-btn.is-active .table-sort-icon {
   opacity: 0.85;
-}
-
-.policies-table td {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .decision-group-start td:first-child,
@@ -3826,6 +3878,34 @@ samp {
 
 .login-brand {
   margin-bottom: 1.25rem;
+}
+
+.login-brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.login-logo {
+  display: block;
+  height: 56px;
+  width: auto;
+}
+
+.login-logo-on-light {
+  display: none;
+}
+
+[data-theme='light'] .login-logo-on-dark {
+  display: none;
+}
+
+[data-theme='light'] .login-logo-on-light {
+  display: block;
+}
+
+.login-brand .brand-sub {
+  margin-top: 0.55rem;
 }
 
 .login-form {

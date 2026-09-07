@@ -10,7 +10,18 @@ export default function LoginPage() {
       </div>
       <div className="login-card">
         <div className="login-brand">
-          <div className="brand-name">Enigma</div>
+          <div className="login-brand-lockup">
+            <img
+              src="/brand/enigma-logo.png"
+              alt="Enigma"
+              className="login-logo login-logo-on-dark"
+            />
+            <img
+              src="/brand/enigma-logo-on-light.png"
+              alt="Enigma"
+              className="login-logo login-logo-on-light"
+            />
+          </div>
           <div className="brand-sub">AI Governance Gateway</div>
         </div>
         <h1 className="page-title">Sign in</h1>

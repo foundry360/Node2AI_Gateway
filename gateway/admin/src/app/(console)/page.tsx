@@ -62,7 +62,7 @@ export default async function OverviewPage() {
     <div>
       <PageHeader
         title="Authority Console"
-        lede="What requires governance attention? Enigma governs AI actions from policy to proof."
+        lede="Enigma governs AI actions from policy to proof."
       />
 
       {error ? (
