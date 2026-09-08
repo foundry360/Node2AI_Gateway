@@ -1,0 +1,59 @@
+<template>
+  <lightning-card>
+    <h2 slot="title" class="slds-card__header-title card-title">
+      <lightning-icon
+        icon-name="standard:case"
+        size="small"
+        alternative-text="Conditions"
+        class="card-title-icon"
+      ></lightning-icon>
+      <span>Conditions</span>
+    </h2>
+    <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+      <template lwc:if={conditionError}>
+        <div class="slds-text-color_error">{conditionError}</div>
+      </template>
+      <template lwc:elseif={hasConditions}>
+        <lightning-datatable
+          key-field="id"
+          data={conditions}
+          columns={conditionColumns}
+          hide-checkbox-column
+        ></lightning-datatable>
+      </template>
+      <template lwc:else>
+        <p class="slds-text-color_weak">No conditions on this patient.</p>
+      </template>
+    </div>
+  </lightning-card>
+
+  <div class="slds-m-top_medium">
+    <lightning-card>
+      <h2 slot="title" class="slds-card__header-title card-title">
+        <lightning-icon
+          icon-name="standard:medication"
+          size="small"
+          alternative-text="Prescriptions"
+          class="card-title-icon"
+        ></lightning-icon>
+        <span>Prescriptions</span>
+      </h2>
+      <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+        <template lwc:if={prescriptionError}>
+          <div class="slds-text-color_error">{prescriptionError}</div>
+        </template>
+        <template lwc:elseif={hasPrescriptions}>
+          <lightning-datatable
+            key-field="id"
+            data={prescriptions}
+            columns={prescriptionColumns}
+            hide-checkbox-column
+          ></lightning-datatable>
+        </template>
+        <template lwc:else>
+          <p class="slds-text-color_weak">No prescriptions on this patient.</p>
+        </template>
+      </div>
+    </lightning-card>
+  </div>
+</template>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Patient prescriptions / medications</description>
+    <enableActivities>false</enableActivities>
+    <enableReports>true</enableReports>
+    <enableSearch>true</enableSearch>
+    <label>Prescription</label>
+    <nameField>
+        <label>Medication</label>
+        <type>Text</type>
+    </nameField>
+    <pluralLabel>Prescriptions</pluralLabel>
+    <sharingModel>ControlledByParent</sharingModel>
+</CustomObject>

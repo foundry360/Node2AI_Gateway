@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import { proxyJson } from '@/lib/client-api';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 export function ModelRegisterDrawer({
   label = 'Register model',
@@ -107,14 +108,16 @@ export function ModelRegisterDrawer({
                   Provider ID
                   <input name="provider_id" defaultValue="local-runtime" />
                 </label>
-                <label>
-                  Kind
-                  <select name="kind" defaultValue="local">
-                    <option value="local">local</option>
-                    <option value="private">private</option>
-                    <option value="cloud">cloud</option>
-                  </select>
-                </label>
+                <SelectDropdown
+                  label="Kind"
+                  name="kind"
+                  defaultValue="local"
+                  options={[
+                    { value: 'local', label: 'Local' },
+                    { value: 'private', label: 'Private' },
+                    { value: 'cloud', label: 'Cloud' },
+                  ]}
+                />
               </div>
 
               <div className="drawer-actions">

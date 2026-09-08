@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { proxyJson } from '@/lib/client-api';
 import { DecisionExplanationView } from '@/components/DecisionExplanationView';
+import { SelectDropdown } from '@/components/SelectDropdown';
 import type { DecisionExplanationPayload } from '@/lib/decision-explanation';
 
 export function PolicyLifecycleActions({
@@ -243,37 +244,37 @@ export function PolicySimulatePanel({ policyId }: { policyId: string }) {
         NOT_EXECUTED.
       </p>
       <div className="form-grid" style={{ padding: 0 }}>
-        <label>
-          Scenario
-          <select value={scenarioId} onChange={(e) => setScenarioId(e.target.value)}>
-            {SIM_SCENARIOS.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SelectDropdown
+          label="Scenario"
+          value={scenarioId}
+          onChange={setScenarioId}
+          options={SIM_SCENARIOS.map((s) => ({ value: s.id, label: s.label }))}
+        />
         {scenarioId === 'default' ? (
           <>
-            <label>
-              Classification
-              <select value={simClass} onChange={(e) => setSimClass(e.target.value)}>
-                <option value="Internal">Internal</option>
-                <option value="PII">PII</option>
-                <option value="PHI">PHI</option>
-                <option value="Credential">Credential</option>
-                <option value="FINANCIAL">FINANCIAL</option>
-                <option value="LEGAL">LEGAL</option>
-                <option value="PART2">PART2</option>
-              </select>
-            </label>
-            <label>
-              Requested model
-              <select value={simModel} onChange={(e) => setSimModel(e.target.value)}>
-                <option value="local-general-v1">local-general-v1</option>
-                <option value="cloud-public-gpt">cloud-public-gpt</option>
-              </select>
-            </label>
+            <SelectDropdown
+              label="Classification"
+              value={simClass}
+              onChange={setSimClass}
+              options={[
+                { value: 'Internal', label: 'Internal' },
+                { value: 'PII', label: 'PII' },
+                { value: 'PHI', label: 'PHI' },
+                { value: 'Credential', label: 'Credential' },
+                { value: 'FINANCIAL', label: 'FINANCIAL' },
+                { value: 'LEGAL', label: 'LEGAL' },
+                { value: 'PART2', label: 'PART2' },
+              ]}
+            />
+            <SelectDropdown
+              label="Requested model"
+              value={simModel}
+              onChange={setSimModel}
+              options={[
+                { value: 'local-general-v1', label: 'local-general-v1' },
+                { value: 'cloud-public-gpt', label: 'cloud-public-gpt' },
+              ]}
+            />
           </>
         ) : null}
         <button

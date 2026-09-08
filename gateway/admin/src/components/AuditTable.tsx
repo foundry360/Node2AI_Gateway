@@ -6,6 +6,7 @@ import {
   AuditDetailDrawer,
   type AuditEventDetail,
 } from '@/components/AuditDetailDrawer';
+import { SelectDropdown } from '@/components/SelectDropdown';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatDisplayDateTime } from '@/lib/display-datetime';
 
@@ -72,14 +73,20 @@ export function AuditTable({
   return (
     <div className="stack-tight">
       <div className="toolbar">
-        <select value={decision} onChange={(e) => setDecision(e.target.value)}>
-          <option value="all">All decisions</option>
-          <option value="blocked">Blocked / Deny</option>
-          <option value="ALLOW">Allow</option>
-          <option value="TOKENIZE">Tokenize</option>
-          <option value="RELEASE">Release</option>
-          <option value="BLOCK">Block</option>
-        </select>
+        <SelectDropdown
+          compact
+          ariaLabel="Filter decisions"
+          value={decision}
+          onChange={setDecision}
+          options={[
+            { value: 'all', label: 'All decisions' },
+            { value: 'blocked', label: 'Blocked / Deny' },
+            { value: 'ALLOW', label: 'Allow' },
+            { value: 'TOKENIZE', label: 'Tokenize' },
+            { value: 'RELEASE', label: 'Release' },
+            { value: 'BLOCK', label: 'Block' },
+          ]}
+        />
         <input
           placeholder="Filter by application"
           value={application}

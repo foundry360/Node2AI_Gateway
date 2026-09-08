@@ -6,6 +6,7 @@ import {
 } from '@/components/AdminForms';
 import { ApplicationEditDrawer } from '@/components/ApplicationEditDrawer';
 import { ApplicationSparklines } from '@/components/ApplicationSparklines';
+import type { ProviderCredentialPublic } from '@/components/ProviderCredentialForm';
 import { StatusBadge } from '@/components/StatusBadge';
 
 type App = {
@@ -33,16 +34,22 @@ export function ApplicationDetailView({
   keys,
   blockedCount,
   activePolicies,
+  providerCredential,
 }: {
   app: App;
   keys: Key[];
   blockedCount: number;
   activePolicies: number;
+  providerCredential: ProviderCredentialPublic | null;
 }) {
   const checklist = [
     { label: 'Application registered', done: true },
     { label: 'Trust level assigned', done: !!app.trust_level },
     { label: 'Model allowlist set', done: app.allowed_models.length > 0 },
+    {
+      label: 'Model provider credentials',
+      done: !!providerCredential,
+    },
     { label: 'API key issued', done: keys.some((k) => k.status === 'active') },
     {
       label: 'Traffic flowing',
@@ -53,16 +60,13 @@ export function ApplicationDetailView({
   const doneCount = checklist.filter((c) => c.done && !c.pending).length;
   const activeKeys = keys.filter((k) => k.status === 'active').length;
   const allowlistTotal =
-    app.allowed_models.length +
-    app.allowed_operations.length +
-    app.allowed_datasets.length;
+    app.allowed_models.length + app.allowed_operations.length;
   const capitalize = (value: string) =>
     value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 
   const allowlistGroups: Array<{ label: string; items: string[] }> = [
     { label: 'Models', items: app.allowed_models },
     { label: 'Operations', items: app.allowed_operations },
-    { label: 'Datasets', items: app.allowed_datasets },
   ];
 
   return (
@@ -73,7 +77,10 @@ export function ApplicationDetailView({
             <h1 className="meridian-title">{app.name}</h1>
           </div>
           <div className="meridian-header-actions">
-            <ApplicationEditDrawer app={app} />
+            <ApplicationEditDrawer
+              app={app}
+              providerCredential={providerCredential}
+            />
             <ApplicationActions applicationId={app.application_id} status={app.status} />
           </div>
         </div>
@@ -173,12 +180,6 @@ export function ApplicationDetailView({
               </span>
             </div>
             <div className="meridian-attr">
-              <span className="meridian-attr-label">Datasets</span>
-              <span className="meridian-attr-value mono">
-                {app.allowed_datasets.join(', ') || '-'}
-              </span>
-            </div>
-            <div className="meridian-attr">
               <span className="meridian-attr-label">Operations</span>
               <span className="meridian-attr-value mono">
                 {app.allowed_operations.join(', ') || '-'}
@@ -220,7 +221,7 @@ export function ApplicationDetailView({
             <span className="count">{allowlistTotal}</span>
           </div>
           {allowlistTotal === 0 ? (
-            <p className="muted">No models, operations, or datasets allowlisted.</p>
+            <p className="muted">No models or operations allowlisted.</p>
           ) : (
             <div className="allowlist-groups">
               {allowlistGroups.map((group) => (

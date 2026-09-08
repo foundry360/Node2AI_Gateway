@@ -17,6 +17,7 @@ export type ReasonCode =
   | 'LOCAL_RUNTIME_UNAVAILABLE'
   | 'LOCAL_MODEL_NOT_READY'
   | 'AIRGAP_LOCAL_RUNTIME_UNAVAILABLE'
+  | 'PROVIDER_CREDENTIAL_MISSING'
   | 'INTERNAL_ERROR';
 
 export class GatewayError extends Error {

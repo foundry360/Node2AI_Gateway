@@ -15,11 +15,13 @@ import {
   DefaultModelGateway,
   ExternalOpenAICompatibleProvider,
   InMemoryModelRegistry,
+  InMemoryProviderCredentialStore,
   LocalModelProvider,
   StubLocalRuntime,
   defaultPhase4Registry,
   loadModelsFromPostgres,
 } from '../models/index.js';
+import type { ProviderCredentialStore } from '../models/provider-credentials.js';
 import { ResolvingLocalRuntime } from '../models/runtime/resolving.js';
 import type { LocalModelRuntime, ModelGateway, ModelProvider } from '../models/types.js';
 import { DeterministicPolicyEngine, FailingPolicyEngine } from '../policy/engine.js';
@@ -174,6 +176,7 @@ export interface CreateGatewayOptions {
   db?: PgQueryable;
   vault?: TokenVault;
   policyRepository?: import('../policy/enterprise/pg-repository.js').PolicyRepository;
+  providerCredentials?: ProviderCredentialStore;
 }
 
 export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
@@ -231,6 +234,12 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
   const responseInspector =
     options.responseInspector ?? new DeterministicResponseInspector();
 
+  const providerCredentials: ProviderCredentialStore =
+    options.providerCredentials ??
+    new InMemoryProviderCredentialStore(
+      config.vaultEncryptionKey ?? 'test-provider-credential-key',
+    );
+
   const registryEntries = defaultPhase4Registry().filter((m) =>
     options.registryModels ? options.registryModels.includes(m.model_id) : true,
   );
@@ -265,6 +274,7 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
         modelMap: { 'cloud-public-gpt': 'gpt-4o-mini' },
         fetchImpl: options.externalFetch,
         kind: 'cloud',
+        credentialStore: providerCredentials,
       }),
     );
   }
@@ -315,6 +325,7 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
     db,
     orchestrator,
     seed,
+    providerCredentials,
     buildServer: () =>
       buildServer({
         orchestrator,
@@ -330,6 +341,7 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
           packPdp,
           orchestrator,
           db,
+          providerCredentials,
           checkDatabase: () => checkDatabase(config.databaseUrl),
           checkLocalRuntime: async () => {
             if ('status' in localRuntime && typeof (localRuntime as ResolvingLocalRuntime).status === 'function') {
@@ -385,6 +397,13 @@ export async function createApplianceGateway(
   const policyStore = new PostgresPolicyStore(pool);
   const policyRepository = await PostgresPolicyRepository.create(pool);
   const vault = new PostgresTokenVault(pool, config.vaultEncryptionKey);
+  const { PostgresProviderCredentialStore } = await import(
+    '../models/provider-credentials.js'
+  );
+  const providerCredentials = new PostgresProviderCredentialStore(
+    pool,
+    config.vaultEncryptionKey,
+  );
   const dbModels = await loadModelsFromPostgres(pool);
   const registry = new InMemoryModelRegistry(
     dbModels.length > 0 ? dbModels : defaultPhase4Registry(),
@@ -402,6 +421,7 @@ export async function createApplianceGateway(
     registry,
     db: pool,
     vault,
+    providerCredentials,
     config: { ...config, requireVaultKey: true },
   });
 }

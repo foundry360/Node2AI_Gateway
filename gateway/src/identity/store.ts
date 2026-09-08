@@ -88,7 +88,7 @@ function mapKey(row: Record<string, unknown>): ApiKeyRecord {
 }
 
 function generateApiKeySecret(): string {
-  return `n2ai_${randomBytes(24).toString('hex')}`;
+  return `enig_${randomBytes(24).toString('hex')}`;
 }
 
 /** In-memory store for tests and local dev without DATABASE_URL. */

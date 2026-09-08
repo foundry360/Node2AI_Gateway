@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { proxyJson } from '@/lib/client-api';
+import { SelectDropdown } from '@/components/SelectDropdown';
+import { APPLICATION_TYPE_OPTIONS } from '@/lib/application-types';
 
 export function CreateApplicationForm() {
   const router = useRouter();
@@ -25,7 +27,6 @@ export function CreateApplicationForm() {
             trust_level: fd.get('trust_level'),
             allowed_models: fd.get('allowed_models'),
             allowed_operations: fd.get('allowed_operations'),
-            allowed_datasets: fd.get('allowed_datasets'),
           });
           form.reset();
           router.refresh();
@@ -42,18 +43,25 @@ export function CreateApplicationForm() {
         Name
         <input name="name" required placeholder="Pilot App" />
       </label>
-      <label>
-        Type
-        <input name="type" defaultValue="custom" />
-      </label>
-      <label>
-        Trust level
-        <select name="trust_level" defaultValue="standard">
-          <option value="trusted">trusted</option>
-          <option value="standard">standard</option>
-          <option value="untrusted">untrusted</option>
-        </select>
-      </label>
+      <SelectDropdown
+        label="Type"
+        name="type"
+        defaultValue="custom"
+        options={APPLICATION_TYPE_OPTIONS.map((o) => ({
+          value: o.value,
+          label: o.label,
+        }))}
+      />
+      <SelectDropdown
+        label="Trust level"
+        name="trust_level"
+        defaultValue="standard"
+        options={[
+          { value: 'trusted', label: 'trusted' },
+          { value: 'standard', label: 'standard' },
+          { value: 'untrusted', label: 'untrusted' },
+        ]}
+      />
       <label>
         Allowed models (comma-separated)
         <input name="allowed_models" defaultValue="local-general-v1" />
@@ -61,10 +69,6 @@ export function CreateApplicationForm() {
       <label>
         Allowed operations
         <input name="allowed_operations" defaultValue="summarize,generate" />
-      </label>
-      <label>
-        Allowed datasets
-        <input name="allowed_datasets" placeholder="ds_clinical_notes" />
       </label>
       <button type="submit" className="btn" disabled={busy}>
         {busy ? 'Creating…' : 'Create application'}
@@ -271,14 +275,16 @@ export function RegisterModelForm() {
         Provider ID
         <input name="provider_id" defaultValue="local-runtime" />
       </label>
-      <label>
-        Kind
-        <select name="kind" defaultValue="local">
-          <option value="local">local</option>
-          <option value="private">private</option>
-          <option value="cloud">cloud</option>
-        </select>
-      </label>
+      <SelectDropdown
+        label="Kind"
+        name="kind"
+        defaultValue="local"
+        options={[
+          { value: 'local', label: 'local' },
+          { value: 'private', label: 'private' },
+          { value: 'cloud', label: 'cloud' },
+        ]}
+      />
       <button type="submit" className="btn" disabled={busy}>
         {busy ? 'Saving…' : 'Register'}
       </button>

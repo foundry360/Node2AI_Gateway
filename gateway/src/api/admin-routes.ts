@@ -4,12 +4,18 @@ import type { AuditService } from '../audit/service.js';
 import type { IntegrityAuditService } from '../audit/integrity-service.js';
 import type { IdentityStore } from '../identity/store.js';
 import type { Application } from '../identity/types.js';
+import { isApplicationType, parseApplicationType } from '../identity/types.js';
 import {
   persistModel,
   persistModelStatus,
   type MutableModelRegistry,
 } from '../models/registry.js';
 import type { LocalModelRuntime, ModelProvider, RegisteredModel } from '../models/types.js';
+import type { ProviderCredentialStore } from '../models/provider-credentials.js';
+import {
+  parseModelMapField,
+  parseProviderKind,
+} from '../models/provider-credentials.js';
 import type { PolicyStore } from '../policy/store.js';
 import type { PolicyRepository } from '../policy/enterprise/pg-repository.js';
 import type { PackBackedEnterprisePdp } from '../policy/enterprise/pack-pdp.js';
@@ -93,6 +99,8 @@ export interface AdminContext {
   }>;
   /** On-appliance inference used for console insights (not the public completions path). */
   localRuntime?: LocalModelRuntime;
+  /** Customer BYOK model provider credentials (per application). */
+  providerCredentials?: ProviderCredentialStore;
 }
 
 function extractBearer(header: string | undefined): string | undefined {
@@ -368,6 +376,12 @@ export function registerAdminRoutes(
       return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
     }
     const body = (request.body ?? {}) as Record<string, unknown>;
+    if (body.type !== undefined && !isApplicationType(body.type)) {
+      return reply.status(400).send({
+        status: 'error',
+        message: 'type must be one of: clinical, financial, customer, internal, custom',
+      });
+    }
     const orgs = await ctx.identityStore.listOrganizations();
     const organization_id =
       String(body.organization_id ?? '') || orgs[0]?.organization_id || 'org_demo';
@@ -377,7 +391,7 @@ export function registerAdminRoutes(
       application_id,
       organization_id,
       name: String(body.name ?? 'New Application'),
-      type: String(body.type ?? 'custom'),
+      type: parseApplicationType(body.type, 'custom'),
       environment: (String(body.environment ?? 'prod') as Application['environment']) || 'prod',
       status: 'active',
       trust_level: (String(body.trust_level ?? 'standard') as Application['trust_level']) || 'standard',
@@ -391,7 +405,22 @@ export function registerAdminRoutes(
     };
     try {
       const created = await ctx.identityStore.createApplication(appRecord);
-      return reply.status(201).send({ application: created });
+      let provider_credential = null;
+      const providerApiKey = String(body.provider_api_key ?? '').trim();
+      if (providerApiKey && ctx.providerCredentials) {
+        const endpoint =
+          String(body.provider_endpoint_url ?? '').trim() ||
+          ctx.config.externalProviderBaseUrl;
+        provider_credential = await ctx.providerCredentials.upsert({
+          application_id: created.application_id,
+          organization_id: created.organization_id,
+          provider_kind: parseProviderKind(body.provider_kind),
+          endpoint_url: endpoint,
+          api_key: providerApiKey,
+          model_map: parseModelMapField(body.provider_model_map),
+        });
+      }
+      return reply.status(201).send({ application: created, provider_credential });
     } catch (err) {
       return reply.status(400).send({
         status: 'error',
@@ -400,21 +429,115 @@ export function registerAdminRoutes(
     }
   });
 
+  app.get('/v1/admin/applications/:applicationId/provider-credential', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    if (!ctx.providerCredentials) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Provider credential store unavailable',
+      });
+    }
+    const { applicationId } = request.params as { applicationId: string };
+    const credential = await ctx.providerCredentials.getPublic(applicationId);
+    if (!credential) {
+      return { configured: false, provider_credential: null };
+    }
+    const revealed = await ctx.providerCredentials.revealSecret(applicationId);
+    return {
+      configured: true,
+      provider_credential: {
+        ...credential,
+        ...(revealed ? { api_key: revealed.api_key } : {}),
+      },
+    };
+  });
+
+  app.put('/v1/admin/applications/:applicationId/provider-credential', async (request, reply) => {
+    if (!(await requireAdmin(request.headers.authorization))) {
+      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    }
+    if (!ctx.providerCredentials) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Provider credential store unavailable',
+      });
+    }
+    const { applicationId } = request.params as { applicationId: string };
+    const appRow = await ctx.identityStore.getApplication(applicationId);
+    if (!appRow) {
+      return reply.status(404).send({ status: 'error', message: 'Application not found' });
+    }
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const apiKey = String(body.api_key ?? body.provider_api_key ?? '').trim();
+    if (!apiKey) {
+      return reply.status(400).send({ status: 'error', message: 'api_key is required' });
+    }
+    const endpoint =
+      String(body.endpoint_url ?? body.provider_endpoint_url ?? '').trim() ||
+      ctx.config.externalProviderBaseUrl;
+    try {
+      const provider_credential = await ctx.providerCredentials.upsert({
+        application_id: applicationId,
+        organization_id: appRow.organization_id,
+        provider_kind: parseProviderKind(body.provider_kind ?? body.kind),
+        endpoint_url: endpoint,
+        api_key: apiKey,
+        model_map: parseModelMapField(body.model_map ?? body.provider_model_map),
+        status:
+          String(body.status ?? 'active') === 'disabled' ? 'disabled' : 'active',
+      });
+      return { configured: true, provider_credential };
+    } catch (err) {
+      return reply.status(400).send({
+        status: 'error',
+        message: err instanceof Error ? err.message : 'upsert failed',
+      });
+    }
+  });
+
+  app.delete(
+    '/v1/admin/applications/:applicationId/provider-credential',
+    async (request, reply) => {
+      if (!(await requireAdmin(request.headers.authorization))) {
+        return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+      }
+      if (!ctx.providerCredentials) {
+        return reply.status(503).send({
+          status: 'error',
+          message: 'Provider credential store unavailable',
+        });
+      }
+      const { applicationId } = request.params as { applicationId: string };
+      await ctx.providerCredentials.delete(applicationId);
+      return { configured: false };
+    },
+  );
+
   app.patch('/v1/admin/applications/:applicationId', async (request, reply) => {
     if (!(await requireAdmin(request.headers.authorization))) {
       return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
     }
     const { applicationId } = request.params as { applicationId: string };
     const body = (request.body ?? {}) as Record<string, unknown>;
+    if (body.type !== undefined && !isApplicationType(body.type)) {
+      return reply.status(400).send({
+        status: 'error',
+        message: 'type must be one of: clinical, financial, customer, internal, custom',
+      });
+    }
     const patch: Record<string, unknown> = {};
     for (const key of [
       'name',
-      'type',
       'environment',
       'status',
       'trust_level',
     ] as const) {
       if (body[key] !== undefined) patch[key] = body[key];
+    }
+    if (body.type !== undefined) {
+      patch.type = parseApplicationType(body.type);
     }
     if (body.allowed_models !== undefined) patch.allowed_models = parseCsv(body.allowed_models);
     if (body.allowed_datasets !== undefined) {

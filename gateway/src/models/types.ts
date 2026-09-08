@@ -11,6 +11,9 @@ export interface ModelExecutionRequest {
   operation: string;
   /** Policy-approved eligible set — gateway must not expand beyond this. */
   eligible_models: string[];
+  /** Calling application — used to resolve BYOK provider credentials. */
+  application_id?: string;
+  organization_id?: string;
 }
 
 export interface ModelExecutionResult {

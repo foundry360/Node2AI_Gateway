@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 export const TIMEFRAME_OPTIONS = [
   { days: 7, label: 'Last 7 days' },
@@ -137,67 +138,48 @@ export function ConsoleTabs({
               <div className="console-toolbar">
                 {showTriageFilters ? (
                   <>
-                    <label className="console-toolbar-field">
-                      <span className="sr-only">Application</span>
-                      <select
-                        value={application}
-                        onChange={(e) => setApplication(e.target.value)}
-                        aria-label="Filter by application"
-                      >
-                        <option value="">All applications</option>
-                        {applicationOptions.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="console-toolbar-field">
-                      <span className="sr-only">Reason</span>
-                      <select
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
-                        aria-label="Filter by reason"
-                      >
-                        <option value="">All reasons</option>
-                        {reasonOptions.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="console-toolbar-field">
-                      <span className="sr-only">Blocked date</span>
-                      <select
-                        value={blockedDate}
-                        onChange={(e) => setBlockedDate(e.target.value)}
-                        aria-label="Filter by blocked date"
-                      >
-                        <option value="">All blocked dates</option>
-                        {blockedDateOptions.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <SelectDropdown
+                      compact
+                      ariaLabel="Filter by application"
+                      value={application}
+                      onChange={setApplication}
+                      options={[
+                        { value: '', label: 'All applications' },
+                        ...applicationOptions,
+                      ]}
+                    />
+                    <SelectDropdown
+                      compact
+                      ariaLabel="Filter by reason"
+                      value={reason}
+                      onChange={setReason}
+                      options={[
+                        { value: '', label: 'All reasons' },
+                        ...reasonOptions,
+                      ]}
+                    />
+                    <SelectDropdown
+                      compact
+                      ariaLabel="Filter by blocked date"
+                      value={blockedDate}
+                      onChange={setBlockedDate}
+                      options={[
+                        { value: '', label: 'All blocked dates' },
+                        ...blockedDateOptions,
+                      ]}
+                    />
                   </>
                 ) : null}
-                <label className="console-toolbar-field">
-                  <span className="sr-only">Timeframe</span>
-                  <select
-                    value={days}
-                    onChange={(e) => setDays(Number(e.target.value) as TimeframeDays)}
-                    aria-label="Timeframe"
-                  >
-                    {TIMEFRAME_OPTIONS.map((o) => (
-                      <option key={o.days} value={o.days}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <SelectDropdown
+                  compact
+                  ariaLabel="Timeframe"
+                  value={String(days)}
+                  onChange={(next) => setDays(Number(next) as TimeframeDays)}
+                  options={TIMEFRAME_OPTIONS.map((o) => ({
+                    value: String(o.days),
+                    label: o.label,
+                  }))}
+                />
               </div>
             ) : null}
           </div>

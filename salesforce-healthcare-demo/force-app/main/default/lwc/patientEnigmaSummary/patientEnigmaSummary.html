@@ -1,0 +1,40 @@
+<template>
+  <lightning-card title="Enigma clinical summary" icon-name="custom:custom63">
+    <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+      <p class="slds-text-body_small slds-m-bottom_small">
+        Sends clinical notes through Enigma Gateway. Model credentials stay on Enigma, not in Salesforce.
+      </p>
+
+      <template lwc:if={notes}>
+        <p class="slds-text-title_caps slds-m-bottom_xx-small">Notes preview</p>
+        <p class="slds-box slds-theme_shade slds-m-bottom_small notes">{notes}</p>
+      </template>
+      <template lwc:else>
+        <p class="slds-text-color_weak slds-m-bottom_small">Add Clinical Notes on the patient record first.</p>
+      </template>
+
+      <lightning-button
+        variant="brand"
+        label={summarizeLabel}
+        onclick={handleSummarize}
+        disabled={isSummarizeDisabled}
+        class="slds-m-bottom_small"
+      ></lightning-button>
+
+      <template lwc:if={errorMessage}>
+        <div class="slds-text-color_error slds-m-bottom_small">{errorMessage}</div>
+      </template>
+
+      <template lwc:if={existingSummary}>
+        <p class="slds-text-title_caps slds-m-bottom_xx-small">Summary</p>
+        <p class="slds-box slds-theme_default summary">{existingSummary}</p>
+      </template>
+
+      <template lwc:if={requestId}>
+        <p class="slds-text-body_small slds-m-top_small">
+          Enigma request id: <code>{requestId}</code>
+        </p>
+      </template>
+    </div>
+  </lightning-card>
+</template>

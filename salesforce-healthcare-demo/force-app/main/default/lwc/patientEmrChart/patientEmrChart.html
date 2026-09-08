@@ -1,0 +1,266 @@
+<template>
+  <template lwc:if={loading}>
+    <div class="chart-shell slds-p-around_medium">
+      <lightning-spinner alternative-text="Loading chart" size="small"></lightning-spinner>
+    </div>
+  </template>
+
+  <template lwc:elseif={errorMessage}>
+    <div class="chart-shell slds-p-around_medium">
+      <div class="slds-text-color_error">{errorMessage}</div>
+    </div>
+  </template>
+
+  <template lwc:elseif={patient}>
+    <article class="chart-shell">
+      <header class="banner">
+        <div class="banner-main">
+          <div class="avatar" aria-hidden="true">{initials}</div>
+          <div>
+            <h1 class="patient-name">{displayName}</h1>
+            <div class="banner-meta">
+              <span>MRN {patient.MRN__c}</span>
+              <span class="dot">·</span>
+              <span>{dobLabel}</span>
+              <span class="dot">·</span>
+              <span>{ageLabel}</span>
+              <span class="dot">·</span>
+              <span>{patient.Gender__c}</span>
+            </div>
+            <div class="banner-meta secondary">
+              <span>PCP {patient.Primary_Care_Provider__c}</span>
+              <span class="dot">·</span>
+              <span>Last visit {lastVisitLabel}</span>
+            </div>
+          </div>
+        </div>
+        <div class="banner-side">
+          <span class={statusClass}>{patient.Patient_Status__c}</span>
+          <div class="primary-dx">
+            <div class="label">Primary diagnosis</div>
+            <div>{patient.Primary_Diagnosis__c}</div>
+          </div>
+        </div>
+      </header>
+
+      <template lwc:if={hasAllergies}>
+        <section class="allergy-bar" aria-label="Allergies">
+          <strong>ALLERGIES</strong>
+          <span>{patient.Allergies__c}</span>
+        </section>
+      </template>
+      <template lwc:else>
+        <section class="allergy-bar allergy-clear" aria-label="Allergies">
+          <strong>ALLERGIES</strong>
+          <span>No known allergies documented</span>
+        </section>
+      </template>
+
+      <section class="vitals" aria-label="Vitals">
+        <div class="vital">
+          <div class="vital-label">Blood type</div>
+          <div class="vital-value">{patient.Blood_Type__c}</div>
+        </div>
+        <div class="vital">
+          <div class="vital-label">Height</div>
+          <div class="vital-value">
+            <template lwc:if={patient.Height_in__c}>{patient.Height_in__c} in</template>
+            <template lwc:else>—</template>
+          </div>
+        </div>
+        <div class="vital">
+          <div class="vital-label">Weight</div>
+          <div class="vital-value">
+            <template lwc:if={patient.Weight_lb__c}>{patient.Weight_lb__c} lb</template>
+            <template lwc:else>—</template>
+          </div>
+        </div>
+        <div class="vital">
+          <div class="vital-label">BMI</div>
+          <div class="vital-value">{bmiLabel}</div>
+        </div>
+        <div class="vital">
+          <div class="vital-label">Language</div>
+          <div class="vital-value">{patient.Preferred_Language__c}</div>
+        </div>
+        <div class="vital">
+          <div class="vital-label">Last visit</div>
+          <div class="vital-value">{lastVisitLabel}</div>
+        </div>
+      </section>
+
+      <div class="grid">
+        <section class="panel">
+          <header class="panel-header">
+            <div class="panel-title">
+              <lightning-icon
+                icon-name="standard:case"
+                size="small"
+                alternative-text="Conditions"
+              ></lightning-icon>
+              <h2>Conditions</h2>
+            </div>
+            <span class="count">{activeConditions.length} active</span>
+          </header>
+          <template lwc:if={hasActiveConditions}>
+            <ul class="record-list">
+              <template for:each={activeConditions} for:item="c">
+                <li key={c.Id}>
+                  <div class="row-title">
+                    <span class="row-name">
+                      <lightning-icon
+                        icon-name="standard:case"
+                        size="xx-small"
+                        alternative-text=""
+                        class="row-icon"
+                      ></lightning-icon>
+                      {c.Name}
+                    </span>
+                    <span class="pill">{c.Status__c}</span>
+                  </div>
+                  <div class="row-meta">
+                    <span>{c.ICD10_Code__c}</span>
+                    <template lwc:if={c.Onset_Date__c}>
+                      <span>· Onset {c.Onset_Date__c}</span>
+                    </template>
+                  </div>
+                  <template lwc:if={c.Notes__c}>
+                    <p class="row-notes">{c.Notes__c}</p>
+                  </template>
+                </li>
+              </template>
+            </ul>
+          </template>
+          <template lwc:else>
+            <p class="empty">No active conditions.</p>
+          </template>
+          <template lwc:if={hasResolvedConditions}>
+            <details class="resolved">
+              <summary>Resolved / historical ({resolvedConditions.length})</summary>
+              <ul class="record-list muted">
+                <template for:each={resolvedConditions} for:item="c">
+                  <li key={c.Id}>
+                    <div class="row-title">
+                      <span class="row-name">
+                        <lightning-icon
+                          icon-name="standard:case"
+                          size="xx-small"
+                          alternative-text=""
+                          class="row-icon"
+                        ></lightning-icon>
+                        {c.Name}
+                      </span>
+                      <span class="pill muted-pill">{c.Status__c}</span>
+                    </div>
+                    <div class="row-meta">{c.ICD10_Code__c}</div>
+                  </li>
+                </template>
+              </ul>
+            </details>
+          </template>
+        </section>
+
+        <section class="panel">
+          <header class="panel-header">
+            <div class="panel-title">
+              <lightning-icon
+                icon-name="standard:medication"
+                size="small"
+                alternative-text="Medications"
+              ></lightning-icon>
+              <h2>Medications</h2>
+            </div>
+            <span class="count">{activeMeds.length} active</span>
+          </header>
+          <template lwc:if={hasActiveMeds}>
+            <ul class="record-list">
+              <template for:each={activeMeds} for:item="m">
+                <li key={m.Id}>
+                  <div class="row-title">
+                    <span>{m.Name}</span>
+                    <span class="pill med">{m.Status__c}</span>
+                  </div>
+                  <div class="row-meta">
+                    <span>{m.Dosage__c}</span>
+                    <span>· {m.Frequency__c}</span>
+                    <span>· {m.Route__c}</span>
+                  </div>
+                  <div class="row-meta">
+                    <span>{m.Prescriber__c}</span>
+                    <template lwc:if={m.Start_Date__c}>
+                      <span>· since {m.Start_Date__c}</span>
+                    </template>
+                  </div>
+                  <template lwc:if={m.Instructions__c}>
+                    <p class="row-notes">{m.Instructions__c}</p>
+                  </template>
+                </li>
+              </template>
+            </ul>
+          </template>
+          <template lwc:else>
+            <p class="empty">No active medications.</p>
+          </template>
+          <template lwc:if={hasOtherMeds}>
+            <details class="resolved">
+              <summary>Discontinued / other ({otherMeds.length})</summary>
+              <ul class="record-list muted">
+                <template for:each={otherMeds} for:item="m">
+                  <li key={m.Id}>
+                    <div class="row-title">
+                      <span>{m.Name}</span>
+                      <span class="pill muted-pill">{m.Status__c}</span>
+                    </div>
+                    <div class="row-meta">{m.Dosage__c} · {m.Frequency__c}</div>
+                  </li>
+                </template>
+              </ul>
+            </details>
+          </template>
+        </section>
+      </div>
+
+      <section class="panel notes-panel">
+        <header class="panel-header">
+          <h2>Clinical notes</h2>
+        </header>
+        <template lwc:if={patient.Clinical_Notes__c}>
+          <pre class="notes-body">{patient.Clinical_Notes__c}</pre>
+        </template>
+        <template lwc:else>
+          <p class="empty">No clinical notes documented.</p>
+        </template>
+      </section>
+
+      <div class="grid tertiary">
+        <section class="panel">
+          <header class="panel-header"><h2>Demographics</h2></header>
+          <dl class="kv">
+            <div><dt>Phone</dt><dd>{patient.Phone__c}</dd></div>
+            <div><dt>Email</dt><dd>{patient.Email__c}</dd></div>
+            <div><dt>Address</dt><dd>{addressLine}</dd></div>
+            <div><dt>Preferred language</dt><dd>{patient.Preferred_Language__c}</dd></div>
+          </dl>
+        </section>
+
+        <section class="panel">
+          <header class="panel-header"><h2>Coverage &amp; care team</h2></header>
+          <dl class="kv">
+            <div><dt>Primary care</dt><dd>{patient.Primary_Care_Provider__c}</dd></div>
+            <div><dt>Insurance</dt><dd>{patient.Insurance_Plan__c}</dd></div>
+            <div><dt>Member ID</dt><dd>{patient.Member_Id__c}</dd></div>
+          </dl>
+        </section>
+
+        <section class="panel">
+          <header class="panel-header"><h2>Emergency contact</h2></header>
+          <dl class="kv">
+            <div><dt>Name</dt><dd>{patient.Emergency_Contact_Name__c}</dd></div>
+            <div><dt>Relation</dt><dd>{patient.Emergency_Contact_Relation__c}</dd></div>
+            <div><dt>Phone</dt><dd>{patient.Emergency_Contact_Phone__c}</dd></div>
+          </dl>
+        </section>
+      </div>
+    </article>
+  </template>
+</template>

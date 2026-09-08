@@ -359,6 +359,8 @@ export class GatewayOrchestrator {
           messages: messagesForModel,
           operation: body.operation,
           eligible_models: policyResult.eligible_models,
+          application_id: principal.application.application_id,
+          organization_id: principal.application.organization_id,
         });
       } catch (err) {
         const ge = gatewayErrorFromUnknown(err) ?? (isGatewayError(err) ? err : null);
@@ -776,6 +778,8 @@ export class GatewayOrchestrator {
           messages: messagesForModel,
           operation,
           eligible_models: eligibleModels,
+          application_id: application.application_id,
+          organization_id: application.organization_id,
         });
       } catch (err) {
         const ge = gatewayErrorFromUnknown(err) ?? (isGatewayError(err) ? err : null);

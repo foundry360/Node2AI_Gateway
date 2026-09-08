@@ -18,3 +18,16 @@ export { StubLocalRuntime } from './runtime/stub.js';
 export { LocalModelProvider } from './providers/local.js';
 export { ExternalOpenAICompatibleProvider } from './providers/external-openai.js';
 export { ScriptedModelProvider } from './providers/scripted.js';
+export {
+  InMemoryProviderCredentialStore,
+  PostgresProviderCredentialStore,
+  parseModelMapField,
+  parseProviderKind,
+} from './provider-credentials.js';
+export type {
+  ApplicationProviderCredentialPublic,
+  ProviderCredentialKind,
+  ProviderCredentialStore,
+  ResolvedProviderCredential,
+  UpsertProviderCredentialInput,
+} from './provider-credentials.js';

@@ -28,7 +28,7 @@ describe('Admin governance CRUD', () => {
       payload: { application_id: appId },
     });
     expect(issue.statusCode).toBe(201);
-    expect(issue.json().secret).toMatch(/^n2ai_/);
+    expect(issue.json().secret).toMatch(/^enig_/);
     const keyId = issue.json().api_key.api_key_id as string;
 
     const revoke = await server.inject({

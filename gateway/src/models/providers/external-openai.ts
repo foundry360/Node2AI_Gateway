@@ -1,3 +1,5 @@
+import { GatewayError } from '../../shared/errors.js';
+import type { ProviderCredentialStore } from '../provider-credentials.js';
 import type {
   ModelExecutionRequest,
   ModelExecutionResult,
@@ -12,11 +14,17 @@ export interface ExternalOpenAICompatibleOptions {
   modelMap: Record<string, string>;
   fetchImpl?: typeof fetch;
   kind?: 'private' | 'cloud';
+  /**
+   * Resolve customer BYOK credentials for the calling application.
+   * When present and active, overrides constructor baseUrl/apiKey/modelMap entries.
+   */
+  credentialStore?: ProviderCredentialStore;
 }
 
 /**
  * External / private OpenAI-compatible provider adapter.
  * Never authorizes — only called after PolicyEngine eligibility.
+ * Prefers application BYOK credentials; falls back to appliance defaults.
  */
 export class ExternalOpenAICompatibleProvider implements ModelProvider {
   readonly providerId: string;
@@ -25,6 +33,7 @@ export class ExternalOpenAICompatibleProvider implements ModelProvider {
   private readonly apiKey?: string;
   private readonly modelMap: Record<string, string>;
   private readonly fetchImpl: typeof fetch;
+  private readonly credentialStore?: ProviderCredentialStore;
 
   constructor(options: ExternalOpenAICompatibleOptions) {
     this.providerId = options.providerId ?? 'external-openai-compatible';
@@ -33,6 +42,7 @@ export class ExternalOpenAICompatibleProvider implements ModelProvider {
     this.apiKey = options.apiKey;
     this.modelMap = options.modelMap;
     this.fetchImpl = options.fetchImpl ?? fetch;
+    this.credentialStore = options.credentialStore;
   }
 
   supports(modelId: string): boolean {
@@ -40,21 +50,40 @@ export class ExternalOpenAICompatibleProvider implements ModelProvider {
   }
 
   async execute(req: ModelExecutionRequest): Promise<ModelExecutionResult> {
-    const upstreamModel = this.modelMap[req.model_id];
+    let baseUrl = this.baseUrl;
+    let apiKey = this.apiKey;
+    let modelMap = { ...this.modelMap };
+
+    if (this.credentialStore && req.application_id) {
+      const byok = await this.credentialStore.resolveSecret(req.application_id);
+      if (byok) {
+        baseUrl = byok.endpoint_url.replace(/\/$/, '');
+        apiKey = byok.api_key;
+        modelMap = { ...modelMap, ...byok.model_map };
+      }
+    }
+
+    const upstreamModel = modelMap[req.model_id];
     if (!upstreamModel) {
       throw new Error(`No upstream mapping for model ${req.model_id}`);
+    }
+
+    if (!apiKey) {
+      throw new GatewayError(
+        'PROVIDER_CREDENTIAL_MISSING',
+        'No provider API key configured for this application. Register a model provider credential in Enigma Admin.',
+        403,
+      );
     }
 
     const headers: Record<string, string> = {
       'content-type': 'application/json',
       'x-request-id': req.request_id,
       'x-correlation-id': req.correlation_id,
+      authorization: `Bearer ${apiKey}`,
     };
-    if (this.apiKey) {
-      headers.authorization = `Bearer ${this.apiKey}`;
-    }
 
-    const res = await this.fetchImpl(`${this.baseUrl}/v1/chat/completions`, {
+    const res = await this.fetchImpl(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers,
       body: JSON.stringify({

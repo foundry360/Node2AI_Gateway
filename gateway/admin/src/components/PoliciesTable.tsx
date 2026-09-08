@@ -12,6 +12,7 @@ import {
   Shield,
 } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
+import { SelectDropdown } from '@/components/SelectDropdown';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatDomainLabel } from '@/lib/domain-label';
 
@@ -181,25 +182,30 @@ export function PoliciesTable({
   return (
     <div className="stack-tight">
       <div className="toolbar">
-        <select value={packFilter} onChange={(e) => setPackFilter(e.target.value)}>
-          <option value="all">All packs</option>
-          {packs.map((p) => (
-            <option key={p.pack_id} value={p.pack_id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <select
+        <SelectDropdown
+          compact
+          ariaLabel="Filter packs"
+          value={packFilter}
+          onChange={setPackFilter}
+          options={[
+            { value: 'all', label: 'All packs' },
+            ...packs.map((p) => ({ value: p.pack_id, label: p.name })),
+          ]}
+        />
+        <SelectDropdown
+          compact
+          ariaLabel="Filter status"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="all">All statuses</option>
-          <option value="active">Active</option>
-          <option value="approved">Approved</option>
-          <option value="suspended">Suspended</option>
-          <option value="draft">Draft</option>
-          <option value="retired">Retired</option>
-        </select>
+          onChange={setStatusFilter}
+          options={[
+            { value: 'all', label: 'All statuses' },
+            { value: 'active', label: 'Active' },
+            { value: 'approved', label: 'Approved' },
+            { value: 'suspended', label: 'Suspended' },
+            { value: 'draft', label: 'Draft' },
+            { value: 'retired', label: 'Retired' },
+          ]}
+        />
         <input
           placeholder="Search name or id"
           value={q}

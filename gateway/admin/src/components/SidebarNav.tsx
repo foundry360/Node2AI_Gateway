@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 const primary: Array<{ href: string; label: string; icon: LucideIcon }> = [
-  { href: '/', label: 'Overview', icon: LayoutDashboard },
+  { href: '/', label: 'Console', icon: LayoutDashboard },
   { href: '/applications', label: 'Applications', icon: AppWindow },
   { href: '/policies', label: 'Policies', icon: FileText },
   { href: '/decisions', label: 'Decisions', icon: Gavel },

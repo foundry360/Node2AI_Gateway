@@ -1,5 +1,6 @@
 import { adminFetch } from '@/lib/api';
 import { ApplicationDetailView } from '@/components/ApplicationDetailView';
+import type { ProviderCredentialPublic } from '@/components/ProviderCredentialForm';
 
 type AppsResponse = {
   applications: Array<{
@@ -30,6 +31,11 @@ type Overview = {
   recent_blocked: Array<{ application_id?: string }>;
 };
 
+type ProviderCredentialResponse = {
+  configured: boolean;
+  provider_credential?: ProviderCredentialPublic;
+};
+
 export default async function ApplicationDetailPage({
   params,
 }: {
@@ -40,13 +46,17 @@ export default async function ApplicationDetailPage({
   let keys: KeysResponse['api_keys'] = [];
   let blockedCount = 0;
   let activePolicies = 0;
+  let providerCredential: ProviderCredentialPublic | null = null;
   let error: string | null = null;
 
   try {
-    const [appsRes, keysRes, overview] = await Promise.all([
+    const [appsRes, keysRes, overview, credRes] = await Promise.all([
       adminFetch<AppsResponse>('/v1/admin/applications'),
       adminFetch<KeysResponse>('/v1/admin/api-keys'),
       adminFetch<Overview>('/v1/admin/overview'),
+      adminFetch<ProviderCredentialResponse>(
+        `/v1/admin/applications/${applicationId}/provider-credential`,
+      ).catch(() => ({ configured: false as const })),
     ]);
     app = appsRes.applications.find((a) => a.application_id === applicationId) ?? null;
     keys = keysRes.api_keys.filter((k) => k.application_id === applicationId);
@@ -54,6 +64,8 @@ export default async function ApplicationDetailPage({
       (e) => e.application_id === applicationId,
     ).length;
     activePolicies = overview.policy.active_policies;
+    providerCredential =
+      'provider_credential' in credRes ? credRes.provider_credential ?? null : null;
   } catch (err) {
     error = err instanceof Error ? err.message : 'Failed to load application';
   }
@@ -70,6 +82,7 @@ export default async function ApplicationDetailPage({
           keys={keys}
           blockedCount={blockedCount}
           activePolicies={activePolicies}
+          providerCredential={providerCredential}
         />
       ) : null}
     </div>

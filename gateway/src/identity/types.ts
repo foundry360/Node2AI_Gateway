@@ -1,5 +1,36 @@
 export type EntityStatus = 'active' | 'suspended' | 'deleted';
 
+/** Application categories used by governance policy (not freeform). */
+export const APPLICATION_TYPES = [
+  'clinical',
+  'financial',
+  'customer',
+  'internal',
+  'custom',
+] as const;
+export type ApplicationType = (typeof APPLICATION_TYPES)[number];
+
+export function parseApplicationType(
+  value: unknown,
+  fallback: ApplicationType = 'custom',
+): ApplicationType {
+  const raw = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  if ((APPLICATION_TYPES as readonly string[]).includes(raw)) {
+    return raw as ApplicationType;
+  }
+  return fallback;
+}
+
+export function isApplicationType(value: unknown): value is ApplicationType {
+  return (APPLICATION_TYPES as readonly string[]).includes(
+    String(value ?? '')
+      .trim()
+      .toLowerCase(),
+  );
+}
+
 export interface Organization {
   organization_id: string;
   name: string;
@@ -11,7 +42,7 @@ export interface Application {
   application_id: string;
   organization_id: string;
   name: string;
-  type: string;
+  type: ApplicationType | string;
   environment: 'dev' | 'test' | 'staging' | 'prod';
   status: EntityStatus;
   trust_level: 'trusted' | 'standard' | 'untrusted';

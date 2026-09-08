@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { AppWindow, Filter, LayoutGrid, List } from 'lucide-react';
+import { AppWindow, LayoutGrid, List } from 'lucide-react';
 import { ApplicationCardMenu } from '@/components/ApplicationCardMenu';
 import { ApplicationCreateDrawer } from '@/components/ApplicationCreateDrawer';
 import { EmptyState } from '@/components/EmptyState';
 import { PageHeader } from '@/components/PageHeader';
+import { SelectDropdown } from '@/components/SelectDropdown';
 
 export type AppCard = {
   application_id: string;
@@ -92,35 +93,18 @@ export function ApplicationsDirectory({
                 <List size={18} strokeWidth={1.75} />
               </button>
             </div>
-            <label
-              className="control-input"
-              style={{
-                minWidth: '8rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-              }}
-            >
-              <Filter size={16} strokeWidth={1.75} aria-hidden />
-              <select
-                value={trust}
-                onChange={(e) => setTrust(e.target.value)}
-                aria-label="Filter trust"
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'inherit',
-                  font: 'inherit',
-                  width: '100%',
-                  padding: 0,
-                }}
-              >
-                <option value="all">Filter</option>
-                <option value="trusted">trusted</option>
-                <option value="standard">standard</option>
-                <option value="untrusted">untrusted</option>
-              </select>
-            </label>
+            <SelectDropdown
+              compact
+              ariaLabel="Filter trust"
+              value={trust}
+              onChange={setTrust}
+              options={[
+                { value: 'all', label: 'All trust levels' },
+                { value: 'trusted', label: 'trusted' },
+                { value: 'standard', label: 'standard' },
+                { value: 'untrusted', label: 'untrusted' },
+              ]}
+            />
             <ApplicationCreateDrawer />
           </>
         }

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+    <brand>
+        <headerColor>#0B3D2E</headerColor>
+        <shouldOverrideOrgTheme>false</shouldOverrideOrgTheme>
+    </brand>
+    <description>Healthcare demo app that routes AI summaries through Enigma</description>
+    <formFactors>Large</formFactors>
+    <formFactors>Small</formFactors>
+    <isNavAutoTempTabsDisabled>false</isNavAutoTempTabsDisabled>
+    <isNavPersonalizationDisabled>false</isNavPersonalizationDisabled>
+    <label>Enigma Healthcare Demo</label>
+    <navType>Standard</navType>
+    <profileActionOverrides>
+        <actionName>View</actionName>
+        <content>Patient_Record_Page2</content>
+        <formFactor>Large</formFactor>
+        <pageOrSobjectType>Patient__c</pageOrSobjectType>
+        <type>Flexipage</type>
+        <profile>System Administrator</profile>
+    </profileActionOverrides>
+    <profileActionOverrides>
+        <actionName>View</actionName>
+        <content>Patient_Record_Page2</content>
+        <formFactor>Small</formFactor>
+        <pageOrSobjectType>Patient__c</pageOrSobjectType>
+        <type>Flexipage</type>
+        <profile>System Administrator</profile>
+    </profileActionOverrides>
+    <tabs>standard-home</tabs>
+    <tabs>Patient__c</tabs>
+    <tabs>Condition__c</tabs>
+    <tabs>Prescription__c</tabs>
+    <uiType>Lightning</uiType>
+</CustomApplication>

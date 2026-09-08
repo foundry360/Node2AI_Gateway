@@ -74,6 +74,17 @@ docker compose exec -T postgres \
   psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < db/migrate-audit-integrity.sql
 ```
 
+### Application BYOK provider credentials
+
+Customer model API keys (OpenAI-compatible) are stored per application, encrypted with `GATEWAY_VAULT_KEY`. New installs get the table from `schema.sql`. On existing volumes:
+
+```bash
+docker compose exec -T postgres \
+  psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < db/migrate-provider-credentials.sql
+```
+
+Configure in Admin → Applications → application detail (or at create). Appliance env `GATEWAY_EXTERNAL_PROVIDER_API_KEY` remains an optional fallback only.
+
 ### Enigma EPA tables (M2)
 
 New installs load `schema-epa.sql` / `seed-epa.sql` via Compose init. On existing volumes:
