@@ -48,7 +48,11 @@ describe('Phase 4 acceptance — Model Gateway', () => {
     };
 
     const gw = createPhase1Gateway({
-      config: { deploymentMode: 'connected' },
+      config: {
+        deploymentMode: 'connected',
+        // Appliance fallback key — BYOK optional; required when no app credential is stored.
+        externalProviderApiKey: 'sk-test-appliance',
+      },
       externalFetch: fetchImpl,
     });
 
