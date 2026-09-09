@@ -132,14 +132,6 @@ export interface AdminContext {
   adminUsers?: AdminUserStore;
 }
 
-function extractBearer(header: string | undefined): string | undefined {
-  if (!header) return undefined;
-  const [scheme, token] = header.split(/\s+/);
-  if (!scheme || !token) return undefined;
-  if (scheme.toLowerCase() !== 'bearer') return undefined;
-  return token;
-}
-
 function parseCsv(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String).map((s) => s.trim()).filter(Boolean);
   if (typeof value === 'string') {
@@ -269,7 +261,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
 
     const days = parseDaysQuery(request.query);
     const [events, applications, users, policies] = await Promise.all([
@@ -382,7 +373,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     const { applicationId } = request.params as { applicationId: string };
     const appRecord = await ctx.identityStore.getApplication(applicationId);
     if (!appRecord) {
@@ -412,7 +402,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     const hours = 24;
     const now = Date.now();
     const windowStart = now - hours * 60 * 60 * 1000;
@@ -554,7 +543,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.providerCredentials) {
       return reply.status(503).send({
         status: 'error',
@@ -601,8 +589,7 @@ export function registerAdminRoutes(
       if (!__gate.ok) {
         return deny(reply, __gate.status, __gate.reason);
       }
-      const principal = __gate.principal;
-      if (!ctx.providerCredentials) {
+        if (!ctx.providerCredentials) {
         return reply.status(503).send({
           status: 'error',
           message: 'Provider credential store unavailable',
@@ -619,7 +606,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     const { applicationId } = request.params as { applicationId: string };
     const body = (request.body ?? {}) as Record<string, unknown>;
     if (body.type !== undefined && !isApplicationType(body.type)) {
@@ -666,7 +652,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     const q = request.query as { application_id?: string };
     const keys = await ctx.identityStore.listApiKeys(q.application_id);
     return {
@@ -685,7 +670,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     const body = (request.body ?? {}) as Record<string, unknown>;
     const application_id = String(body.application_id ?? '');
     if (!application_id) {
@@ -716,7 +700,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     const { apiKeyId } = request.params as { apiKeyId: string };
     try {
       const revoked = await ctx.identityStore.revokeApiKey(apiKeyId);
@@ -739,7 +722,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     const policies = await ctx.policyStore.listLatest();
     return {
       policies: policies.map((p) => ({
@@ -759,7 +741,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     const { policyId } = request.params as { policyId: string };
     if (!ctx.policyRepository?.listEvaluations) {
       return reply.status(503).send({
@@ -791,7 +772,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.policyRepository?.listEvaluations) {
       return reply.status(503).send({
         status: 'error',
@@ -870,7 +850,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.policyRepository?.getEvaluation) {
       return reply.status(503).send({
         status: 'error',
@@ -960,7 +939,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.policyRepository?.getEvaluation || !ctx.policyRepository.saveHumanResolution) {
       return reply.status(503).send({
         status: 'error',
@@ -1098,7 +1076,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (
       !ctx.policyRepository?.getEvaluation ||
       !ctx.policyRepository.saveExecution ||
@@ -1223,7 +1200,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.policyRepository) {
       return reply.status(503).send({
         status: 'error',
@@ -1292,7 +1268,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     const { policyId } = request.params as { policyId: string };
     const body = (request.body ?? {}) as Record<string, unknown>;
     try {
@@ -1335,7 +1310,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.policyRepository) {
       return reply.status(503).send({
         status: 'error',
@@ -1358,7 +1332,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.policyRepository) {
       return reply.status(503).send({ status: 'error', message: 'EPA repository unavailable' });
     }
@@ -1377,7 +1350,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.packPdp) {
       return reply.status(503).send({ status: 'error', message: 'EPA PDP unavailable' });
     }
@@ -1395,7 +1367,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.packPdp) {
       return reply.status(503).send({ status: 'error', message: 'EPA PDP unavailable' });
     }
@@ -1413,7 +1384,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.policyRepository) {
       return reply.status(503).send({ status: 'error', message: 'EPA repository unavailable' });
     }
@@ -1453,7 +1423,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.policyRepository || !ctx.packPdp) {
       return reply.status(503).send({ status: 'error', message: 'EPA unavailable' });
     }
@@ -1536,7 +1505,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.policyRepository) {
       return reply.status(503).send({ status: 'error', message: 'EPA repository unavailable' });
     }
@@ -1572,7 +1540,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.policyRepository) {
       return reply.status(503).send({ status: 'error', message: 'EPA repository unavailable' });
     }
@@ -1619,7 +1586,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     return {
       models: ctx.registry.listAll(),
       providers: ctx.providers.map((p) => ({
@@ -1634,7 +1600,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     const body = (request.body ?? {}) as Record<string, unknown>;
     const model: RegisteredModel = {
       model_id: String(body.model_id ?? `model_${randomBytes(4).toString('hex')}`),
@@ -1661,7 +1626,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     const { modelId } = request.params as { modelId: string };
     const body = (request.body ?? {}) as Record<string, unknown>;
     try {
@@ -1698,7 +1662,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     const days = parseDaysQuery(request.query);
     const events = filterEventsByDays(await ctx.audit.list(), days);
     const limit = Number((request.query as { limit?: string }).limit ?? 100);
@@ -1742,7 +1705,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     const audit = ctx.audit as IntegrityAuditService;
     if (typeof audit.verifyIntegrity !== 'function') {
       return reply.status(503).send({
@@ -1762,7 +1724,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     const db = ctx.checkDatabase
       ? await ctx.checkDatabase()
       : { ok: false, detail: 'not_configured' };
@@ -1805,7 +1766,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
 
     const days = parseDaysQuery(request.query);
     const [events, applications, policies] = await Promise.all([
@@ -1922,7 +1882,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
 
     const days = parseDaysQuery(request.query);
     const [applications, events] = await Promise.all([
@@ -2040,7 +1999,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
 
     const packs = ctx.policyRepository
       ? ctx.policyRepository.getSnapshot().packs.map((p) => ({
@@ -2142,7 +2100,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.changeGovernance) {
       return reply.status(503).send({
         status: 'blocked',
@@ -2178,7 +2135,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.changeGovernance) {
       return reply.status(503).send({
         status: 'blocked',
@@ -2230,7 +2186,6 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const principal = __gate.principal;
     if (!ctx.changeGovernance || !ctx.packPdp || !ctx.policyRepository) {
       return reply.status(503).send({
         status: 'blocked',

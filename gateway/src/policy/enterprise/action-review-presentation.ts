@@ -293,7 +293,7 @@ function whyReviewingLifecycle(change: ChangeReviewPreview): string {
   return 'This change needs human authorization before it can take effect.';
 }
 
-function whyReviewingRuntime(input: ActionReviewInput): string {
+function whyReviewingRuntime(_input: ActionReviewInput): string {
   return 'This AI action needs human authorization before it can proceed.';
 }
 
