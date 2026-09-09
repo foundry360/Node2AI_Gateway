@@ -6,8 +6,11 @@ export async function proxyJson(path: string, method: string, body?: unknown) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    const payload = data as { message?: string; reason_code?: string };
     throw new Error(
-      (data as { message?: string }).message ?? `Request failed (${res.status})`,
+      payload.message ??
+        payload.reason_code ??
+        `Request failed (${res.status})`,
     );
   }
   return data;

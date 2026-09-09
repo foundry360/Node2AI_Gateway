@@ -1,21 +1,36 @@
 import { LightningElement, api, wire } from 'lwc';
+import { refreshApex } from '@salesforce/apex';
+import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
 import getChart from '@salesforce/apex/PatientEmrChartController.getChart';
+import CLINICAL_NOTES from '@salesforce/schema/Patient__c.Clinical_Notes__c';
+
+const PATIENT_FIELDS = [CLINICAL_NOTES];
 
 export default class PatientEmrChart extends LightningElement {
   @api recordId;
 
+  chartWireResult;
+  patientRecord;
+
   @wire(getChart, { patientId: '$recordId' })
-  chartWire;
+  wiredChart(result) {
+    this.chartWireResult = result;
+  }
+
+  @wire(getRecord, { recordId: '$recordId', fields: PATIENT_FIELDS })
+  wiredPatientRecord(result) {
+    this.patientRecord = result;
+  }
 
   get loading() {
-    return !this.chartWire?.data && !this.chartWire?.error;
+    return !this.chartWireResult?.data && !this.chartWireResult?.error;
   }
 
   get errorMessage() {
-    if (!this.chartWire?.error) {
+    if (!this.chartWireResult?.error) {
       return undefined;
     }
-    const err = this.chartWire.error;
+    const err = this.chartWireResult.error;
     if (Array.isArray(err?.body)) {
       return err.body.map((e) => e.message).join(', ');
     }
@@ -23,15 +38,28 @@ export default class PatientEmrChart extends LightningElement {
   }
 
   get patient() {
-    return this.chartWire?.data?.patient;
+    return this.chartWireResult?.data?.patient;
   }
 
   get conditions() {
-    return this.chartWire?.data?.conditions || [];
+    return this.chartWireResult?.data?.conditions || [];
   }
 
   get prescriptions() {
-    return this.chartWire?.data?.prescriptions || [];
+    return this.chartWireResult?.data?.prescriptions || [];
+  }
+
+  /** Prefer LDS so Agentforce / console note writes show without a hard reload. */
+  get clinicalNotes() {
+    const fromLds = getFieldValue(this.patientRecord?.data, CLINICAL_NOTES);
+    if (fromLds != null && String(fromLds).trim() !== '') {
+      return fromLds;
+    }
+    return this.patient?.Clinical_Notes__c;
+  }
+
+  get hasClinicalNotes() {
+    return !!(this.clinicalNotes && String(this.clinicalNotes).trim());
   }
 
   get displayName() {
@@ -109,12 +137,10 @@ export default class PatientEmrChart extends LightningElement {
       return '—';
     }
     const cityState = [p.City__c, p.State__c].filter(Boolean).join(', ');
-    const line = [p.Street__c, cityState, p.Postal_Code__c].filter(Boolean).join(' · ');
+    const line = [p.Street__c, cityState, p.Postal_Code__c]
+      .filter(Boolean)
+      .join(' · ');
     return line || '—';
-  }
-
-  get hasAllergies() {
-    return Boolean(this.patient?.Allergies__c);
   }
 
   get activeConditions() {
@@ -152,5 +178,16 @@ export default class PatientEmrChart extends LightningElement {
   get statusClass() {
     const status = (this.patient?.Patient_Status__c || '').toLowerCase();
     return status === 'active' ? 'status status-active' : 'status';
+  }
+
+  async handleRefreshNotes() {
+    const jobs = [];
+    if (this.chartWireResult) {
+      jobs.push(refreshApex(this.chartWireResult));
+    }
+    if (this.patientRecord) {
+      jobs.push(refreshApex(this.patientRecord));
+    }
+    await Promise.all(jobs);
   }
 }

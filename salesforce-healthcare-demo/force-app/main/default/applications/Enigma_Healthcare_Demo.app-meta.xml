@@ -28,6 +28,7 @@
         <profile>System Administrator</profile>
     </profileActionOverrides>
     <tabs>standard-home</tabs>
+    <tabs>Scenario_Console</tabs>
     <tabs>Patient__c</tabs>
     <tabs>Condition__c</tabs>
     <tabs>Prescription__c</tabs>

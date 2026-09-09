@@ -97,7 +97,8 @@ const BASELINE_INPUT: PolicyDefinition = {
     { id: 'c_cred', statement: 'IF classification = Credential THEN DENY' },
     {
       id: 'c_phi_cloud',
-      statement: 'IF classification = PHI AND requested_model is cloud THEN DENY',
+      statement:
+        'IF classification = PHI AND requested_model is cloud AND controlled external evidence missing THEN DENY; IF evidence + tokenization available THEN TOKENIZE (external eligible)',
     },
     {
       id: 'c_phi_auth',
@@ -117,13 +118,18 @@ const BASELINE_INPUT: PolicyDefinition = {
       reason_codes: ['PII_REQUIRES_TOKENIZE'],
     },
     {
-      when: 'Credential / untrusted / PHI cloud / inactive',
+      when: 'Credential / untrusted / PHI cloud without controls / inactive',
       decision: 'DENY',
       reason_codes: [
         'CREDENTIAL_CONTENT_BLOCKED',
         'UNTRUSTED_APPLICATION',
         'PHI_PUBLIC_CLOUD_BLOCKED',
       ],
+    },
+    {
+      when: 'PHI + cloud + controlled external evidence + tokenization available',
+      decision: 'TOKENIZE',
+      reason_codes: ['PHI_REQUIRES_TOKENIZE', 'EXTERNAL_MODEL_PRESENT'],
     },
   ],
   obligations: [

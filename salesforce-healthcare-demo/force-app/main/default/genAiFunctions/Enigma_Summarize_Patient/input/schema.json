@@ -1,0 +1,14 @@
+{
+  "unevaluatedProperties": false,
+  "properties": {
+    "patientId": {
+      "title": "Patient Id",
+      "description": "Salesforce Id of the Patient__c record to summarize.",
+      "lightning:type": "lightning__recordIdType",
+      "lightning:isPII": false,
+      "copilotAction:isUserInput": true
+    }
+  },
+  "required": ["patientId"],
+  "lightning:type": "lightning__objectType"
+}

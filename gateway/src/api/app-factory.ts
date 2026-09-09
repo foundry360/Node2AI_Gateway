@@ -30,6 +30,10 @@ import {
   InMemoryPolicyRepository,
   PackBackedEnterprisePdp,
 } from '../policy/enterprise/index.js';
+import {
+  createGovernanceBaseline,
+  InMemoryChangeGovernanceRepository,
+} from '../policy/enterprise/change-governance/index.js';
 import { InMemoryPolicyStore, PostgresPolicyStore } from '../policy/store.js';
 import type { PolicyStore } from '../policy/store.js';
 import type { PolicyEngine } from '../policy/types.js';
@@ -53,11 +57,91 @@ import {
 } from '../transform/index.js';
 import type { TokenVault, TransformService } from '../transform/types.js';
 import { GatewayOrchestrator } from './orchestrator.js';
+import { AGENT_ENIGMA_CLINICAL_TARGET_ID } from './admin-routes.js';
 import { buildServer } from './server.js';
+import {
+  hashAdminPassword,
+  type AdminUserRecord,
+} from '../admin/authz.js';
+import { InMemoryAdminUserStore } from '../admin/admin-users.js';
+import type { AdminUserStore } from '../admin/authz.js';
+
+function seedAdminUsers(): AdminUserRecord[] {
+  const now = new Date().toISOString();
+  const password = process.env.ADMIN_UI_PASSWORD ?? 'admin';
+  const hash = hashAdminPassword(password);
+  return [
+    {
+      user_id: 'admin_user_administrator',
+      organization_id: 'org_demo',
+      username: process.env.ADMIN_UI_USERNAME ?? 'admin',
+      password_hash: hash,
+      role: 'ADMINISTRATOR',
+      status: 'ACTIVE',
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      user_id: 'admin_user_reviewer',
+      organization_id: 'org_demo',
+      username: 'reviewer',
+      password_hash: hashAdminPassword('reviewer'),
+      role: 'GOVERNANCE_REVIEWER',
+      status: 'ACTIVE',
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      user_id: 'admin_user_operator',
+      organization_id: 'org_demo',
+      username: 'operator',
+      password_hash: hashAdminPassword('operator'),
+      role: 'OPERATOR',
+      status: 'ACTIVE',
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      user_id: 'admin_user_readonly',
+      organization_id: 'org_demo',
+      username: 'readonly',
+      password_hash: hashAdminPassword('readonly'),
+      role: 'READ_ONLY',
+      status: 'ACTIVE',
+      created_at: now,
+      updated_at: now,
+    },
+  ];
+}
 
 /** Well-known demo credentials (tests + local dev). */
 export const PHASE1_DEMO_API_KEY = 'n2ai_test_key_approved_app';
 export const GENERAL_APP_API_KEY = 'n2ai_test_key_general_app';
+
+function seedAgentClinicalBaseline(
+  repo: InMemoryChangeGovernanceRepository,
+): void {
+  if (repo.latestBaseline('application', AGENT_ENIGMA_CLINICAL_TARGET_ID)) {
+    return;
+  }
+  repo.saveBaseline(
+    createGovernanceBaseline({
+      target_type: 'application',
+      target_id: AGENT_ENIGMA_CLINICAL_TARGET_ID,
+      organization_id: 'org_demo',
+        configuration: {
+          ui_label: 'Enigma Clinical Copilot',
+          surface: 'demo',
+        },
+      capabilities: {
+        write_capability: false,
+        autonomy_level: 'ASSISTIVE',
+        tools: [{ id: 'summarize_patient', write: false }],
+        model_id: 'local-general-v1',
+      },
+    }),
+  );
+}
 
 export function createPhase1Seed(): {
   organizations: Organization[];
@@ -80,7 +164,9 @@ export function createPhase1Seed(): {
     environment: 'prod',
     status: 'active',
     trust_level: 'trusted',
-    allowed_models: ['local-general-v1'],
+    // Cloud may be allowlisted for controlled external processing; default
+    // policy still DENYs PHI+cloud without governance evidence + TOKENIZE.
+    allowed_models: ['local-general-v1', 'cloud-public-gpt'],
     allowed_datasets: ['ds_clinical_notes'],
     allowed_operations: ['summarize', 'classify', 'generate'],
   };
@@ -177,6 +263,7 @@ export interface CreateGatewayOptions {
   vault?: TokenVault;
   policyRepository?: import('../policy/enterprise/pg-repository.js').PolicyRepository;
   providerCredentials?: ProviderCredentialStore;
+  adminUsers?: AdminUserStore;
 }
 
 export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
@@ -289,6 +376,12 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
     options.models ??
     new DefaultModelGateway(registry, providers, config.deploymentMode);
 
+  const changeGovernance = new InMemoryChangeGovernanceRepository();
+  seedAgentClinicalBaseline(changeGovernance);
+  const adminUsers: AdminUserStore =
+    options.adminUsers ?? new InMemoryAdminUserStore(seedAdminUsers());
+
+
   const orchestrator = new GatewayOrchestrator({
     config,
     identity,
@@ -326,6 +419,8 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
     orchestrator,
     seed,
     providerCredentials,
+    changeGovernance,
+    adminUsers,
     buildServer: () =>
       buildServer({
         orchestrator,
@@ -342,6 +437,8 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
           orchestrator,
           db,
           providerCredentials,
+          changeGovernance,
+          adminUsers,
           checkDatabase: () => checkDatabase(config.databaseUrl),
           checkLocalRuntime: async () => {
             if ('status' in localRuntime && typeof (localRuntime as ResolvingLocalRuntime).status === 'function') {

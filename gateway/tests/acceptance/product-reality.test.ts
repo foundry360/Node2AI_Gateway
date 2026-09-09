@@ -3599,4 +3599,73 @@ describe('Product Reality Test — Enigma governance lifecycle', () => {
     expect(getPolicyAuthority('auth_lifecycle' as never)).toBeUndefined();
     expect(getAuthorityForPack('pack_lifecycle')).toBeUndefined();
   });
+
+  it('TEST 59 — Controlled PHI external TOKENIZE (govern, transform, prove — not certify)', async () => {
+    let seen = '';
+    const { ScriptedModelProvider } = await import('../../src/models/index.js');
+    const cloud = new ScriptedModelProvider(
+      ['cloud-public-gpt'],
+      'Summary for clinician follow-up.',
+      { providerId: 'external-openai-compatible', kind: 'cloud' },
+    );
+    const orig = cloud.execute.bind(cloud);
+    cloud.execute = async (req) => {
+      seen = req.messages.map((m) => m.content).join('\n');
+      return orig(req);
+    };
+    const local = new ScriptedModelProvider(['local-general-v1'], 'local', {
+      providerId: 'local-runtime',
+    });
+    const gw = createPhase1Gateway({
+      providers: [local, cloud],
+      useStubRuntime: true,
+      config: { adminApiKey: 'test_admin', auditSigningKey: 'test-audit-key' },
+    });
+
+    const denied = await gw.orchestrator.completions(PHASE1_DEMO_API_KEY, {
+      application_id: 'app_clinical',
+      user: { id: 'user_clinician' },
+      operation: 'summarize',
+      model: 'cloud-public-gpt',
+      messages: [
+        { role: 'user', content: 'Clinical note MRN: A1234567 patient presents with fever' },
+      ],
+    });
+    expect(denied.body.status).toBe('blocked');
+    if (denied.body.status === 'blocked') {
+      expect(denied.body.reason_code).toBe('PHI_PUBLIC_CLOUD_BLOCKED');
+    }
+
+    const controlled = await gw.orchestrator.completions(PHASE1_DEMO_API_KEY, {
+      application_id: 'app_clinical',
+      user: { id: 'user_clinician' },
+      operation: 'summarize',
+      model: 'cloud-public-gpt',
+      purpose: 'treatment',
+      governance_context: {
+        sensitive_data_processing: { external_processing_authorized: true },
+      },
+      messages: [
+        { role: 'user', content: 'Clinical note MRN: A1234567 patient presents with fever' },
+      ],
+    });
+    expect(controlled.body.status).toBe('approved');
+    expect(seen).toMatch(/\{\{TOK_/);
+    expect(seen).not.toContain('A1234567');
+
+    const last = (await gw.audit.list()).at(-1)!;
+    expect(last.policy_decision).toBe('TOKENIZE');
+    expect(last.input_transformation).toBe('tokenize');
+    expect(last.decision_hash).toMatch(/^[a-f0-9]{64}$/);
+    const record = gw.packRepo.getEvaluation(last.evaluation_id!);
+    expect(record).toBeTruthy();
+    expect(last.decision_hash).toBe(decisionBindingFromRecord(record!).decision_hash);
+
+    // Truthful product claim boundaries — no certification language in this path.
+    const claimText = JSON.stringify({
+      decision: last.policy_decision,
+      reasons: record!.reason_codes,
+    });
+    expect(claimText.toLowerCase()).not.toMatch(/hipaa.?compliant|certified|compliance score/);
+  });
 });

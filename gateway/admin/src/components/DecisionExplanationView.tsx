@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ChevronDown } from 'lucide-react';
 import { type ReactNode } from 'react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatReasonCodes } from '@/lib/reason-codes';
@@ -9,19 +10,6 @@ import {
   type DecisionExplanationPayload,
   type ProvenanceRule,
 } from '@/lib/decision-explanation';
-
-function CodeList({ items, empty = 'None' }: { items: string[]; empty?: string }) {
-  if (!items.length) return <span className="muted">{empty}</span>;
-  return (
-    <ul className="decision-code-list">
-      {items.map((item) => (
-        <li key={item} className="mono">
-          {item}
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 function CodeInline({ items, empty = '-' }: { items: string[]; empty?: string }) {
   if (!items.length) return <span className="muted">{empty}</span>;
@@ -77,10 +65,70 @@ function ProvenanceChain({ rule }: { rule: ProvenanceRule }) {
  * Pack-agnostic decision intelligence panel.
  * Renders structured PolicyDecision explanation - no regulatory forks.
  */
-export function DecisionExplanationView({
+export function DecisionResolutionPanel({
   decision,
 }: {
   decision: DecisionExplanationPayload;
+}) {
+  const operator = decision.explanation?.operator;
+  const resolution = decision.explanation?.resolution;
+  if (!resolution && !operator?.resolution_category) return null;
+
+  const packIds =
+    operator?.contributing_pack_ids ?? resolution?.contributing_pack_ids ?? [];
+  const detail = operator?.conflict_detail ?? resolution?.detail;
+  const basisLabel = operator?.basis_label ?? resolution?.basis ?? '-';
+
+  return (
+    <section
+      className="section-card resolution-card"
+      aria-labelledby="resolution-heading"
+    >
+      <div className="section-card-header">
+        <h3 id="resolution-heading">Resolution</h3>
+      </div>
+      <div className="contribution-attrs">
+        <AttrRow label="Category" mono>
+          {operator?.resolution_category ?? resolution?.category ?? '-'}
+        </AttrRow>
+        <AttrRow label="Basis">
+          <span className="resolution-basis">
+            <span>{basisLabel}</span>
+            {operator?.basis_label && resolution?.basis ? (
+              <span className="muted mono">{resolution.basis}</span>
+            ) : null}
+          </span>
+        </AttrRow>
+        <AttrRow label="Contributing Packs">
+          <CodeInline items={packIds} empty="None" />
+        </AttrRow>
+        {detail ? <AttrRow label="Detail">{detail}</AttrRow> : null}
+      </div>
+      {resolution?.conflict_pairs?.length ? (
+        <div className="decision-reason-block">
+          <div className="muted decision-sublabel">Conflict Pairs</div>
+          <ul className="decision-code-list">
+            {resolution.conflict_pairs.map((p, i) => (
+              <li key={`${p.pack_a}-${p.pack_b}-${i}`}>
+                <span className="mono">
+                  {p.pack_a} ({p.policy_a}) vs {p.pack_b} ({p.policy_b})
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+export function DecisionExplanationView({
+  decision,
+  afterTop,
+}: {
+  decision: DecisionExplanationPayload;
+  /** Optional second-row companion (e.g. Enforcement Consequence). */
+  afterTop?: ReactNode;
 }) {
   const operator = decision.explanation?.operator;
   const resolution = decision.explanation?.resolution;
@@ -106,6 +154,7 @@ export function DecisionExplanationView({
     [];
 
   const allRules = provenance?.matched_rules ?? [];
+  const hasResolution = Boolean(resolution || operator?.resolution_category);
 
   return (
     <div className="decision-explanation">
@@ -142,7 +191,7 @@ export function DecisionExplanationView({
             </h3>
           </div>
           {contributions.length > 0 ? (
-            <div className="contribution-list">
+            <div className="contribution-list contribution-accordion-list">
               {contributions.map((c) => {
                 const rules =
                   c.rule_ids.length > 0
@@ -154,60 +203,70 @@ export function DecisionExplanationView({
                   c.controls.map((x) => x.control_id).length > 0
                     ? c.controls.map((x) => x.control_id)
                     : c.obligations;
+                const policyLabel = c.policy_name ?? c.policy_id;
                 return (
-                  <article
+                  <details
                     key={`${c.pack_id}-${c.policy_id}`}
-                    className="contribution-block"
+                    className="contribution-accordion"
                   >
-                    <div className="contribution-attrs">
-                      <AttrRow label="Policy">
-                        <span className="contribution-policy-value">
-                          <span>
-                            <Link
-                              href={`/policies/${c.policy_id}`}
-                              className="table-link"
-                            >
-                              {c.policy_name ?? c.policy_id}
-                            </Link>
-                            {c.policy_version != null ? (
-                              <span className="muted"> · v{c.policy_version}</span>
-                            ) : null}
-                          </span>
-                          <StatusBadge variant="badge" status={c.decision} />
-                        </span>
-                      </AttrRow>
-                      {c.pack_name ? (
-                        <AttrRow label="Pack">
-                          {c.pack_name}
-                          {c.pack_version ? (
-                            <span className="muted"> v{c.pack_version}</span>
+                    <summary className="contribution-accordion-summary">
+                      <span className="contribution-accordion-lead">
+                        <ChevronDown
+                          className="contribution-accordion-chevron"
+                          size={16}
+                          strokeWidth={2}
+                          aria-hidden
+                        />
+                        <span className="contribution-accordion-title">
+                          <Link
+                            href={`/policies/${c.policy_id}`}
+                            className="table-link"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {policyLabel}
+                          </Link>
+                          {c.policy_version != null ? (
+                            <span className="muted"> · v{c.policy_version}</span>
                           ) : null}
+                        </span>
+                      </span>
+                      <StatusBadge variant="badge" status={c.decision} />
+                    </summary>
+                    <div className="contribution-accordion-body">
+                      <div className="contribution-attrs">
+                        {c.pack_name ? (
+                          <AttrRow label="Pack">
+                            {c.pack_name}
+                            {c.pack_version ? (
+                              <span className="muted"> v{c.pack_version}</span>
+                            ) : null}
+                          </AttrRow>
+                        ) : null}
+                        <AttrRow label="Rules">
+                          <CodeInline items={c.rule_ids} />
                         </AttrRow>
-                      ) : null}
-                      <AttrRow label="Rules">
-                        <CodeInline items={c.rule_ids} />
-                      </AttrRow>
-                      <AttrRow label="Obligations">
-                        <CodeInline items={obligations} />
-                      </AttrRow>
-                      <AttrRow label="Controls">
-                        <CodeInline items={controls} />
-                      </AttrRow>
-                      {rules.length === 0 ? (
-                        <AttrRow label="Evidence">
-                          <span className="muted">-</span>
+                        <AttrRow label="Obligations">
+                          <CodeInline items={obligations} />
                         </AttrRow>
+                        <AttrRow label="Controls">
+                          <CodeInline items={controls} />
+                        </AttrRow>
+                        {rules.length === 0 ? (
+                          <AttrRow label="Evidence">
+                            <span className="muted">-</span>
+                          </AttrRow>
+                        ) : null}
+                      </div>
+                      {rules.length > 0 ? (
+                        <div className="contribution-provenance">
+                          <div className="muted decision-sublabel">Evidence</div>
+                          {rules.map((r) => (
+                            <ProvenanceChain key={r.rule_id} rule={r} />
+                          ))}
+                        </div>
                       ) : null}
                     </div>
-                    {rules.length > 0 ? (
-                      <div className="contribution-provenance">
-                        <div className="muted decision-sublabel">Evidence</div>
-                        {rules.map((r) => (
-                          <ProvenanceChain key={r.rule_id} rule={r} />
-                        ))}
-                      </div>
-                    ) : null}
-                  </article>
+                  </details>
                 );
               })}
             </div>
@@ -219,98 +278,59 @@ export function DecisionExplanationView({
         </section>
       </div>
 
-      {resolution || operator?.resolution_category ? (
-        <section className="section-card" aria-labelledby="resolution-heading">
-          <div className="section-card-header">
-            <h3 id="resolution-heading">Resolution</h3>
-          </div>
-          <dl className="definition-list">
-            <div>
-              <dt>Category</dt>
-              <dd className="mono">
-                {operator?.resolution_category ?? resolution?.category ?? '-'}
-              </dd>
-            </div>
-            <div>
-              <dt>Basis</dt>
-              <dd>
-                {operator?.basis_label ?? resolution?.basis ?? '-'}
-                {resolution?.basis ? (
-                  <div className="muted mono" style={{ marginTop: '0.25rem' }}>
-                    {resolution.basis}
-                  </div>
-                ) : null}
-              </dd>
-            </div>
-            <div>
-              <dt>Contributing Packs</dt>
-              <dd>
-                <CodeList
-                  items={
-                    operator?.contributing_pack_ids ??
-                    resolution?.contributing_pack_ids ??
-                    []
-                  }
-                />
-              </dd>
-            </div>
-            {(operator?.conflict_detail || resolution?.detail) && (
-              <div>
-                <dt>Detail</dt>
-                <dd>{operator?.conflict_detail ?? resolution?.detail}</dd>
-              </div>
-            )}
-          </dl>
-          {resolution?.conflict_pairs?.length ? (
-            <div className="decision-reason-block">
-              <div className="muted decision-sublabel">Conflict Pairs</div>
-              <ul className="decision-code-list">
-                {resolution.conflict_pairs.map((p, i) => (
-                  <li key={`${p.pack_a}-${p.pack_b}-${i}`}>
-                    <span className="mono">
-                      {p.pack_a} ({p.policy_a}) vs {p.pack_b} ({p.policy_b})
-                    </span>
-                    <span className="muted">
-                      {' '}
-                      - {p.category}: {p.detail}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </section>
+      {hasResolution || afterTop ? (
+        <div className="decision-explanation-top">
+          {hasResolution ? <DecisionResolutionPanel decision={decision} /> : null}
+          {afterTop ?? null}
+        </div>
       ) : null}
 
       {authorities.length > 0 ? (
-        <section className="section-card" aria-labelledby="authorities-heading">
+        <section
+          className="section-card resolution-card"
+          aria-labelledby="authorities-heading"
+        >
           <div className="section-card-header">
-            <h3 id="authorities-heading">Contributing Authorities</h3>
-            <span className="count">{authorities.length}</span>
+            <h3 id="authorities-heading">
+              Contributing Authorities ({authorities.length})
+            </h3>
           </div>
-          <div className="authority-grid">
-            {authorities.map((a) => (
-              <article key={a.source_id} className="authority-card">
-                <strong>{a.authority}</strong>
-                {a.citation ? <div className="mono muted">{a.citation}</div> : null}
-                <dl className="definition-list compact">
-                  <div>
-                    <dt>Source</dt>
-                    <dd className="mono">{a.source_id}</dd>
+          <div className="contribution-list">
+            {authorities.map((a) => {
+              const citation =
+                a.citation && a.citation !== a.authority ? a.citation : null;
+              return (
+                <article key={a.source_id} className="contribution-block">
+                  <div className="contribution-attrs">
+                    <AttrRow label="Authority">{a.authority}</AttrRow>
+                    {citation ? (
+                      <AttrRow label="Citation">
+                        <span className="mono">{citation}</span>
+                      </AttrRow>
+                    ) : null}
+                    <AttrRow label="Source" mono>
+                      {a.source_id}
+                    </AttrRow>
+                    <AttrRow label="Authority Tier">
+                      {authorityTierLabel(a.authority_tier)}
+                    </AttrRow>
+                    {a.legal_authority != null ? (
+                      <AttrRow label="Legal Authority">
+                        {a.legal_authority ? 'Yes' : 'No'}
+                      </AttrRow>
+                    ) : null}
+                    {a.authority_type ? (
+                      <AttrRow label="Authority Type">{a.authority_type}</AttrRow>
+                    ) : null}
+                    {a.pack_ids?.length ? (
+                      <AttrRow label="Packs">
+                        <CodeInline items={a.pack_ids} empty="None" />
+                      </AttrRow>
+                    ) : null}
                   </div>
-                  <div>
-                    <dt>Authority Tier</dt>
-                    <dd>{authorityTierLabel(a.authority_tier)}</dd>
-                  </div>
-                  {a.legal_authority != null ? (
-                    <div>
-                      <dt>Legal Authority</dt>
-                      <dd>{a.legal_authority ? 'Yes' : 'No'}</dd>
-                    </div>
-                  ) : null}
-                </dl>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         </section>
       ) : null}

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <RemoteSiteSetting xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Enigma_Gateway_Tunnel</fullName>
-    <description>Local Enigma Gateway via localtunnel (update when tunnel URL changes)</description>
+    <description>Local Enigma Gateway via localhost.run (update when tunnel URL changes)</description>
     <disableProtocolSecurity>false</disableProtocolSecurity>
     <isActive>true</isActive>
-    <url>https://4141d90c578775.lhr.life</url>
+    <url>https://0ae2476ba757b2.lhr.life</url>
 </RemoteSiteSetting>

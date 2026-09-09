@@ -142,6 +142,18 @@ function isCloudModel(modelId: string): boolean {
   );
 }
 
+/** Explicit attestation for controlled external processing of sensitive data. */
+function externalProcessingAuthorized(facts: BaselineFacts): boolean {
+  return (
+    facts.governance_context?.sensitive_data_processing
+      ?.external_processing_authorized === true
+  );
+}
+
+function tokenizationAvailable(facts: BaselineFacts): boolean {
+  return !!facts.has_entity_spans || (facts.entity_types?.length ?? 0) > 0;
+}
+
 function deny(
   meta: PackPolicyMeta,
   reason_codes: string[],
@@ -209,9 +221,65 @@ export function interpretBaselineInput(
     matched.push('classification=PHI');
     const cloudRequested =
       !!facts.requested_model && isCloudModel(facts.requested_model);
+    const clinicalOk =
+      facts.application_type === 'clinical' && facts.roles.includes('clinician');
+
     if (cloudRequested) {
       matched.push('requested_cloud');
-      return deny(meta, ['PHI_PUBLIC_CLOUD_BLOCKED'], matched);
+      // Default deny: PHI + public/external model without controlled-path evidence.
+      if (!externalProcessingAuthorized(facts) || !clinicalOk) {
+        matched.push(
+          !clinicalOk ? 'phi_app_not_authorized' : 'external_processing_not_authorized',
+        );
+        return deny(meta, ['PHI_PUBLIC_CLOUD_BLOCKED'], matched);
+      }
+      // Fail closed: authorized external path still requires tokenize capability.
+      if (!tokenizationAvailable(facts)) {
+        matched.push('tokenize_unavailable');
+        return deny(
+          meta,
+          ['PHI_PUBLIC_CLOUD_BLOCKED', 'TOKENIZE_UNAVAILABLE'],
+          matched,
+        );
+      }
+
+      // Controlled path: TOKENIZE then allow the requested external model.
+      // Fail closed if the requested external model is not on the app allowlist —
+      // never silently fall back to a local model when cloud was requested.
+      matched.push('phi_external_tokenize');
+      let controlledEligible = eligible.filter((m) => facts.allowed_models.includes(m));
+      if (
+        !facts.requested_model ||
+        !controlledEligible.includes(facts.requested_model)
+      ) {
+        matched.push('requested_cloud_not_allowlisted');
+        return deny(meta, ['MODEL_NOT_ELIGIBLE'], matched);
+      }
+      controlledEligible = [facts.requested_model];
+      matched.push('restrict_to_requested');
+      return {
+        decision: 'TOKENIZE',
+        reason_codes: [
+          'PHI_REQUIRES_TOKENIZE',
+          'EXTERNAL_MODEL_PRESENT',
+          'PHI_EXTERNAL_CONTROLS_SATISFIED',
+        ],
+        eligible_models: controlledEligible,
+        transforms: [{ type: 'tokenize', targets: ['PHI'] }],
+        obligations: [
+          { code: 'LOG_GOVERNANCE_EVENT' },
+          {
+            code: 'TOKENIZE_PII' as ObligationCode,
+            parameters: { targets: ['PHI'] },
+          },
+          // No raw PHI egress — tokenized representation may go external.
+          { code: 'NO_EXTERNAL_TRANSMISSION' },
+        ],
+        policy_id: meta.policy_id,
+        policy_version: meta.version,
+        pack_id: meta.pack_id,
+        matched,
+      };
     }
 
     eligible = eligible.filter((m) => m.startsWith('local-'));
@@ -220,8 +288,6 @@ export function interpretBaselineInput(
       return deny(meta, ['PHI_REQUIRES_LOCAL_MODEL'], matched);
     }
 
-    const clinicalOk =
-      facts.application_type === 'clinical' && facts.roles.includes('clinician');
     if (!clinicalOk) {
       matched.push('phi_app_not_authorized');
       return deny(meta, ['PHI_APPLICATION_NOT_AUTHORIZED'], matched);

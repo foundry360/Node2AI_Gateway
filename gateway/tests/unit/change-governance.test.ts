@@ -569,11 +569,81 @@ describe('Pack #15 — AI Lifecycle & Change Governance', () => {
         previous_baseline_id: previous.baseline_id,
         proposed_state: { write_capability: true },
         request_id: 'req_cg_authorize',
+        review_context: {
+          title: 'Enable write for clinical note updates',
+          summary:
+            'Caller asked to append a follow-up note; write capability must be authorized first.',
+          requester_prompt:
+            'Please enable write so clinical notes can be updated for patient Greene.',
+          rationale:
+            'Caller explicitly requested note updates; current baseline is write=false.',
+          intended_outcome:
+            'After Authorize, update_clinical_notes becomes available for approved appends.',
+          conversation: [
+            {
+              role: 'user',
+              content:
+                'Please enable write so clinical notes can be updated for patient Greene.',
+            },
+            {
+              role: 'assistant',
+              content:
+                'Submitting a governance change to Enigma for mandatory review before write is enabled.',
+            },
+          ],
+        },
       },
     });
     expect(String(result.policy_decision?.decision).toUpperCase()).toBe('REVIEW');
 
     const stored = policyRepo.getEvaluation(result.evaluation_id!)!;
+    expect(stored.held_request?.messages?.length).toBeGreaterThan(0);
+    const heldText = stored.held_request!.messages.map((m) => m.content).join('\n');
+    expect(heldText).toContain(
+      'Please enable write so clinical notes can be updated for patient Greene.',
+    );
+    expect(heldText).toContain('capability:write_capability');
+    expect(heldText).toMatch(/false → true/);
+    expect(heldText).toMatch(/UPDATED \[capability\]|Change Write capability/);
+    expect(heldText).toContain('Change ID:');
+    expect(heldText).toMatch(/If Authorize is chosen|If Deny is chosen/);
+
+    const inventory = stored.evidence_in?.change_review as
+      | {
+          change_id?: string;
+          evidence?: {
+            title?: string;
+            summary?: string;
+            requester_prompt?: string;
+            if_authorized?: string;
+          };
+          items?: Array<{ id: string; action: string; before?: string; after?: string }>;
+        }
+      | undefined;
+    expect(inventory?.change_id).toBeTruthy();
+    expect(inventory?.evidence?.requester_prompt).toContain('enable write');
+    expect(inventory?.evidence?.title).toBeTruthy();
+    expect(inventory?.evidence?.if_authorized).toMatch(/Write capability|Authorize/i);
+    expect(inventory?.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'capability:write_capability',
+          action: 'updated',
+          before: 'false',
+          after: 'true',
+        }),
+      ]),
+    );
+    expect(heldText).toContain('CRITICAL');
+    expect(stored.evidence_in?.change_types).toEqual(
+      expect.arrayContaining(['WRITE_CAPABILITY']),
+    );
+    expect(stored.evidence_in?.review_context).toEqual(
+      expect.objectContaining({
+        requester_prompt: expect.stringContaining('enable write'),
+      }),
+    );
+
     const withHold: PolicyEvaluationRecord = {
       ...stored,
       held_request: heldFor(stored.evaluation_id, stored.request_id ?? 'req_cg_authorize'),

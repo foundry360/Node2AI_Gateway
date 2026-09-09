@@ -20,6 +20,22 @@ import {
   type HumanResolution,
   type ReviewState,
 } from './decision-resolution.js';
+import {
+  buildLifecycleChangeInventory,
+  type ChangeReviewPreview,
+} from './change-governance/evaluate.js';
+import type {
+  ChangeReviewContext,
+  GovernanceBaselineTargetType,
+  GovernanceChangeType,
+  GovernanceImpactDimension,
+  LifecycleDecision,
+  MaterialityClass,
+} from './change-governance/types.js';
+import {
+  buildActionReviewPresentation,
+  type ActionReviewPresentation,
+} from './action-review-presentation.js';
 
 export interface PolicyEvaluationListItem {
   evaluation_id: string;
@@ -184,6 +200,326 @@ export interface ProjectedRequestContext {
   organization_id?: string;
   model?: string;
   intent?: string;
+}
+
+/** Review-safe request payload for Decision → Request Review tab. */
+export interface HeldRequestPreview {
+  operation: string;
+  model?: string;
+  application_id: string;
+  organization_id: string;
+  user_id: string;
+  correlation_id: string;
+  messages: Array<{ role: string; content: string }>;
+  classification: {
+    sensitivity: string;
+    confidence: number;
+    intent?: string;
+    risk: 'low' | 'medium' | 'high';
+    reason_codes: string[];
+    entities?: Array<{
+      type: string;
+      start: number;
+      end: number;
+      preview?: string;
+    }>;
+  };
+  /** True when original messages were retained (held snapshot). */
+  retained: boolean;
+  /** Structured change inventory for lifecycle / capability REVIEW holds. */
+  change_review?: ChangeReviewPreview;
+  /** Human-readable Request Review presentation (application-agnostic). */
+  action_review: ActionReviewPresentation;
+}
+
+export type { ChangeReviewPreview, ActionReviewPresentation };
+
+/**
+ * Always project a Request Review payload for the Decision page tab.
+ * Prefers held_request; otherwise reconstructs from the evaluation record.
+ */
+function isChangeReviewPreview(value: unknown): value is ChangeReviewPreview {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.change_id === 'string' &&
+    typeof row.target_type === 'string' &&
+    typeof row.target_id === 'string' &&
+    Array.isArray(row.items)
+  );
+}
+
+function asReviewContext(value: unknown): ChangeReviewContext | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const row = value as Record<string, unknown>;
+  const conversation = Array.isArray(row.conversation)
+    ? row.conversation
+        .filter((t) => t && typeof t === 'object')
+        .map((t) => {
+          const turn = t as Record<string, unknown>;
+          return {
+            role: String(turn.role ?? 'user'),
+            content: String(turn.content ?? ''),
+          };
+        })
+        .filter((t) => t.content.trim().length > 0)
+    : undefined;
+  const ctx: ChangeReviewContext = {};
+  if (typeof row.title === 'string' && row.title.trim()) ctx.title = row.title;
+  if (typeof row.summary === 'string' && row.summary.trim()) ctx.summary = row.summary;
+  if (typeof row.requester_prompt === 'string' && row.requester_prompt.trim()) {
+    ctx.requester_prompt = row.requester_prompt;
+  }
+  if (typeof row.rationale === 'string' && row.rationale.trim()) {
+    ctx.rationale = row.rationale;
+  } else if (typeof row.agent_rationale === 'string' && row.agent_rationale.trim()) {
+    ctx.rationale = row.agent_rationale;
+  }
+  if (typeof row.intended_outcome === 'string' && row.intended_outcome.trim()) {
+    ctx.intended_outcome = row.intended_outcome;
+  }
+  if (conversation?.length) ctx.conversation = conversation;
+  return Object.keys(ctx).length > 0 ? ctx : undefined;
+}
+
+/** Prefer stored inventory; rebuild from lifecycle evidence when needed. */
+export function projectChangeReview(
+  record: PolicyEvaluationRecord,
+): ChangeReviewPreview | undefined {
+  const evidence = (record.evidence_in ?? {}) as Record<string, unknown>;
+  const reviewContext =
+    asReviewContext(evidence.review_context) ??
+    asReviewContext(
+      isChangeReviewPreview(evidence.change_review)
+        ? (evidence.change_review as { evidence?: unknown }).evidence
+        : undefined,
+    );
+
+  if (isChangeReviewPreview(evidence.change_review)) {
+    const stored = evidence.change_review;
+    if (stored.evidence?.title && stored.evidence?.summary) {
+      return stored;
+    }
+    // Older holds: rehydrate evidence from stored inventory + review_context.
+    return buildLifecycleChangeInventory({
+      change_id: stored.change_id,
+      ...(stored.request_id ? { request_id: stored.request_id } : {}),
+      ...(stored.correlation_id ? { correlation_id: stored.correlation_id } : {}),
+      target_type: stored.target_type as GovernanceBaselineTargetType,
+      target_id: stored.target_id,
+      ...(stored.previous_baseline_id
+        ? { previous_baseline_id: stored.previous_baseline_id }
+        : {}),
+      ...(stored.actor ? { actor: stored.actor } : {}),
+      source: stored.source ?? 'unknown',
+      previous_state:
+        evidence.previous_state && typeof evidence.previous_state === 'object'
+          ? (evidence.previous_state as Record<string, unknown>)
+          : {},
+      proposed_state:
+        evidence.proposed_state && typeof evidence.proposed_state === 'object'
+          ? (evidence.proposed_state as Record<string, unknown>)
+          : {},
+      change_types: stored.change_types as GovernanceChangeType[],
+      materiality: stored.materiality as MaterialityClass,
+      materiality_reasons: stored.materiality_reasons ?? [],
+      governance_impacts:
+        stored.governance_impacts as GovernanceImpactDimension[],
+      lifecycle_decision: stored.lifecycle_decision as LifecycleDecision,
+      detected_at: record.created_at,
+      ...(reviewContext ? { review_context: reviewContext } : {}),
+    });
+  }
+  if (evidence.lifecycle_hold !== true) return undefined;
+  const proposed =
+    evidence.proposed_state && typeof evidence.proposed_state === 'object'
+      ? (evidence.proposed_state as Record<string, unknown>)
+      : undefined;
+  if (!proposed) return undefined;
+  const previous =
+    evidence.previous_state && typeof evidence.previous_state === 'object'
+      ? (evidence.previous_state as Record<string, unknown>)
+      : {};
+
+  return buildLifecycleChangeInventory({
+    change_id: optionalString(evidence.change_id) ?? record.evaluation_id,
+    ...(optionalString(record.request_id)
+      ? { request_id: optionalString(record.request_id) }
+      : {}),
+    ...(optionalString(evidence.correlation_id)
+      ? { correlation_id: optionalString(evidence.correlation_id) }
+      : {}),
+    target_type: (optionalString(evidence.target_type) ??
+      'application') as GovernanceBaselineTargetType,
+    target_id:
+      optionalString(evidence.target_id) ??
+      optionalString(
+        (record.subject as Record<string, unknown> | undefined)?.application_id,
+      ) ??
+      '—',
+    ...(optionalString(evidence.previous_baseline_id)
+      ? { previous_baseline_id: optionalString(evidence.previous_baseline_id) }
+      : {}),
+    ...(optionalString(evidence.actor)
+      ? { actor: optionalString(evidence.actor) }
+      : {}),
+    source: optionalString(evidence.source) ?? 'unknown',
+    previous_state: previous,
+    proposed_state: proposed,
+    change_types: Array.isArray(evidence.change_types)
+      ? (evidence.change_types as GovernanceChangeType[])
+      : [],
+    materiality: (optionalString(evidence.materiality) ??
+      'MATERIAL') as MaterialityClass,
+    materiality_reasons: Array.isArray(evidence.materiality_reasons)
+      ? (evidence.materiality_reasons as string[])
+      : [],
+    governance_impacts: Array.isArray(evidence.governance_impacts)
+      ? (evidence.governance_impacts as GovernanceImpactDimension[])
+      : [],
+    lifecycle_decision: (optionalString(evidence.lifecycle_decision) ??
+      'HUMAN_REVIEW_REQUIRED') as LifecycleDecision,
+    detected_at: record.created_at,
+    ...(reviewContext ? { review_context: reviewContext } : {}),
+  });
+}
+
+function withActionReview(
+  preview: Omit<HeldRequestPreview, 'action_review'>,
+  record: PolicyEvaluationRecord,
+): HeldRequestPreview {
+  return {
+    ...preview,
+    action_review: buildActionReviewPresentation({
+      operation: preview.operation,
+      model: preview.model,
+      application_id: preview.application_id,
+      organization_id: preview.organization_id,
+      user_id: preview.user_id,
+      correlation_id: preview.correlation_id,
+      messages: preview.messages,
+      classification: preview.classification,
+      retained: preview.retained,
+      change_review: preview.change_review,
+      machine_decision: record.decision,
+      final_decision: record.human_resolution?.final_decision,
+      human_disposition: record.human_resolution?.human_disposition,
+    }),
+  };
+}
+
+export function projectHeldRequestPreview(
+  record: PolicyEvaluationRecord,
+): HeldRequestPreview {
+  const change_review = projectChangeReview(record);
+  const held = record.held_request;
+  if (
+    held &&
+    held.version === 1 &&
+    held.operation &&
+    Array.isArray(held.messages) &&
+    held.messages.length > 0 &&
+    held.application_id &&
+    held.organization_id &&
+    held.user_id
+  ) {
+    return withActionReview(
+      {
+        operation: held.operation,
+        ...(held.model ? { model: held.model } : {}),
+        application_id: held.application_id,
+        organization_id: held.organization_id,
+        user_id: held.user_id,
+        correlation_id: held.correlation_id,
+        messages: held.messages.map((m) => ({
+          role: String(m.role ?? 'user'),
+          content: String(m.content ?? ''),
+        })),
+        classification: {
+          sensitivity: held.classification.sensitivity,
+          confidence: held.classification.confidence,
+          ...(held.classification.intent
+            ? { intent: held.classification.intent }
+            : {}),
+          risk: held.classification.risk,
+          reason_codes: [...(held.classification.reason_codes ?? [])],
+          ...(held.classification.entities?.length
+            ? {
+                entities: held.classification.entities.map((e) => ({
+                  type: e.type,
+                  start: e.start,
+                  end: e.end,
+                  ...(e.preview ? { preview: e.preview } : {}),
+                })),
+              }
+            : {}),
+        },
+        retained: true,
+        ...(change_review ? { change_review } : {}),
+      },
+      record,
+    );
+  }
+
+  const subject = (record.subject ?? {}) as Record<string, unknown>;
+  const ai = (record.ai_context ?? {}) as Record<string, unknown>;
+  const evidence = (record.evidence_in ?? {}) as Record<string, unknown>;
+  const resource = (record.resource ?? {}) as Record<string, unknown>;
+
+  const sensitivity =
+    optionalString(evidence.classification) ??
+    optionalString(resource.classification) ??
+    'unknown';
+  const riskRaw = optionalString(evidence.risk) ?? optionalString(ai.risk);
+  const risk =
+    riskRaw === 'low' || riskRaw === 'medium' || riskRaw === 'high'
+      ? riskRaw
+      : 'medium';
+  const reasonCodes = Array.isArray(record.reason_codes)
+    ? record.reason_codes.map(String)
+    : Array.isArray(evidence.decision_reason_codes)
+      ? (evidence.decision_reason_codes as unknown[]).map(String)
+      : [];
+
+  const operation =
+    optionalString(record.action)?.toLowerCase() ??
+    optionalString(ai.operation) ??
+    '—';
+
+  return withActionReview(
+    {
+      operation,
+      ...(optionalString(ai.model) ? { model: optionalString(ai.model) } : {}),
+      application_id:
+        optionalString(subject.application_id) ??
+        optionalString(ai.application_id) ??
+        '—',
+      organization_id:
+        optionalString(record.organization_id) ??
+        optionalString(subject.organization_id) ??
+        '—',
+      user_id:
+        optionalString(subject.user_id) ?? optionalString(subject.id) ?? '—',
+      correlation_id: optionalString(record.request_id) ?? record.evaluation_id,
+      messages: [],
+      classification: {
+        sensitivity,
+        confidence:
+          typeof evidence.confidence === 'number' ? evidence.confidence : 0,
+        ...(optionalString(evidence.intent) || optionalString(ai.intent)
+          ? {
+              intent:
+                optionalString(evidence.intent) ?? optionalString(ai.intent),
+            }
+          : {}),
+        risk,
+        reason_codes: reasonCodes,
+      },
+      retained: false,
+      ...(change_review ? { change_review } : {}),
+    },
+    record,
+  );
 }
 
 function optionalString(value: unknown): string | undefined {

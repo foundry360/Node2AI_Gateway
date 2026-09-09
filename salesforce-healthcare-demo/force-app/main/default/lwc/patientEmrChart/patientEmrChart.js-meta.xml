@@ -3,7 +3,7 @@
     <apiVersion>62.0</apiVersion>
     <isExposed>true</isExposed>
     <masterLabel>Patient EMR Chart</masterLabel>
-    <description>EMR-style patient chart: banner, allergies, vitals, problems, meds, notes</description>
+    <description>EMR-style patient chart: banner, vitals, problems, meds, notes</description>
     <targets>
         <target>lightning__RecordPage</target>
     </targets>

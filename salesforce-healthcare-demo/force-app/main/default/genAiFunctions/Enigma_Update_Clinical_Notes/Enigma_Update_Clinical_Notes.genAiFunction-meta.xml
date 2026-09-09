@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiFunction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Append text to Patient Clinical Notes (agent write capability).</description>
+    <invocationTarget>EnigmaAgentUpdateNotesAction</invocationTarget>
+    <invocationTargetType>apex</invocationTargetType>
+    <isConfirmationRequired>true</isConfirmationRequired>
+    <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+    <masterLabel>Enigma Update Clinical Notes</masterLabel>
+    <progressIndicatorMessage>Updating clinical notes…</progressIndicatorMessage>
+</GenAiFunction>

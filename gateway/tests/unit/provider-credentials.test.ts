@@ -11,7 +11,7 @@ import {
 } from '../../src/models/index.js';
 
 describe('Application BYOK provider credentials', () => {
-  it('admin can store credential and reveal plaintext API key on GET', async () => {
+  it('admin can store credential; GET returns metadata only (no plaintext secret)', async () => {
     const gw = createPhase1Gateway({
       config: { adminApiKey: 'test_admin', deploymentMode: 'connected' },
     });
@@ -50,7 +50,8 @@ describe('Application BYOK provider credentials', () => {
     };
     expect(getBody.configured).toBe(true);
     expect(getBody.provider_credential.api_key_last4).toBe('cdef');
-    expect(getBody.provider_credential.api_key).toBe('sk-customer-secret-abcdef');
+    expect(getBody.provider_credential.api_key).toBeUndefined();
+    expect(JSON.stringify(getBody)).not.toContain('sk-customer-secret');
   });
 
   it('cloud completion uses application BYOK key, not appliance env key', async () => {

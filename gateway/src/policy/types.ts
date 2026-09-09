@@ -451,11 +451,29 @@ export interface PrivacyGovernanceEvidence {
   };
 }
 
+/**
+ * Generic evidence for controlled sensitive-data processing (pack-agnostic).
+ * Used when an external model is requested for sensitive classifications such as PHI.
+ * Does not assert legal compliance or authorize raw sensitive egress.
+ */
+export interface SensitiveDataProcessingEvidence {
+  /**
+   * Explicit attestation that controlled external processing is authorized
+   * for this request (subject to Enigma transformation controls).
+   */
+  external_processing_authorized?: boolean;
+}
+
 export interface GovernanceContext {
   accountability_documented?: boolean;
   system_context_documented?: boolean;
   measurement_documented?: boolean;
   risk_response_documented?: boolean;
+  /**
+   * Generic sensitive-data processing attestations (e.g. controlled external PHI).
+   * Distinct from security_controls and authorization_context.
+   */
+  sensitive_data_processing?: SensitiveDataProcessingEvidence;
   /** Generic AI security control attestations (guidance packs). */
   security_controls?: SecurityControlEvidence;
   /** Generic AI management-system governance facts (standards packs). */

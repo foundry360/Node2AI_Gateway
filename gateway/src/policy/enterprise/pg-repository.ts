@@ -302,12 +302,12 @@ export class PostgresPolicyRepository implements PolicyRepository {
            evaluation_id, request_id, phase, organization_id,
            subject, resource, action, context, ai_context, evidence_in,
            decision, reason, applicable_policies, obligations, explanation,
-           human_resolution, created_at
+           human_resolution, held_request, execution, created_at
          ) VALUES (
            $1, $2, $3, $4,
            $5::jsonb, $6::jsonb, $7, $8::jsonb, $9::jsonb, $10::jsonb,
            $11, $12, $13::jsonb, $14::jsonb, $15::jsonb,
-           $16::jsonb, $17::timestamptz
+           $16::jsonb, $17::jsonb, $18::jsonb, $19::timestamptz
          )
          ON CONFLICT (evaluation_id) DO UPDATE SET
            explanation = EXCLUDED.explanation,
@@ -316,7 +316,9 @@ export class PostgresPolicyRepository implements PolicyRepository {
            applicable_policies = EXCLUDED.applicable_policies,
            obligations = EXCLUDED.obligations,
            evidence_in = EXCLUDED.evidence_in,
-           human_resolution = COALESCE(EXCLUDED.human_resolution, policy_evaluations.human_resolution)`,
+           human_resolution = COALESCE(EXCLUDED.human_resolution, policy_evaluations.human_resolution),
+           held_request = COALESCE(EXCLUDED.held_request, policy_evaluations.held_request),
+           execution = COALESCE(EXCLUDED.execution, policy_evaluations.execution)`,
         [
           record.evaluation_id,
           record.request_id ?? null,
@@ -336,11 +338,13 @@ export class PostgresPolicyRepository implements PolicyRepository {
           record.human_resolution
             ? JSON.stringify(record.human_resolution)
             : null,
+          record.held_request ? JSON.stringify(record.held_request) : null,
+          record.execution ? JSON.stringify(record.execution) : null,
           record.created_at,
         ],
       );
     } catch {
-      // Fallback without human_resolution column (older schemas).
+      // Fallback without held_request / execution / human_resolution columns (older schemas).
       try {
         await this.db.query(
           `INSERT INTO policy_evaluations (
@@ -378,6 +382,9 @@ export class PostgresPolicyRepository implements PolicyRepository {
               ...record.explanation,
               ...(record.human_resolution
                 ? { human_resolution: record.human_resolution }
+                : {}),
+              ...(record.held_request
+                ? { _enigma_held_request: record.held_request }
                 : {}),
             }),
             record.created_at,

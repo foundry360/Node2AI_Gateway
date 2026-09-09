@@ -2,6 +2,7 @@ export type {
   AutonomyLevel,
   ChangeEvaluationResult,
   ChangeInput,
+  ChangeReviewContext,
   GovernanceBaseline,
   GovernanceBaselineCapabilities,
   GovernanceBaselineTargetType,
@@ -27,7 +28,14 @@ export {
 
 export {
   applyLifecycleReviewHold,
+  buildChangeReviewEvidence,
+  buildLifecycleChangeInventory,
+  buildLifecycleReviewMessages,
   evaluateGovernanceChange,
+  type ChangeReviewAction,
+  type ChangeReviewEvidence,
+  type ChangeReviewItem,
+  type ChangeReviewPreview,
   type EvaluateChangeOptions,
 } from './evaluate.js';
 

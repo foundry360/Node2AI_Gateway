@@ -161,8 +161,46 @@ export class DeterministicPolicyEngine implements PolicyEngine {
     if (sensitivity === 'PHI') {
       const cloudRequested =
         !!context.requestedModel && isCloudModel(context.requestedModel);
+      const clinicalOk =
+        context.application.type === 'clinical' &&
+        context.user.roles.includes('clinician');
+
       if (cloudRequested) {
-        return blocked(['PHI_PUBLIC_CLOUD_BLOCKED'], policyIds, version);
+        const externalAuthorized =
+          context.governance_context?.sensitive_data_processing
+            ?.external_processing_authorized === true;
+        const tokenizeAvailable =
+          (context.classification.entities?.length ?? 0) > 0;
+        if (!externalAuthorized || !clinicalOk) {
+          return blocked(['PHI_PUBLIC_CLOUD_BLOCKED'], policyIds, version);
+        }
+        if (!tokenizeAvailable) {
+          return blocked(
+            ['PHI_PUBLIC_CLOUD_BLOCKED', 'TOKENIZE_UNAVAILABLE'],
+            policyIds,
+            version,
+          );
+        }
+        // Fail closed: do not fall back to local when an external model was requested.
+        if (
+          !context.requestedModel ||
+          !eligible.includes(context.requestedModel)
+        ) {
+          return blocked(['MODEL_NOT_ELIGIBLE'], policyIds, version);
+        }
+        eligible = [context.requestedModel];
+        return {
+          decision: 'TOKENIZE',
+          reason_codes: [
+            'PHI_REQUIRES_TOKENIZE',
+            'EXTERNAL_MODEL_PRESENT',
+            'PHI_EXTERNAL_CONTROLS_SATISFIED',
+          ],
+          eligible_models: eligible,
+          policy_ids: policyIds,
+          policy_version: version,
+          transforms: [{ type: 'tokenize', targets: ['PHI'] }],
+        };
       }
 
       eligible = eligible.filter((m) => m.startsWith('local-'));
@@ -170,9 +208,6 @@ export class DeterministicPolicyEngine implements PolicyEngine {
         return blocked(['PHI_REQUIRES_LOCAL_MODEL'], policyIds, version);
       }
 
-      const clinicalOk =
-        context.application.type === 'clinical' &&
-        context.user.roles.includes('clinician');
       if (!clinicalOk) {
         return blocked(['PHI_APPLICATION_NOT_AUTHORIZED'], policyIds, version);
       }

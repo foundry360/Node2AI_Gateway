@@ -527,6 +527,12 @@ export const completionRequestSchema = z
           })
           .strict()
           .optional(),
+        sensitive_data_processing: z
+          .object({
+            external_processing_authorized: z.boolean().optional(),
+          })
+          .strict()
+          .optional(),
       })
       .strict()
       .optional(),

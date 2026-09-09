@@ -5,8 +5,6 @@
   --emr-border: #d7e0db;
   --emr-banner: #d6e8f7;
   --emr-banner-2: #c2daf0;
-  --emr-allergy: #7a1f1f;
-  --emr-allergy-bg: #fdecec;
   --emr-muted: #5b6b64;
   --emr-soft: #f3f7f5;
 }
@@ -113,28 +111,6 @@
   text-transform: uppercase;
   opacity: 0.75;
   margin-bottom: 0.15rem;
-}
-
-.allergy-bar {
-  display: flex;
-  gap: 0.75rem;
-  align-items: baseline;
-  padding: 0.65rem 1.25rem;
-  background: var(--emr-allergy-bg);
-  color: var(--emr-allergy);
-  border-bottom: 1px solid #f0c7c7;
-  font-size: 0.9rem;
-}
-
-.allergy-bar strong {
-  letter-spacing: 0.08em;
-  font-size: 0.72rem;
-}
-
-.allergy-clear {
-  background: #edf7f1;
-  color: #1f5a3d;
-  border-bottom-color: #cfe5d8;
 }
 
 .vitals {
@@ -308,6 +284,12 @@
   font-size: 0.88rem;
   line-height: 1.5;
   color: #24352e;
+  max-height: 28rem;
+  overflow: auto;
+}
+
+.notes-refresh {
+  flex-shrink: 0;
 }
 
 .kv {

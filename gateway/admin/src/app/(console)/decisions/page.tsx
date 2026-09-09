@@ -270,7 +270,7 @@ function DecisionsListView() {
                         {e.review_state === 'pending' ? (
                           <StatusBadge
                             variant="badge"
-                            status="review"
+                            status="pending"
                             label="Pending"
                           />
                         ) : e.review_state === 'resolved' ? (

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiFunction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Evaluate enabling agent write capability with Enigma lifecycle governance (CRITICAL / MANDATORY_REVIEW).</description>
+    <invocationTarget>EnigmaAgentCapabilityChangeAction</invocationTarget>
+    <invocationTargetType>apex</invocationTargetType>
+    <isConfirmationRequired>true</isConfirmationRequired>
+    <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+    <masterLabel>Enigma Evaluate Write Capability Change</masterLabel>
+    <progressIndicatorMessage>Evaluating write capability change in Enigma…</progressIndicatorMessage>
+</GenAiFunction>

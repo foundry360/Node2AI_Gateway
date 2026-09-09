@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { readSessionToken, SESSION_COOKIE } from '@/lib/auth-session';
 
 const GATEWAY_URL = process.env.GATEWAY_URL ?? 'http://127.0.0.1:8080';
 const ADMIN_KEY = process.env.GATEWAY_ADMIN_API_KEY ?? 'n2ai_admin_dev_key';
 
 async function proxy(req: NextRequest, path: string[], method: string) {
   const url = `${GATEWAY_URL}/v1/admin/${path.join('/')}${req.nextUrl.search}`;
+  const cookie = req.cookies.get(SESSION_COOKIE)?.value;
+  const session = await readSessionToken(cookie);
+  const bearer = session?.gateway_token || ADMIN_KEY;
   const headers: Record<string, string> = {
-    authorization: `Bearer ${ADMIN_KEY}`,
+    authorization: `Bearer ${bearer}`,
     accept: 'application/json',
   };
   let body: string | undefined;
@@ -18,7 +22,9 @@ async function proxy(req: NextRequest, path: string[], method: string) {
   const text = await res.text();
   return new NextResponse(text, {
     status: res.status,
-    headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
+    headers: {
+      'content-type': res.headers.get('content-type') ?? 'application/json',
+    },
   });
 }
 

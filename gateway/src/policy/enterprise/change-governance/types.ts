@@ -114,6 +114,26 @@ export interface NormalizedChange {
   materiality_reasons: string[];
   evaluation_id?: string;
   next_baseline_id?: string;
+  /** Human-readable evidence for Authorize / Deny (prompt, rationale, intent). */
+  review_context?: ChangeReviewContext;
+}
+
+/** Caller-supplied narrative a human reviewer can read. */
+export interface ChangeReviewContext {
+  title?: string;
+  summary?: string;
+  /** What the end user / operator asked (prompt or utterance). */
+  requester_prompt?: string;
+  /** Why the caller / system is requesting this change. */
+  rationale?: string;
+  /**
+   * @deprecated Prefer `rationale`. Accepted for older callers.
+   */
+  agent_rationale?: string;
+  /** What will happen if Authorize is chosen. */
+  intended_outcome?: string;
+  /** Optional conversation excerpt (user/assistant turns). */
+  conversation?: Array<{ role: string; content: string }>;
 }
 
 export interface ChangeInput {
@@ -131,6 +151,8 @@ export interface ChangeInput {
   detected_at?: string;
   /** When insufficient state is provided, materiality becomes UNKNOWN. */
   incomplete?: boolean;
+  /** Human-readable review evidence for Mandatory Review holds. */
+  review_context?: ChangeReviewContext;
 }
 
 export interface MaterialityAssessment {

@@ -1,0 +1,14 @@
+agentType: customer
+companyName: Enigma Healthcare Demo
+companyDescription: Healthcare demo using Enigma for AI governance.
+role: Help users summarize patients through Enigma and evaluate write capability before updating clinical notes.
+maxNumOfTopics: 3
+enrichLogs: false
+tone: formal
+topics:
+  - name: Patient Chart Summarization
+    description: Summarize a patient chart through Enigma.
+  - name: Write Capability Evaluation
+    description: Evaluate enabling write capability with Enigma change governance.
+  - name: Clinical Note Update
+    description: Update patient clinical notes after write capability evaluation.

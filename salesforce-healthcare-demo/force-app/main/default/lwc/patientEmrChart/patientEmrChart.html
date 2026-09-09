@@ -43,19 +43,6 @@
         </div>
       </header>
 
-      <template lwc:if={hasAllergies}>
-        <section class="allergy-bar" aria-label="Allergies">
-          <strong>ALLERGIES</strong>
-          <span>{patient.Allergies__c}</span>
-        </section>
-      </template>
-      <template lwc:else>
-        <section class="allergy-bar allergy-clear" aria-label="Allergies">
-          <strong>ALLERGIES</strong>
-          <span>No known allergies documented</span>
-        </section>
-      </template>
-
       <section class="vitals" aria-label="Vitals">
         <div class="vital">
           <div class="vital-label">Blood type</div>
@@ -107,15 +94,7 @@
               <template for:each={activeConditions} for:item="c">
                 <li key={c.Id}>
                   <div class="row-title">
-                    <span class="row-name">
-                      <lightning-icon
-                        icon-name="standard:case"
-                        size="xx-small"
-                        alternative-text=""
-                        class="row-icon"
-                      ></lightning-icon>
-                      {c.Name}
-                    </span>
+                    <span class="row-name">{c.Name}</span>
                     <span class="pill">{c.Status__c}</span>
                   </div>
                   <div class="row-meta">
@@ -141,15 +120,7 @@
                 <template for:each={resolvedConditions} for:item="c">
                   <li key={c.Id}>
                     <div class="row-title">
-                      <span class="row-name">
-                        <lightning-icon
-                          icon-name="standard:case"
-                          size="xx-small"
-                          alternative-text=""
-                          class="row-icon"
-                        ></lightning-icon>
-                        {c.Name}
-                      </span>
+                      <span class="row-name">{c.Name}</span>
                       <span class="pill muted-pill">{c.Status__c}</span>
                     </div>
                     <div class="row-meta">{c.ICD10_Code__c}</div>
@@ -223,9 +194,16 @@
       <section class="panel notes-panel">
         <header class="panel-header">
           <h2>Clinical notes</h2>
+          <lightning-button
+            variant="base"
+            label="Refresh"
+            title="Reload notes from Salesforce"
+            onclick={handleRefreshNotes}
+            class="notes-refresh"
+          ></lightning-button>
         </header>
-        <template lwc:if={patient.Clinical_Notes__c}>
-          <pre class="notes-body">{patient.Clinical_Notes__c}</pre>
+        <template lwc:if={hasClinicalNotes}>
+          <pre class="notes-body">{clinicalNotes}</pre>
         </template>
         <template lwc:else>
           <p class="empty">No clinical notes documented.</p>

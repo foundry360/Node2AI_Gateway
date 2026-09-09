@@ -60,17 +60,20 @@ export default async function OverviewPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Authority Console"
-        lede="Enigma governs AI actions from policy to proof."
-      />
-
       {error ? (
-        <div className="error">{error}. Is the gateway running on GATEWAY_URL?</div>
+        <>
+          <PageHeader
+            title="Authority Console"
+            lede="Enigma governs AI actions from policy to proof."
+          />
+          <div className="error">{error}. Is the gateway running on GATEWAY_URL?</div>
+        </>
       ) : null}
 
       {data ? (
         <ConsoleTabs
+          title="Authority Console"
+          lede="Enigma governs AI actions from policy to proof."
           overview={<ConsoleInsightsPanel activePoliciesFallback={activeEpa} />}
           posture={
             <div className="status-panel stack">

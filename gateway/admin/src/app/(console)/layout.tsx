@@ -15,9 +15,7 @@ export default async function ConsoleLayout({
     <div className="shell">
       <TopChrome userName={session?.name ?? 'admin'} />
       <div className="shell-body">
-        <aside className="sidebar">
-          <SidebarNav />
-        </aside>
+        <SidebarNav />
         <main className="main">{children}</main>
       </div>
     </div>

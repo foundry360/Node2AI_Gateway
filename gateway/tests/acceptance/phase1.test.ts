@@ -36,7 +36,8 @@ describe('Phase 1 acceptance', () => {
       application_id: 'app_clinical',
       user: { id: 'user_clinician' },
       operation: 'summarize',
-      model: 'cloud-public-gpt',
+      // Not on app allowlist (cloud-public-gpt is allowlisted for controlled TOKENIZE).
+      model: 'cloud-restricted-unlisted',
       messages: [{ role: 'user', content: 'Try restricted model' }],
     });
 

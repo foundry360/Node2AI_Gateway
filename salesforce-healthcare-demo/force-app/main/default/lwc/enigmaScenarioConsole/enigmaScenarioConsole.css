@@ -1,0 +1,50 @@
+.preview {
+  white-space: pre-wrap;
+  max-height: 8rem;
+  overflow: auto;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.scenario-card {
+  border: 1px solid #dddbda;
+  border-radius: 0.25rem;
+  padding: 0.75rem 1rem 1rem;
+  margin-bottom: 0.75rem;
+  background: #ffffff;
+}
+
+.scenario-card.active {
+  border-color: #0176d3;
+  box-shadow: 0 0 0 1px #0176d3;
+}
+
+.results-panel {
+  position: sticky;
+  top: 1rem;
+}
+
+.result-banner {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.25rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.result-banner.ok {
+  background: #cdefc4;
+  color: #2e844a;
+  border: 1px solid #91db8b;
+}
+
+.result-banner.miss {
+  background: #f9e3b6;
+  color: #8c4b02;
+  border: 1px solid #f9e3b6;
+}
+
+code {
+  font-size: 0.75rem;
+  word-break: break-all;
+}

@@ -1,0 +1,134 @@
+<template>
+  <lightning-card title="Scenario Console" icon-name="standard:calibration">
+    <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+      <p class="slds-text-body_small slds-m-bottom_medium">
+        Preset requests that exercise Enigma governance. Salesforce only sends
+        content and generic context — Enigma decides.
+      </p>
+
+      <template lwc:if={loadError}>
+        <div class="slds-text-color_error slds-m-bottom_small">{loadError}</div>
+      </template>
+      <template lwc:if={loading}>
+        <p class="slds-text-color_weak slds-m-bottom_small">Loading scenarios…</p>
+      </template>
+
+      <div class="slds-grid slds-wrap slds-gutters">
+        <div class="slds-col slds-size_1-of-1 slds-large-size_7-of-12">
+          <template lwc:if={hasScenarios}>
+            <template for:each={scenarios} for:item="s">
+              <div key={s.id} class={s.cardClass}>
+                <div class="slds-grid slds-grid_align-spread slds-m-bottom_xx-small">
+                  <h3 class="slds-text-heading_small">{s.title}</h3>
+                  <span class="slds-text-body_small slds-text-color_weak"
+                    >Expect: {s.expected}</span
+                  >
+                </div>
+                <p class="slds-text-body_small slds-m-bottom_small">{s.description}</p>
+                <div class="slds-grid slds-wrap slds-gutters_small slds-m-bottom_small">
+                  <div class="slds-col slds-size_1-of-2">
+                    <p class="slds-text-title_caps slds-m-bottom_xx-small">Model</p>
+                    <p class="slds-text-body_small"><code>{s.model}</code></p>
+                  </div>
+                  <div class="slds-col slds-size_1-of-2">
+                    <p class="slds-text-title_caps slds-m-bottom_xx-small">Evidence</p>
+                    <p class="slds-text-body_small">{s.evidenceLabel}</p>
+                  </div>
+                </div>
+                <p class="slds-text-title_caps slds-m-bottom_xx-small">Request</p>
+                <p class="slds-box slds-theme_shade slds-m-bottom_small preview">
+                  {s.contentPreview}
+                </p>
+                <lightning-button
+                  variant="brand"
+                  label={s.runLabel}
+                  data-id={s.id}
+                  onclick={handleRun}
+                  disabled={busy}
+                ></lightning-button>
+              </div>
+            </template>
+          </template>
+          <template lwc:elseif={loading}>
+            <p class="slds-text-color_weak">Loading…</p>
+          </template>
+          <template lwc:else>
+            <p class="slds-text-color_weak">No scenarios available.</p>
+          </template>
+        </div>
+
+        <div class="slds-col slds-size_1-of-1 slds-large-size_5-of-12">
+          <div class="slds-box slds-theme_default results-panel">
+            <h3 class="slds-text-heading_small slds-m-bottom_small">Last result</h3>
+            <template lwc:if={busy}>
+              <p class="slds-text-color_weak">Calling Enigma…</p>
+            </template>
+            <template lwc:elseif={result}>
+              <div class={resultBannerClass}>
+                <strong>{resultMatchLabel}</strong>
+                <div>{result.title}</div>
+              </div>
+              <div class="slds-grid slds-wrap slds-gutters_small">
+                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                  <p class="slds-text-title_caps slds-m-bottom_xx-small">Status</p>
+                  <p class="slds-text-body_small">{result.status}</p>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                  <p class="slds-text-title_caps slds-m-bottom_xx-small">Reason</p>
+                  <p class="slds-text-body_small">{reasonDisplay}</p>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                  <p class="slds-text-title_caps slds-m-bottom_xx-small">Model</p>
+                  <p class="slds-text-body_small"><code>{result.modelUsed}</code></p>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                  <p class="slds-text-title_caps slds-m-bottom_xx-small">Request id</p>
+                  <p class="slds-text-body_small"><code>{requestIdDisplay}</code></p>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                  <p class="slds-text-title_caps slds-m-bottom_xx-small">Policy</p>
+                  <p class="slds-text-body_small">{policyDecisionDisplay}</p>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                  <p class="slds-text-title_caps slds-m-bottom_xx-small">Input xform</p>
+                  <p class="slds-text-body_small">{inputXformDisplay}</p>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                  <p class="slds-text-title_caps slds-m-bottom_xx-small">Expected</p>
+                  <p class="slds-text-body_small">{result.expected}</p>
+                </div>
+                <template lwc:if={result.message}>
+                  <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                    <p class="slds-text-title_caps slds-m-bottom_xx-small">Message</p>
+                    <p class="slds-text-body_small">{result.message}</p>
+                  </div>
+                </template>
+              </div>
+              <template lwc:if={hasTokenizedInput}>
+                <p class="slds-text-title_caps slds-m-bottom_xx-small">Tokenized prompt</p>
+                <p class="slds-box slds-theme_shade preview">{result.tokenizedInput}</p>
+              </template>
+              <template lwc:if={hasTokenizedOutput}>
+                <p class="slds-text-title_caps slds-m-bottom_xx-small">Tokenized response</p>
+                <p class="slds-box slds-theme_shade preview">{result.tokenizedOutput}</p>
+              </template>
+              <template lwc:if={showReleasedResponse}>
+                <p class="slds-text-title_caps slds-m-bottom_xx-small">Released response</p>
+                <p class="slds-box slds-theme_shade preview">{result.summary}</p>
+              </template>
+              <template lwc:elseif={result.summary}>
+                <p class="slds-text-title_caps slds-m-bottom_xx-small">Response</p>
+                <p class="slds-box slds-theme_shade preview">{result.summary}</p>
+              </template>
+            </template>
+            <template lwc:else>
+              <p class="slds-text-color_weak">
+                Run a scenario to see Enigma’s decision here.
+              </p>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+  </lightning-card>
+</template>

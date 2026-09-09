@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Eye } from 'lucide-react';
 import { useEffect, useState, useTransition, type ReactNode } from 'react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { EmptyState } from '@/components/EmptyState';
@@ -43,6 +44,7 @@ export function GovernanceAttentionPanel({
   afterBanner,
   midRow,
   beforeRecent,
+  showAttentionCard = true,
 }: {
   /** Optional left column (e.g. overview microcards) paired with the top-right slot. */
   leadLeft?: ReactNode;
@@ -52,6 +54,8 @@ export function GovernanceAttentionPanel({
   midRow?: ReactNode;
   /** Optional content rendered above Recent decisions (always shown when provided). */
   beforeRecent?: ReactNode;
+  /** When false, hide the "What requires governance attention?" card (code retained). */
+  showAttentionCard?: boolean;
 } = {}) {
   const days = useConsoleTimeframe();
   const [data, setData] = useState<EvaluationsResponse | null>(null);
@@ -189,17 +193,17 @@ export function GovernanceAttentionPanel({
         <div className="console-banner">
           <div className="console-banner-top">
             {leadLeft}
-            {afterBanner ?? (midRow ? null : attentionCard)}
+            {afterBanner ?? (midRow || !showAttentionCard ? null : attentionCard)}
           </div>
-          {afterBanner || midRow ? (
+          {afterBanner || midRow || showAttentionCard ? (
             midRow ? (
               <div className="console-banner-mid">
                 {midRow}
-                {attentionCard}
+                {showAttentionCard ? attentionCard : null}
               </div>
-            ) : (
+            ) : showAttentionCard ? (
               attentionCard
-            )
+            ) : null
           ) : null}
         </div>
       ) : (
@@ -207,11 +211,11 @@ export function GovernanceAttentionPanel({
           {midRow ? (
             <div className="console-banner-mid">
               {midRow}
-              {attentionCard}
+              {showAttentionCard ? attentionCard : null}
             </div>
-          ) : (
+          ) : showAttentionCard ? (
             attentionCard
-          )}
+          ) : null}
           {afterBanner}
         </>
       )}
@@ -232,6 +236,7 @@ export function GovernanceAttentionPanel({
                   <th>Resolution</th>
                   <th>Enforcement</th>
                   <th>Decision ID</th>
+                  <th className="table-col-narrow" aria-label="View" />
                 </tr>
               </thead>
               <tbody>
@@ -256,9 +261,15 @@ export function GovernanceAttentionPanel({
                           }
                         />
                       </td>
-                      <td className="mono">
-                        <Link href={`/evaluations/${e.evaluation_id}`}>
-                          {e.evaluation_id}
+                      <td className="mono">{e.evaluation_id}</td>
+                      <td className="table-col-narrow">
+                        <Link
+                          href={`/evaluations/${e.evaluation_id}`}
+                          className="table-icon-link"
+                          aria-label={`View decision ${e.evaluation_id}`}
+                          title="View decision"
+                        >
+                          <Eye size={18} strokeWidth={1.75} aria-hidden />
                         </Link>
                       </td>
                     </tr>

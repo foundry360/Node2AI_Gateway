@@ -197,7 +197,7 @@ export function DecisionConsequencePanel({
   const canOpenAudit = Boolean(enforcement?.audit_id || enforcement?.request_id);
 
   return (
-    <>
+    <div className="consequence-panel-root">
       <section
         className="section-card consequence-card"
         aria-labelledby="consequence-heading"
@@ -278,6 +278,6 @@ export function DecisionConsequencePanel({
         </div>
       </section>
       <AuditDetailDrawer event={auditEvent} onClose={closeAudit} />
-    </>
+    </div>
   );
 }

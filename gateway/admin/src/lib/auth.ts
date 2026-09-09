@@ -4,7 +4,9 @@ export {
   createSessionToken,
   readSessionToken,
   sessionCookieOptions,
+  roleHasCapability,
   type AdminSession,
+  type AdminRole,
 } from './auth-session';
 
 export { getAdminCredentials, verifyPassword } from './auth-credentials';

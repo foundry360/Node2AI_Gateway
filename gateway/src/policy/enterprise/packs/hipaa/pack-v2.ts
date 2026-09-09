@@ -317,12 +317,13 @@ function evidenceSufficient(facts: HipaaPackFacts): boolean {
 /**
  * Required controls satisfied for PHI processing — Enigma evaluation, not a compliance certificate.
  * Local/private alone is NOT sufficient.
+ * External/public-cloud may satisfy controls only when governed external processing is
+ * explicitly authorized AND tokenization is available (Enigma control — not a HIPAA mandate).
  */
 function requiredControlsSatisfied(
   facts: HipaaPackFacts,
   env: 'unauthorized_external' | 'local_or_private',
 ): boolean {
-  if (env !== 'local_or_private') return false;
   if (facts.trust_level !== 'trusted') return false;
   if (facts.application_type !== 'clinical') return false;
   if (!facts.roles.includes('clinician')) return false;
@@ -330,7 +331,16 @@ function requiredControlsSatisfied(
     const purpose = normalizePurpose(facts.purpose);
     if (purpose === 'unknown' || !isKnownPurpose(purpose)) return false;
   }
-  return true;
+
+  if (env === 'local_or_private') return true;
+
+  // Controlled external path: attestation + tokenize capability required.
+  const externalAuthorized =
+    facts.governance_context?.sensitive_data_processing
+      ?.external_processing_authorized === true;
+  const tokenizeAvailable =
+    !!facts.has_entity_spans || (facts.entity_types?.length ?? 0) > 0;
+  return externalAuthorized && tokenizeAvailable;
 }
 
 function releaseConditionsSatisfied(facts: HipaaPackFacts): boolean {
@@ -504,15 +514,22 @@ function applyRule(
 
   if (rule.decision === 'TRANSFORM') {
     const transforms = rule.transforms ?? [{ type: 'tokenize', targets: ['PHI'] }];
+    const obligations = mergeObligations(current.obligations, rule.enigma_obligations);
+    // TOKENIZE is an Enigma control — do not strip external models when the
+    // controlled path already selected them. LOCAL_MODEL_ONLY is omitted from
+    // the tokenize implementation option (see compiled-bundle).
+    const forceLocal = obligations.some((o) => o.code === 'LOCAL_MODEL_ONLY');
     return {
       ...current,
       decision: 'TOKENIZE',
       reason_codes: [...(rule.reason_codes ?? []), ...current.reason_codes],
-      eligible_models: current.eligible_models.filter(
-        (m) => m.startsWith('local-') || m.includes('private'),
-      ),
+      eligible_models: forceLocal
+        ? current.eligible_models.filter(
+            (m) => m.startsWith('local-') || m.includes('private'),
+          )
+        : current.eligible_models,
       transforms,
-      obligations: mergeObligations(current.obligations, rule.enigma_obligations),
+      obligations,
       policy_id: meta.policy_id,
       policy_version: meta.version,
       pack_id: meta.pack_id,
@@ -522,6 +539,9 @@ function applyRule(
   }
 
   if (rule.decision === 'ALLOW_WITH_CONTROLS') {
+    const keepExternalTokenizePath =
+      current.decision === 'TOKENIZE' &&
+      current.eligible_models.some((m) => isCloudModel(m));
     return {
       ...current,
       decision:
@@ -531,9 +551,11 @@ function applyRule(
             ? 'TOKENIZE'
             : 'ALLOW',
       reason_codes: [...(rule.reason_codes ?? []), ...current.reason_codes],
-      eligible_models: current.eligible_models.filter(
-        (m) => m.startsWith('local-') || m.includes('private'),
-      ),
+      eligible_models: keepExternalTokenizePath
+        ? current.eligible_models
+        : current.eligible_models.filter(
+            (m) => m.startsWith('local-') || m.includes('private'),
+          ),
       obligations: mergeObligations(current.obligations, rule.enigma_obligations),
       policy_id: meta.policy_id,
       policy_version: meta.version,

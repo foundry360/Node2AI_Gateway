@@ -7,6 +7,7 @@ import {
   executionAfterAuthorize,
   hasResumableHeldRequest,
   projectEnforcementResult,
+  projectHeldRequestPreview,
   ResumeEvaluationError,
   type HeldRequestSnapshot,
   type PolicyEvaluationRecord,
@@ -95,6 +96,49 @@ function reviewWithHold(
     ...overrides,
   };
 }
+
+describe('projectHeldRequestPreview', () => {
+  it('projects messages and classification for review UI', () => {
+    const preview = projectHeldRequestPreview(reviewWithHold());
+    expect(preview).toEqual(
+      expect.objectContaining({
+        operation: 'summarize',
+        model: 'local-general-v1',
+        application_id: 'app_clinical',
+        organization_id: 'org_demo',
+        user_id: 'user_clinician',
+        correlation_id: 'cor_resume_1',
+        messages: [
+          { role: 'user', content: 'Summarize treatment note for patient.' },
+        ],
+        classification: {
+          sensitivity: 'PHI',
+          confidence: 0.99,
+          risk: 'high',
+          reason_codes: [
+            'REGULATORY_APPLICABILITY:HIPAA',
+            'REGULATORY_APPLICABILITY:PART2',
+          ],
+        },
+        retained: true,
+      }),
+    );
+    expect(preview.action_review.kind).toBe('runtime');
+    expect(preview.action_review.headline).toMatch(/summarize/i);
+    expect(preview.action_review.decision.status).toBe('REVIEW REQUIRED');
+  });
+
+  it('reconstructs request identity when held request is missing', () => {
+    const preview = projectHeldRequestPreview(
+      reviewWithHold({ held_request: undefined }),
+    );
+    expect(preview.retained).toBe(false);
+    expect(preview.messages).toEqual([]);
+    expect(preview.operation).toBe('summarize');
+    expect(preview.classification.sensitivity).toBe('PHI');
+    expect(preview.action_review).toBeDefined();
+  });
+});
 
 describe('Post-AUTHORIZE request resume', () => {
   it('AUTHORIZE permits resume; machine stays REVIEW; final ALLOW', () => {

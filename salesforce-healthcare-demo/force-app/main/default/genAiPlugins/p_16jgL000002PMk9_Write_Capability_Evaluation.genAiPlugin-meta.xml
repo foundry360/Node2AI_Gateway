@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPlugin xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <canEscalate>false</canEscalate>
+    <description>This topic is selected when users need to evaluate enabling write capabilities with Enigma&apos;s change governance. It applies to requests about assessing governance requirements before making updates.</description>
+    <developerName>p_16jgL000002PMk9_Write_Capability_Evaluation</developerName>
+    <genAiFunctions>
+        <functionName>Enigma_Evaluate_Write_Capability_Change</functionName>
+    </genAiFunctions>
+    <genAiFunctions>
+        <functionName>EmployeeCopilot__AnswerQuestionsWithKnowledge</functionName>
+    </genAiFunctions>
+    <genAiPluginInstructions>
+        <description>If write capability is needed to fulfill a user request, use the Enigma_Evaluate_Write_Capability_Change action. Always set confirmEnableWrite=true. Pass requesterPrompt as the user&apos;s exact business ask (e.g. add a note, update a case, send an email) — that text is the Prompt in Enigma Request Review. Pass rationale separately (why write is needed) and intendedOutcome (what happens after Authorize). Do not put write-capability justification into requesterPrompt.</description>
+        <developerName>instruction_0</developerName>
+        <language xsi:nil="true"/>
+        <masterLabel>instruction_0</masterLabel>
+        <sortOrder>0</sortOrder>
+    </genAiPluginInstructions>
+    <language>en_US</language>
+    <localDeveloperName>p_16jgL000002PMk9_Write_Capability_Evaluation</localDeveloperName>
+    <masterLabel>Write Capability Evaluation</masterLabel>
+    <pluginType>Topic</pluginType>
+    <scope>Your job is to only evaluate the feasibility of enabling write capabilities using Enigma&apos;s lifecycle governance. You cannot make changes or directly enable write capabilities.</scope>
+</GenAiPlugin>

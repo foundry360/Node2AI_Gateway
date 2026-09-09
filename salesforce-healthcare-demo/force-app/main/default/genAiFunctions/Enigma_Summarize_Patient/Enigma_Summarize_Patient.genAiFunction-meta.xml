@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiFunction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Summarize a Patient chart through Enigma Gateway (read path).</description>
+    <invocationTarget>EnigmaAgentSummarizeAction</invocationTarget>
+    <invocationTargetType>apex</invocationTargetType>
+    <isConfirmationRequired>false</isConfirmationRequired>
+    <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+    <masterLabel>Enigma Summarize Patient</masterLabel>
+    <progressIndicatorMessage>Summarizing patient via Enigma…</progressIndicatorMessage>
+</GenAiFunction>

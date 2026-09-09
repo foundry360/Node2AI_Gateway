@@ -1,34 +1,39 @@
 # Salesforce Healthcare Demo → Enigma
 
-Small Patient app in Salesforce that sends clinical notes to Enigma Gateway for a governed summary.
+Small Patient app in Salesforce that sends clinical notes to Enigma Gateway for a governed summary, plus an **Enigma Agent Console** for Agentforce write-capability change governance.
 
 ## Architecture
 
 ```text
 Patient record (Clinical Notes)
   → LWC "Summarize"
-  → Apex EnigmaGatewayService
-  → HTTPS POST /v1/ai/completions
-  → Enigma Gateway (policy → model → proof)
-  → Summary written to Patient.Enigma_Summary__c
+    → Apex EnigmaGatewayService
+    → HTTPS POST /v1/ai/completions
+  → Enigma Gateway (policy → TOKENIZE if authorized → model → output governance → proof)
+
+Agent Console / Agentforce
+  → Enable write capability
+    → HTTPS POST /v1/admin/governance/changes/evaluate
+    → Enigma change governance (WRITE_CAPABILITY → CRITICAL → MANDATORY_REVIEW)
+  → Invocable summarize / update clinical notes
 ```
+
+Salesforce supplies **generic** purpose / governance context. It does **not** encode HIPAA policy.
 
 ## Prerequisites
 
 1. Enigma Gateway listening on `:8080`
 2. Public HTTPS tunnel to `:8080` (Salesforce cannot call `localhost`)
-   - Demo tunnel used at deploy time: `https://9a163dd5e5a892.lhr.life` (localhost.run SSH; dies when that session ends)
 3. Org authenticated (`cred-poc` or your Dev Hub/DE)
+4. Enigma Config **Admin API Key** set to `GATEWAY_ADMIN_API_KEY` (change-governance routes)
 
 ## Deployed to `cred-poc`
 
-- App: **Enigma Healthcare Demo**
+- App: **Enigma Healthcare Demo** (patients + Scenario Console)
+- App: **Enigma Agent Console** (write-capability change lab)
 - Object: **Patient** (`Patient__c`) + sample **Charles Greene**
-- LWC: **Patient Enigma Summary** (on `Patient_Record_Page`)
-- Config: Custom Setting **Enigma Config** (org defaults seeded)
+- Config: Custom Setting **Enigma Config**
 - Remote Site: **Enigma_Gateway_Tunnel**
-
-If the Lightning record page does not show the LWC yet: Edit Page → add **Patient Enigma Summary** → Save → Activate as org default.
 
 ## Deploy
 
@@ -38,38 +43,46 @@ sf project deploy start -o cred-poc
 sf org assign permset -n Enigma_Healthcare_Demo -o cred-poc
 ```
 
-Update Remote Site + Custom Setting if the tunnel URL changes:
-
-1. Setup → Remote Site Settings → `Enigma_Gateway_Tunnel`
-2. Setup → Custom Settings → Enigma Config → Manage → Default Organization Level Value
-
-Or edit `scripts/apex/seed.apex` and run:
-
-```bash
-sf apex run -f scripts/apex/seed.apex -o cred-poc
-```
+Update Remote Site + Custom Setting when the tunnel URL changes (see `scripts/apex/update-tunnel-endpoint.apex`).
 
 ## Enigma Config fields
 
 | Field | Example |
 |-------|---------|
 | Endpoint URL | `https://your-tunnel.example` |
-| Application Id | `app_clinical` (or your Enigma app id) |
-| API Key | Enigma app API key (not the model key) |
+| Application Id | `app_clinical` |
+| API Key | App completions key (`n2ai_test_key_approved_app`) |
+| Admin API Key | Gateway admin key (`GATEWAY_ADMIN_API_KEY`) |
 | Default Model | `local-general-v1` or `cloud-public-gpt` |
 
-Model/provider keys stay in Enigma Admin — not in Salesforce.
+## Scenario Console
 
-## Patient chart model
+**Enigma Healthcare Demo → Scenario Console** — completions policy presets only (clean allow, PII tokenize, PHI paths, unauthorized model). Unchanged by the agent work.
 
-- **Patient__c** — demographics, MRN, insurance, allergies, PCP, vitals, clinical notes
-- **Condition__c** — related problems with ICD-10 + status
-- **Prescription__c** — medications with dose/frequency/route/status
+## Enigma Agent Console
 
-Sample patient: **Charles Greene** (`MRN-10042`) with diabetes, hypertension, allergies, and active meds.
+Dedicated Lightning app for Pack #15 **write-capability** demo:
 
-Enigma summarize sends the full chart (demographics + conditions + prescriptions + notes).
+1. Open **Enigma Agent Console** (App Launcher).
+2. Confirm baseline `agent_enigma_clinical` shows `write_capability=false`.
+3. Click **Enable write capability** → expect `CRITICAL` / `MANDATORY_REVIEW` / policy `REVIEW`.
+4. Optionally **Summarize via Enigma** (read path) or **Update clinical notes** after the change evaluation (SF demo gate).
 
-## Agentforce (next)
+Invocable Apex for Agentforce:
 
-Wrap `EnigmaSummarizeController.summarizePatient` as a custom agent action once the LWC path works.
+- `Enigma Summarize Patient`
+- `Enigma Update Clinical Notes`
+- `Enigma Evaluate Write Capability Change`
+
+### Agentforce Service Agent
+
+**Enigma Service Agent** (`Enigma_Service_Agent_v2`) is created and activated in `cred-poc` with the three GenAiFunctions bound to topics.
+
+```bash
+sf org open agent --api-name Enigma_Service_Agent_v2 -o cred-poc
+sf agent preview --api-name Enigma_Service_Agent_v2 --use-live-actions -o cred-poc
+```
+
+See [`agentforce/README.md`](agentforce/README.md) and [`agentforce/enigmaServiceAgent.spec.yaml`](agentforce/enigmaServiceAgent.spec.yaml).
+
+The write-capability CRITICAL path also works via **Enigma Agent Console** without chat.

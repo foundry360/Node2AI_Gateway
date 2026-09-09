@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPlugin xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <canEscalate>false</canEscalate>
+    <description>This topic is selected when users need to summarize a patient chart using Enigma. It applies to requests focused on extracting key details from patient records for review or reporting.</description>
+    <developerName>p_16jgL000002PMk9_Patient_Chart_Summarization</developerName>
+    <genAiFunctions>
+        <functionName>Enigma_Summarize_Patient</functionName>
+    </genAiFunctions>
+    <genAiFunctions>
+        <functionName>EmployeeCopilot__AnswerQuestionsWithKnowledge</functionName>
+    </genAiFunctions>
+    <genAiPluginInstructions>
+        <description>If the user requests a summary of a patient chart, use the Enigma_Summarize_Patient action.</description>
+        <developerName>instruction_0</developerName>
+        <language xsi:nil="true"/>
+        <masterLabel>instruction_0</masterLabel>
+        <sortOrder>0</sortOrder>
+    </genAiPluginInstructions>
+    <language>en_US</language>
+    <localDeveloperName>p_16jgL000002PMk9_Patient_Chart_Summarization</localDeveloperName>
+    <masterLabel>Patient Chart Summarization</masterLabel>
+    <pluginType>Topic</pluginType>
+    <scope>Your job is to only summarize patient charts by extracting relevant details through Enigma&apos;s read path. You cannot modify, append, or update patient records.</scope>
+</GenAiPlugin>

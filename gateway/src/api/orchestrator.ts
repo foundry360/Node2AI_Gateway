@@ -33,6 +33,19 @@ export interface CompletionSuccess {
     event_hash: string;
     prev_event_hash: string;
   };
+  /**
+   * Optional enforcement visibility for clients (e.g. scenario labs).
+   * Does not change the authoritative decision; surfaces transform evidence.
+   */
+  governance?: {
+    policy_decision: string;
+    input_transformation: string;
+    response_transformation: string;
+    /** Prompt corpus after TOKENIZE (what the model received). */
+    tokenized_input?: string;
+    /** Model/output text still carrying tokens before authorized detokenize. */
+    tokenized_output?: string;
+  };
 }
 
 export interface CompletionBlocked {
@@ -41,6 +54,16 @@ export interface CompletionBlocked {
   status: 'blocked';
   reason_code: string;
   message: string;
+  /**
+   * Present when input governance ran (e.g. TOKENIZE) but output release was blocked.
+   * Lets clients show that the controlled path partially succeeded.
+   */
+  governance?: {
+    policy_decision: string;
+    input_transformation: string;
+    response_decision: 'BLOCK';
+    tokenized_input?: string;
+  };
 }
 
 export type CompletionResult =
@@ -434,6 +457,11 @@ export class GatewayOrchestrator {
         );
       }
 
+      const tokenizedInput =
+        inputTransformation === 'tokenize' && messagesForModel[0]?.content
+          ? messagesForModel[0].content
+          : undefined;
+
       if (responsePolicy.decision === 'BLOCK') {
         await this.writeAudit({
           ...auditBase(),
@@ -462,6 +490,12 @@ export class GatewayOrchestrator {
             status: 'blocked',
             reason_code: responsePolicy.reason_codes[0] ?? 'POLICY_BLOCKED',
             message: 'Request blocked by policy.',
+            governance: {
+              policy_decision: policyResult.decision,
+              input_transformation: inputTransformation,
+              response_decision: 'BLOCK',
+              ...(tokenizedInput ? { tokenized_input: tokenizedInput } : {}),
+            },
           },
         };
       }
@@ -501,6 +535,12 @@ export class GatewayOrchestrator {
           );
         }
       }
+
+      // Snapshot token-bearing output before authorized detokenization.
+      const tokenizedOutput =
+        inputTransformation === 'tokenize' || /\{\{TOK_/.test(responseContent)
+          ? responseContent
+          : undefined;
 
       // Authorized detokenization ONLY when response policy explicitly allows it.
       if (responsePolicy.authorize_detokenization) {
@@ -585,6 +625,13 @@ export class GatewayOrchestrator {
             response_hash: audited.event?.response_hash ?? '',
             event_hash: audited.event?.event_hash ?? '',
             prev_event_hash: audited.event?.prev_event_hash ?? '',
+          },
+          governance: {
+            policy_decision: policyResult.decision,
+            input_transformation: inputTransformation,
+            response_transformation: responseTransformation,
+            ...(tokenizedInput ? { tokenized_input: tokenizedInput } : {}),
+            ...(tokenizedOutput ? { tokenized_output: tokenizedOutput } : {}),
           },
         },
       };
@@ -837,6 +884,10 @@ export class GatewayOrchestrator {
 
       let responseContent = execution.message.content;
       let responseTransformation = 'none';
+      let tokenizedInput: string | undefined;
+      if (inputTransformation === 'tokenize' && messagesForModel[0]?.content) {
+        tokenizedInput = messagesForModel[0].content;
+      }
       if (
         responsePolicy.decision === 'REDACT' ||
         responsePolicy.decision === 'TRANSFORM'
@@ -845,6 +896,11 @@ export class GatewayOrchestrator {
         // mirror completions() for detokenize authorization below.
         responseTransformation = String(responsePolicy.decision).toLowerCase();
       }
+
+      const tokenizedOutput =
+        inputTransformation === 'tokenize' || /\{\{TOK_/.test(responseContent)
+          ? responseContent
+          : undefined;
 
       if (responsePolicy.authorize_detokenization) {
         try {
@@ -931,6 +987,13 @@ export class GatewayOrchestrator {
             response_hash: audited.event?.response_hash ?? '',
             event_hash: audited.event?.event_hash ?? '',
             prev_event_hash: audited.event?.prev_event_hash ?? '',
+          },
+          governance: {
+            policy_decision: 'ALLOW',
+            input_transformation: inputTransformation,
+            response_transformation: responseTransformation,
+            ...(tokenizedInput ? { tokenized_input: tokenizedInput } : {}),
+            ...(tokenizedOutput ? { tokenized_output: tokenizedOutput } : {}),
           },
         },
         audit_id: audited.event?.audit_id,

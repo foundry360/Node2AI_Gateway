@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Admin_Api_Key__c</fullName>
+    <description>Enigma Gateway admin API key for change-governance baselines/evaluate (not the app completions key).</description>
+    <label>Admin API Key</label>
+    <length>255</length>
+    <required>false</required>
+    <type>Text</type>
+</CustomField>

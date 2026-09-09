@@ -1,0 +1,178 @@
+<template>
+  <lightning-card title="Enigma Agent Console" icon-name="standard:bot">
+    <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+      <p class="slds-text-body_small slds-m-bottom_medium">
+        Demonstrate Agentforce write-capability change with Enigma lifecycle
+        governance. Baseline starts write=false; enabling write should return
+        CRITICAL / MANDATORY_REVIEW.
+      </p>
+
+      <template lwc:if={loading}>
+        <p class="slds-text-color_weak">Loading agent baseline…</p>
+      </template>
+      <template lwc:elseif={loadError}>
+        <div class="slds-text-color_error slds-m-bottom_small">{loadError}</div>
+        <p class="slds-text-body_small slds-text-color_weak">
+          Confirm Gateway is reachable, Admin API Key is set on Enigma Config,
+          and the tunnel Remote Site matches.
+        </p>
+      </template>
+
+      <div class="slds-grid slds-wrap slds-gutters">
+        <div class="slds-col slds-size_1-of-1 slds-large-size_7-of-12">
+          <div class="panel slds-m-bottom_medium">
+            <h3 class="slds-text-heading_small slds-m-bottom_small">
+              Governance baseline
+            </h3>
+            <div class="slds-grid slds-wrap slds-gutters_small">
+              <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                <p class="slds-text-title_caps slds-m-bottom_xx-small">Target</p>
+                <p class="slds-text-body_small"><code>{agentTargetId}</code></p>
+              </div>
+              <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                <p class="slds-text-title_caps slds-m-bottom_xx-small">
+                  write_capability
+                </p>
+                <p class="slds-text-body_small">{writeCapabilityLabel}</p>
+              </div>
+              <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                <p class="slds-text-title_caps slds-m-bottom_xx-small">
+                  Baseline id
+                </p>
+                <p class="slds-text-body_small"><code>{baselineId}</code></p>
+              </div>
+            </div>
+            <lightning-textarea
+              label="What did the user ask the agent to do?"
+              value={userRequest}
+              onchange={handleUserRequestChange}
+              disabled={busy}
+              class="slds-m-top_small"
+              placeholder="Example: Add a follow-up note to the patient chart about improved diet compliance."
+            ></lightning-textarea>
+            <p class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">
+              This is the Prompt reviewers see in Enigma — the user’s ask, not
+              why write should be enabled.
+            </p>
+            <lightning-button
+              variant="brand"
+              label="Enable write capability"
+              onclick={handleEnableWrite}
+              disabled={busy}
+              class="slds-m-top_x-small"
+            ></lightning-button>
+          </div>
+
+          <div class="panel slds-m-bottom_medium">
+            <h3 class="slds-text-heading_small slds-m-bottom_small">
+              Patient actions
+            </h3>
+            <lightning-combobox
+              name="patient"
+              label="Patient"
+              value={selectedPatientId}
+              options={patientOptions}
+              onchange={handlePatientChange}
+              class="slds-m-bottom_small"
+            ></lightning-combobox>
+            <div class="slds-m-bottom_small">
+              <lightning-button
+                variant="neutral"
+                label="Summarize via Enigma"
+                onclick={handleSummarize}
+                disabled={busy}
+                class="slds-m-right_x-small"
+              ></lightning-button>
+            </div>
+            <lightning-textarea
+              label="Append clinical note (write path)"
+              value={noteText}
+              onchange={handleNoteChange}
+              disabled={busy}
+            ></lightning-textarea>
+            <lightning-button
+              variant="brand-outline"
+              label="Update clinical notes"
+              onclick={handleUpdateNotes}
+              disabled={notesDisabled}
+              class="slds-m-top_x-small"
+              title="Requires a prior Enable write capability evaluation"
+            ></lightning-button>
+            <template lwc:if={canUpdateNotes}>
+              <p class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">
+                Write gate unlocked for this session after change evaluation.
+              </p>
+            </template>
+            <template lwc:else>
+              <p class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">
+                Run Enable write capability first (demo gate).
+              </p>
+            </template>
+          </div>
+        </div>
+
+        <div class="slds-col slds-size_1-of-1 slds-large-size_5-of-12">
+          <div class="slds-box slds-theme_default results-panel">
+            <h3 class="slds-text-heading_small slds-m-bottom_small">Last result</h3>
+            <template lwc:if={busy}>
+              <p class="slds-text-color_weak">Calling Enigma…</p>
+            </template>
+            <template lwc:elseif={result}>
+              <div class={resultBannerClass}>
+                <strong>{resultMatchLabel}</strong>
+                <div>{result.title}</div>
+              </div>
+              <div class="slds-grid slds-wrap slds-gutters_small">
+                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                  <p class="slds-text-title_caps slds-m-bottom_xx-small">Status</p>
+                  <p class="slds-text-body_small">{result.status}</p>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                  <p class="slds-text-title_caps slds-m-bottom_xx-small">
+                    Materiality
+                  </p>
+                  <p class="slds-text-body_small">{result.materiality}</p>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                  <p class="slds-text-title_caps slds-m-bottom_xx-small">
+                    Lifecycle
+                  </p>
+                  <p class="slds-text-body_small">{result.lifecycleDecision}</p>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                  <p class="slds-text-title_caps slds-m-bottom-xx-small">Policy</p>
+                  <p class="slds-text-body_small">{result.policyDecision}</p>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                  <p class="slds-text-title_caps slds-m-bottom_xx-small">
+                    Change types
+                  </p>
+                  <p class="slds-text-body_small">{result.changeTypes}</p>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                  <p class="slds-text-title_caps slds-m-bottom-xx-small">
+                    Evaluation id
+                  </p>
+                  <p class="slds-text-body_small"><code>{result.evaluationId}</code></p>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                  <p class="slds-text-title_caps slds-m-bottom-xx-small">
+                    Request id
+                  </p>
+                  <p class="slds-text-body_small"><code>{result.requestId}</code></p>
+                </div>
+                <div class="slds-col slds-size_1-of-1">
+                  <p class="slds-text-title_caps slds-m-bottom_xx-small">Message</p>
+                  <p class="slds-text-body_small">{result.message}</p>
+                </div>
+              </div>
+            </template>
+            <template lwc:else>
+              <p class="slds-text-color_weak">No result yet.</p>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+  </lightning-card>
+</template>

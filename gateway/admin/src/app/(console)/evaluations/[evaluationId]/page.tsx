@@ -3,8 +3,17 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DecisionExplanationView } from '@/components/DecisionExplanationView';
 import { DecisionConsequencePanel } from '@/components/DecisionConsequencePanel';
-import { DecisionReviewPanel } from '@/components/DecisionReviewPanel';
+import { DecisionDetailTabs } from '@/components/DecisionDetailTabs';
+import {
+  DecisionReviewHeaderActions,
+  DecisionReviewPanel,
+  DecisionReviewProvider,
+} from '@/components/DecisionReviewPanel';
 import { DecisionRequestContextPanel } from '@/components/DecisionRequestContextPanel';
+import {
+  DecisionRequestPreviewPanel,
+  type HeldRequestPreview,
+} from '@/components/DecisionRequestPreviewPanel';
 import { formatDisplayDateTime } from '@/lib/display-datetime';
 import { formatFieldLabel } from '@/lib/field-label';
 import type { DecisionExplanationPayload } from '@/lib/decision-explanation';
@@ -83,6 +92,7 @@ type EvaluationDetailResponse = {
   consequence?: Consequence;
   enforcement?: Enforcement;
   request_context?: RequestContext;
+  held_request_preview?: HeldRequestPreview | null;
   execution?: {
     mode?: 'simulation' | 'live';
     phase?: string;
@@ -127,6 +137,7 @@ export default async function EvaluationDetailPage({
   const enforcement = data?.enforcement;
   const review = data?.review;
   const requestContext = data?.request_context;
+  const heldRequestPreview = data?.held_request_preview ?? null;
   const execution = data?.execution;
   const showReview =
     review?.review_state === 'pending' ||
@@ -147,8 +158,9 @@ export default async function EvaluationDetailPage({
     requestContext?.execution_mode === 'simulation' ? 'Simulation' : 'Live';
   const phaseLabel = formatFieldLabel(record?.phase ?? requestContext?.phase) || '-';
   const recordedAt = formatDisplayDateTime(record?.created_at ?? null);
+  const resolutionCategory = decision?.explanation?.resolution?.category;
 
-  return (
+  const page = (
     <div className="stack">
       <Breadcrumbs
         items={[
@@ -165,6 +177,7 @@ export default async function EvaluationDetailPage({
               <StatusBadge variant="badge" status={finalDecision} />
             </div>
           </div>
+          {showReview ? <DecisionReviewHeaderActions /> : null}
         </div>
 
         {record ? (
@@ -237,7 +250,9 @@ export default async function EvaluationDetailPage({
               <div className="meridian-attr">
                 <span className="meridian-attr-label">Source</span>
                 <span className="meridian-attr-value">
-                  {data?.source === 'policy_evaluations' ? 'EPA' : capitalize(data?.source ?? '-')}
+                  {data?.source === 'policy_evaluations'
+                    ? 'EPA'
+                    : capitalize(data?.source ?? '-')}
                 </span>
               </div>
             </div>
@@ -247,45 +262,88 @@ export default async function EvaluationDetailPage({
 
       {error ? <div className="error">{error}</div> : null}
 
-      <div className="decision-detail-stack">
-        <DecisionRequestContextPanel
-          context={requestContext}
-          executionSummary={execution?.summary}
-        />
-
-        {decision ? <DecisionExplanationView decision={decision} /> : null}
-
-        {showReview ? (
-          <DecisionReviewPanel
-            evaluationId={evaluationId}
-            review={review}
-            decision={decision?.decision ?? record?.decision}
-            resolutionCategory={decision?.explanation?.resolution?.category}
-            contributingPacks={
-              decision?.explanation?.resolution?.contributing_pack_ids ??
-              decision?.explanation?.operator?.contributing_pack_ids
-            }
-            conflictDetail={
-              decision?.explanation?.resolution?.detail ??
-              decision?.explanation?.operator?.conflict_detail
-            }
-            execution={execution?.resume}
-            heldRequestPresent={execution?.held_request_present}
+      <DecisionDetailTabs
+        showPreview
+        showContext={Boolean(requestContext)}
+        showPolicy={Boolean(decision || consequence)}
+        showReview={showReview}
+        defaultTab={
+          decision || consequence
+            ? 'policy'
+            : review?.review_state === 'pending'
+              ? 'preview'
+              : 'policy'
+        }
+        preview={<DecisionRequestPreviewPanel preview={heldRequestPreview} />}
+        context={
+          <DecisionRequestContextPanel
+            context={requestContext}
+            executionSummary={execution?.summary}
           />
-        ) : null}
-
-        {consequence ? (
-          <DecisionConsequencePanel
-            decision={decision?.decision ?? record?.decision}
-            finalDecision={review?.final_decision ?? undefined}
-            humanDisposition={review?.human_resolution?.human_disposition}
-            consequence={consequence}
-            enforcement={enforcement}
-            requiredControls={requiredControls}
-            executionMode={requestContext?.execution_mode ?? execution?.mode}
-          />
-        ) : null}
-      </div>
+        }
+        policy={
+          decision ? (
+            <DecisionExplanationView
+              decision={decision}
+              afterTop={
+                consequence ? (
+                  <DecisionConsequencePanel
+                    decision={decision?.decision ?? record?.decision}
+                    finalDecision={review?.final_decision ?? undefined}
+                    humanDisposition={
+                      review?.human_resolution?.human_disposition
+                    }
+                    consequence={consequence}
+                    enforcement={enforcement}
+                    requiredControls={requiredControls}
+                    executionMode={
+                      requestContext?.execution_mode ?? execution?.mode
+                    }
+                  />
+                ) : undefined
+              }
+            />
+          ) : consequence ? (
+            <DecisionConsequencePanel
+              decision={record?.decision}
+              finalDecision={review?.final_decision ?? undefined}
+              humanDisposition={review?.human_resolution?.human_disposition}
+              consequence={consequence}
+              enforcement={enforcement}
+              requiredControls={requiredControls}
+              executionMode={requestContext?.execution_mode ?? execution?.mode}
+            />
+          ) : null
+        }
+        review={
+          showReview ? (
+            <DecisionReviewPanel
+              review={review}
+              decision={decision?.decision ?? record?.decision}
+              resolutionCategory={resolutionCategory}
+              contributingPacks={
+                decision?.explanation?.resolution?.contributing_pack_ids ??
+                decision?.explanation?.operator?.contributing_pack_ids
+              }
+              execution={execution?.resume}
+              heldRequestPresent={execution?.held_request_present}
+            />
+          ) : null
+        }
+      />
     </div>
+  );
+
+  if (!showReview) return page;
+
+  return (
+    <DecisionReviewProvider
+      evaluationId={evaluationId}
+      review={review}
+      decision={decision?.decision ?? record?.decision}
+      resolutionCategory={resolutionCategory}
+    >
+      {page}
+    </DecisionReviewProvider>
   );
 }

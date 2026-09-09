@@ -48,6 +48,31 @@ import { filterEventsByDays, parseDaysQuery } from '../admin/time-window.js';
 import type { GatewayConfig } from '../shared/config.js';
 import type { DatabaseHealth } from '../shared/db-health.js';
 import type { PgQueryable } from '../shared/pg.js';
+import type { InMemoryChangeGovernanceRepository } from '../policy/enterprise/change-governance/repository.js';
+import {
+  createGovernanceBaseline,
+  evaluateGovernanceChange,
+} from '../policy/enterprise/change-governance/index.js';
+import type { GovernanceBaselineTargetType } from '../policy/enterprise/change-governance/types.js';
+import {
+  authenticateAdmin,
+  filterByOrganization,
+  publicAdminUser,
+  requireCapability,
+  requireOrganizationScope,
+  type AdminPrincipal,
+  type AdminUserStore,
+  hashAdminPassword,
+  verifyAdminPassword,
+  issueAdminSessionToken,
+} from '../admin/authz.js';
+import { recordAdminAudit } from '../admin/admin-audit.js';
+import type { AdminCapability } from '../admin/roles.js';
+import { parseAdminRole } from '../admin/roles.js';
+
+
+/** Demo clinical application target — seeded write_capability:false baseline. */
+export const AGENT_ENIGMA_CLINICAL_TARGET_ID = 'agent_enigma_clinical';
 
 /** Insights: keep LLM responses short and abandon slow CPU inference. */
 const INSIGHT_LLM_TIMEOUT_MS = 20_000;
@@ -101,6 +126,10 @@ export interface AdminContext {
   localRuntime?: LocalModelRuntime;
   /** Customer BYOK model provider credentials (per application). */
   providerCredentials?: ProviderCredentialStore;
+  /** Pack #15 change governance (lifecycle ≠ policy authority). */
+  changeGovernance?: InMemoryChangeGovernanceRepository;
+  /** Console admin users (V1 RBAC). */
+  adminUsers?: AdminUserStore;
 }
 
 function extractBearer(header: string | undefined): string | undefined {
@@ -200,28 +229,47 @@ export function registerAdminRoutes(
   app: FastifyInstance,
   ctx: AdminContext,
 ): void {
-  const requireAdmin = async (authorization: string | undefined) => {
-    const key = extractBearer(authorization);
-    if (!key || key !== ctx.config.adminApiKey) {
-      return false;
-    }
-    return true;
-  };
+  const defaultOrganizationId =
+    process.env.GATEWAY_DEFAULT_ORGANIZATION_ID ?? 'org_demo';
 
-  const requireApprover = async (authorization: string | undefined) => {
-    const key = extractBearer(authorization);
-    return !!key && key === ctx.config.policyApproverKey;
-  };
+  async function resolvePrincipal(
+    authorization: string | undefined,
+  ): Promise<AdminPrincipal | null> {
+    return authenticateAdmin({
+      config: ctx.config,
+      authorizationHeader: authorization,
+      adminUsers: ctx.adminUsers,
+      defaultOrganizationId,
+    });
+  }
 
-  const requireActivator = async (authorization: string | undefined) => {
-    const key = extractBearer(authorization);
-    return !!key && key === ctx.config.policyActivatorKey;
-  };
+  async function gate(
+    authorization: string | undefined,
+    capability: AdminCapability,
+  ): Promise<
+    | { ok: true; principal: AdminPrincipal }
+    | { ok: false; status: 401 | 403; reason: string }
+  > {
+    const principal = await resolvePrincipal(authorization);
+    return requireCapability(principal, capability);
+  }
+
+  const deny = (
+    reply: import('fastify').FastifyReply,
+    status: 401 | 403,
+    reason: string,
+  ) =>
+    reply.status(status).send({
+      status: status === 401 ? 'blocked' : 'error',
+      reason_code: reason,
+    });
 
   app.get('/v1/admin/overview', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
 
     const days = parseDaysQuery(request.query);
     const [events, applications, users, policies] = await Promise.all([
@@ -288,11 +336,16 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/applications', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     try {
-      const applications = await ctx.identityStore.listApplications();
+      const applications = filterByOrganization(
+        principal,
+        await ctx.identityStore.listApplications(),
+      );
       return {
         applications: applications.map((a) => ({
           application_id: a.application_id,
@@ -325,9 +378,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/applications/:applicationId/activity', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const { applicationId } = request.params as { applicationId: string };
     const appRecord = await ctx.identityStore.getApplication(applicationId);
     if (!appRecord) {
@@ -353,9 +408,11 @@ export function registerAdminRoutes(
 
   /** Org-wide rolling activity (all applications) for Authority Console sparklines. */
   app.get('/v1/admin/activity', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const hours = 24;
     const now = Date.now();
     const windowStart = now - hours * 60 * 60 * 1000;
@@ -372,9 +429,11 @@ export function registerAdminRoutes(
   });
 
   app.post('/v1/admin/applications', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const body = (request.body ?? {}) as Record<string, unknown>;
     if (body.type !== undefined && !isApplicationType(body.type)) {
       return reply.status(400).send({
@@ -382,9 +441,7 @@ export function registerAdminRoutes(
         message: 'type must be one of: clinical, financial, customer, internal, custom',
       });
     }
-    const orgs = await ctx.identityStore.listOrganizations();
-    const organization_id =
-      String(body.organization_id ?? '') || orgs[0]?.organization_id || 'org_demo';
+    const organization_id = principal.organization_id;
     const application_id =
       String(body.application_id ?? '') || `app_${randomBytes(4).toString('hex')}`;
     const appRecord: Application = {
@@ -420,7 +477,33 @@ export function registerAdminRoutes(
           model_map: parseModelMapField(body.provider_model_map),
         });
       }
-      return reply.status(201).send({ application: created, provider_credential });
+      await recordAdminAudit(ctx.audit, {
+        principal,
+        action: 'application_created',
+        target_type: 'application',
+        target_id: created.application_id,
+        after: {
+          application_id: created.application_id,
+          organization_id: created.organization_id,
+          name: created.name,
+          type: created.type,
+        },
+      });
+      return reply.status(201).send({
+        application: created,
+        provider_credential: provider_credential
+          ? {
+              application_id: provider_credential.application_id,
+              organization_id: provider_credential.organization_id,
+              provider_kind: provider_credential.provider_kind,
+              endpoint_url: provider_credential.endpoint_url,
+              api_key_last4: provider_credential.api_key_last4,
+              model_map: provider_credential.model_map,
+              status: provider_credential.status,
+              updated_at: provider_credential.updated_at,
+            }
+          : null,
+      });
     } catch (err) {
       return reply.status(400).send({
         status: 'error',
@@ -430,9 +513,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/applications/:applicationId/provider-credential', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (!ctx.providerCredentials) {
       return reply.status(503).send({
         status: 'error',
@@ -440,24 +525,36 @@ export function registerAdminRoutes(
       });
     }
     const { applicationId } = request.params as { applicationId: string };
+    const appRow = await ctx.identityStore.getApplication(applicationId);
+    if (!appRow || !requireOrganizationScope(principal, appRow.organization_id)) {
+      return reply.status(404).send({ status: 'error', message: 'Not found' });
+    }
     const credential = await ctx.providerCredentials.getPublic(applicationId);
     if (!credential) {
       return { configured: false, provider_credential: null };
     }
-    const revealed = await ctx.providerCredentials.revealSecret(applicationId);
+    // Never return plaintext secrets after storage — metadata only.
     return {
       configured: true,
       provider_credential: {
-        ...credential,
-        ...(revealed ? { api_key: revealed.api_key } : {}),
+        application_id: credential.application_id,
+        organization_id: credential.organization_id,
+        provider_kind: credential.provider_kind,
+        endpoint_url: credential.endpoint_url,
+        api_key_last4: credential.api_key_last4,
+        model_map: credential.model_map,
+        status: credential.status,
+        updated_at: credential.updated_at,
       },
     };
   });
 
   app.put('/v1/admin/applications/:applicationId/provider-credential', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (!ctx.providerCredentials) {
       return reply.status(503).send({
         status: 'error',
@@ -500,9 +597,11 @@ export function registerAdminRoutes(
   app.delete(
     '/v1/admin/applications/:applicationId/provider-credential',
     async (request, reply) => {
-      if (!(await requireAdmin(request.headers.authorization))) {
-        return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+      const __gate = await gate(request.headers.authorization, 'admin_mutate');
+      if (!__gate.ok) {
+        return deny(reply, __gate.status, __gate.reason);
       }
+      const principal = __gate.principal;
       if (!ctx.providerCredentials) {
         return reply.status(503).send({
           status: 'error',
@@ -516,9 +615,11 @@ export function registerAdminRoutes(
   );
 
   app.patch('/v1/admin/applications/:applicationId', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const { applicationId } = request.params as { applicationId: string };
     const body = (request.body ?? {}) as Record<string, unknown>;
     if (body.type !== undefined && !isApplicationType(body.type)) {
@@ -561,9 +662,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/api-keys', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const q = request.query as { application_id?: string };
     const keys = await ctx.identityStore.listApiKeys(q.application_id);
     return {
@@ -578,9 +681,11 @@ export function registerAdminRoutes(
   });
 
   app.post('/v1/admin/api-keys', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const body = (request.body ?? {}) as Record<string, unknown>;
     const application_id = String(body.application_id ?? '');
     if (!application_id) {
@@ -607,9 +712,11 @@ export function registerAdminRoutes(
   });
 
   app.post('/v1/admin/api-keys/:apiKeyId/revoke', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const { apiKeyId } = request.params as { apiKeyId: string };
     try {
       const revoked = await ctx.identityStore.revokeApiKey(apiKeyId);
@@ -628,9 +735,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/policies', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const policies = await ctx.policyStore.listLatest();
     return {
       policies: policies.map((p) => ({
@@ -646,9 +755,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/policies/:policyId/evaluations', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const { policyId } = request.params as { policyId: string };
     if (!ctx.policyRepository?.listEvaluations) {
       return reply.status(503).send({
@@ -676,9 +787,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/evaluations', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (!ctx.policyRepository?.listEvaluations) {
       return reply.status(503).send({
         status: 'error',
@@ -753,9 +866,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/evaluations/:evaluationId', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (!ctx.policyRepository?.getEvaluation) {
       return reply.status(503).send({
         status: 'error',
@@ -769,8 +884,12 @@ export function registerAdminRoutes(
     if (!record) {
       return reply.status(404).send({ status: 'error', message: 'evaluation not found' });
     }
-    const { evaluationRecordToDecisionPayload, deriveDecisionConsequence, projectRequestContext } =
-      await import('../policy/enterprise/evaluation-query.js');
+    const {
+      evaluationRecordToDecisionPayload,
+      deriveDecisionConsequence,
+      projectRequestContext,
+      projectHeldRequestPreview,
+    } = await import('../policy/enterprise/evaluation-query.js');
     const { projectEnforcementResult, findAuditForEvaluation } = await import(
       '../policy/enterprise/enforcement-projection.js'
     );
@@ -797,6 +916,7 @@ export function registerAdminRoutes(
     const audit = findAuditForEvaluation(record, await ctx.audit.list());
     const enforcement = projectEnforcementResult(record, audit);
     const request_context = projectRequestContext(record);
+    const held_request_preview = projectHeldRequestPreview(record);
     return {
       source: 'policy_evaluations',
       evaluation: record,
@@ -804,6 +924,7 @@ export function registerAdminRoutes(
       consequence,
       enforcement,
       request_context,
+      held_request_preview,
       execution: {
         mode: request_context.execution_mode,
         phase: record.phase,
@@ -835,9 +956,11 @@ export function registerAdminRoutes(
   });
 
   app.post('/v1/admin/evaluations/:evaluationId/resolve', async (request, reply) => {
-    if (!(await requireApprover(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'governance_resolve');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (!ctx.policyRepository?.getEvaluation || !ctx.policyRepository.saveHumanResolution) {
       return reply.status(503).send({
         status: 'error',
@@ -971,9 +1094,11 @@ export function registerAdminRoutes(
   });
 
   app.post('/v1/admin/evaluations/:evaluationId/resume', async (request, reply) => {
-    if (!(await requireApprover(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'governance_resolve');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (
       !ctx.policyRepository?.getEvaluation ||
       !ctx.policyRepository.saveExecution ||
@@ -1094,9 +1219,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/policies/:policyId', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (!ctx.policyRepository) {
       return reply.status(503).send({
         status: 'error',
@@ -1161,9 +1288,11 @@ export function registerAdminRoutes(
   });
 
   app.patch('/v1/admin/policies/:policyId', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const { policyId } = request.params as { policyId: string };
     const body = (request.body ?? {}) as Record<string, unknown>;
     try {
@@ -1202,9 +1331,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/policy-packs', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (!ctx.policyRepository) {
       return reply.status(503).send({
         status: 'error',
@@ -1223,9 +1354,11 @@ export function registerAdminRoutes(
   });
 
   app.post('/v1/admin/policies/:policyId/validate', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (!ctx.policyRepository) {
       return reply.status(503).send({ status: 'error', message: 'EPA repository unavailable' });
     }
@@ -1240,9 +1373,11 @@ export function registerAdminRoutes(
   });
 
   app.post('/v1/admin/policies/:policyId/simulate', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (!ctx.packPdp) {
       return reply.status(503).send({ status: 'error', message: 'EPA PDP unavailable' });
     }
@@ -1256,9 +1391,11 @@ export function registerAdminRoutes(
   });
 
   app.post('/v1/admin/policy/simulate', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (!ctx.packPdp) {
       return reply.status(503).send({ status: 'error', message: 'EPA PDP unavailable' });
     }
@@ -1272,9 +1409,11 @@ export function registerAdminRoutes(
   });
 
   app.post('/v1/admin/policies/:policyId/approve', async (request, reply) => {
-    if (!(await requireApprover(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'governance_resolve');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (!ctx.policyRepository) {
       return reply.status(503).send({ status: 'error', message: 'EPA repository unavailable' });
     }
@@ -1310,9 +1449,11 @@ export function registerAdminRoutes(
   });
 
   app.post('/v1/admin/policies/:policyId/activate', async (request, reply) => {
-    if (!(await requireActivator(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (!ctx.policyRepository || !ctx.packPdp) {
       return reply.status(503).send({ status: 'error', message: 'EPA unavailable' });
     }
@@ -1391,9 +1532,11 @@ export function registerAdminRoutes(
   });
 
   app.post('/v1/admin/policies/:policyId/suspend', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (!ctx.policyRepository) {
       return reply.status(503).send({ status: 'error', message: 'EPA repository unavailable' });
     }
@@ -1425,9 +1568,11 @@ export function registerAdminRoutes(
   });
 
   app.post('/v1/admin/policies/:policyId/retire', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     if (!ctx.policyRepository) {
       return reply.status(503).send({ status: 'error', message: 'EPA repository unavailable' });
     }
@@ -1470,9 +1615,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/models', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     return {
       models: ctx.registry.listAll(),
       providers: ctx.providers.map((p) => ({
@@ -1483,9 +1630,11 @@ export function registerAdminRoutes(
   });
 
   app.post('/v1/admin/models', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const body = (request.body ?? {}) as Record<string, unknown>;
     const model: RegisteredModel = {
       model_id: String(body.model_id ?? `model_${randomBytes(4).toString('hex')}`),
@@ -1508,9 +1657,11 @@ export function registerAdminRoutes(
   });
 
   app.patch('/v1/admin/models/:modelId', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const { modelId } = request.params as { modelId: string };
     const body = (request.body ?? {}) as Record<string, unknown>;
     try {
@@ -1543,9 +1694,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/audit', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const days = parseDaysQuery(request.query);
     const events = filterEventsByDays(await ctx.audit.list(), days);
     const limit = Number((request.query as { limit?: string }).limit ?? 100);
@@ -1585,9 +1738,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/audit/integrity', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const audit = ctx.audit as IntegrityAuditService;
     if (typeof audit.verifyIntegrity !== 'function') {
       return reply.status(503).send({
@@ -1603,9 +1758,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/system', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
     const db = ctx.checkDatabase
       ? await ctx.checkDatabase()
       : { ok: false, detail: 'not_configured' };
@@ -1644,9 +1801,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/insights/action-items', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
 
     const days = parseDaysQuery(request.query);
     const [events, applications, policies] = await Promise.all([
@@ -1759,9 +1918,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/insights/risk-classification', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
 
     const days = parseDaysQuery(request.query);
     const [applications, events] = await Promise.all([
@@ -1875,9 +2036,11 @@ export function registerAdminRoutes(
   });
 
   app.get('/v1/admin/insights/compliance-score', async (request, reply) => {
-    if (!(await requireAdmin(request.headers.authorization))) {
-      return reply.status(401).send({ status: 'blocked', reason_code: 'UNAUTHENTICATED' });
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
     }
+    const principal = __gate.principal;
 
     const packs = ctx.policyRepository
       ? ctx.policyRepository.getSnapshot().packs.map((p) => ({
@@ -1970,5 +2133,493 @@ export function registerAdminRoutes(
       runtime: localRuntimeStatus,
       generated_at: new Date().toISOString(),
     };
+  });
+
+  // ── AI Lifecycle & Change Governance (Pack #15 control plane) ────────────
+
+  app.get('/v1/admin/governance/baselines', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const principal = __gate.principal;
+    if (!ctx.changeGovernance) {
+      return reply.status(503).send({
+        status: 'blocked',
+        reason_code: 'CHANGE_GOVERNANCE_UNAVAILABLE',
+      });
+    }
+    const q = request.query as {
+      target_id?: string;
+      target_type?: string;
+    };
+    const targetId = q.target_id?.trim();
+    if (!targetId) {
+      return reply.status(400).send({
+        status: 'blocked',
+        reason_code: 'VALIDATION_FAILED',
+        message: 'target_id is required',
+      });
+    }
+    const targetType = (q.target_type?.trim() ||
+      'application') as GovernanceBaselineTargetType;
+    const baseline = ctx.changeGovernance.latestBaseline(targetType, targetId);
+    if (!baseline) {
+      return reply.status(404).send({
+        status: 'blocked',
+        reason_code: 'BASELINE_NOT_FOUND',
+      });
+    }
+    return { baseline };
+  });
+
+  app.post('/v1/admin/governance/baselines', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const principal = __gate.principal;
+    if (!ctx.changeGovernance) {
+      return reply.status(503).send({
+        status: 'blocked',
+        reason_code: 'CHANGE_GOVERNANCE_UNAVAILABLE',
+      });
+    }
+    const body = (request.body ?? {}) as {
+      target_type?: string;
+      target_id?: string;
+      capabilities?: Record<string, unknown>;
+      configuration?: Record<string, unknown>;
+      organization_id?: string;
+    };
+    if (!body.target_id?.trim()) {
+      return reply.status(400).send({
+        status: 'blocked',
+        reason_code: 'VALIDATION_FAILED',
+        message: 'target_id is required',
+      });
+    }
+    const targetType = (body.target_type?.trim() ||
+      'application') as GovernanceBaselineTargetType;
+    const existing = ctx.changeGovernance.latestBaseline(
+      targetType,
+      body.target_id.trim(),
+    );
+    if (existing) {
+      return reply.status(409).send({
+        status: 'blocked',
+        reason_code: 'BASELINE_EXISTS',
+        baseline: existing,
+        message: 'Use change evaluate to evolve an existing baseline.',
+      });
+    }
+    const baseline = ctx.changeGovernance.saveBaseline(
+      createGovernanceBaseline({
+        target_type: targetType,
+        target_id: body.target_id.trim(),
+        organization_id: body.organization_id,
+        capabilities: (body.capabilities ?? {}) as import('../policy/enterprise/change-governance/types.js').GovernanceBaselineCapabilities,
+        configuration: body.configuration ?? {},
+      }),
+    );
+    return reply.status(201).send({ baseline });
+  });
+
+  app.post('/v1/admin/governance/changes/evaluate', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const principal = __gate.principal;
+    if (!ctx.changeGovernance || !ctx.packPdp || !ctx.policyRepository) {
+      return reply.status(503).send({
+        status: 'blocked',
+        reason_code: 'CHANGE_GOVERNANCE_UNAVAILABLE',
+      });
+    }
+    const body = (request.body ?? {}) as {
+      target_type?: string;
+      target_id?: string;
+      previous_baseline_id?: string;
+      proposed_state?: Record<string, unknown>;
+      request_id?: string;
+      correlation_id?: string;
+      actor?: string;
+      source?: string;
+      application_id?: string;
+      user_id?: string;
+      commit_baseline_on_hold?: boolean;
+      review_context?: {
+        title?: string;
+        summary?: string;
+        requester_prompt?: string;
+        rationale?: string;
+        agent_rationale?: string;
+        intended_outcome?: string;
+        conversation?: Array<{ role?: string; content?: string }>;
+      };
+    };
+    if (!body.target_id?.trim() || !body.proposed_state) {
+      return reply.status(400).send({
+        status: 'blocked',
+        reason_code: 'VALIDATION_FAILED',
+        message: 'target_id and proposed_state are required',
+      });
+    }
+    const targetType = (body.target_type?.trim() ||
+      'application') as GovernanceBaselineTargetType;
+    const targetId = body.target_id.trim();
+
+    const [applications, users] = await Promise.all([
+      ctx.identityStore.listApplications(),
+      ctx.identityStore.listUsers(),
+    ]);
+    const applicationId = body.application_id?.trim() || 'app_clinical';
+    const userId = body.user_id?.trim() || 'user_clinician';
+    const application =
+      applications.find((a) => a.application_id === applicationId) ?? applications[0];
+    const user = users.find((u) => u.user_id === userId) ?? users[0];
+    if (!application || !user) {
+      return reply.status(400).send({
+        status: 'blocked',
+        reason_code: 'IDENTITY_CONTEXT_MISSING',
+      });
+    }
+
+    const result = await evaluateGovernanceChange({
+      repository: ctx.changeGovernance,
+      policy_repository: ctx.policyRepository,
+      pdp: ctx.packPdp,
+      commit_baseline_on_hold: body.commit_baseline_on_hold === true,
+      policy_context: {
+        user,
+        application,
+        operation: 'summarize',
+        requestedModel: application.allowed_models[0] ?? 'local-general-v1',
+        availableModels: application.allowed_models,
+        regulatory_applicability: ['NIST_AI_RMF', 'HIPAA'],
+      },
+      input: {
+        target_type: targetType,
+        target_id: targetId,
+        previous_baseline_id: body.previous_baseline_id,
+        proposed_state: body.proposed_state,
+        request_id: body.request_id,
+        correlation_id: body.correlation_id,
+        actor: body.actor?.trim() || 'api',
+        source: body.source?.trim() || 'api',
+        ...(body.review_context
+          ? {
+              review_context: {
+                ...(body.review_context.title
+                  ? { title: String(body.review_context.title) }
+                  : {}),
+                ...(body.review_context.summary
+                  ? { summary: String(body.review_context.summary) }
+                  : {}),
+                ...(body.review_context.requester_prompt
+                  ? {
+                      requester_prompt: String(
+                        body.review_context.requester_prompt,
+                      ),
+                    }
+                  : {}),
+                ...((body.review_context.rationale ||
+                  body.review_context.agent_rationale) && {
+                  rationale: String(
+                    body.review_context.rationale ||
+                      body.review_context.agent_rationale,
+                  ),
+                }),
+                ...(body.review_context.intended_outcome
+                  ? {
+                      intended_outcome: String(
+                        body.review_context.intended_outcome,
+                      ),
+                    }
+                  : {}),
+                ...(Array.isArray(body.review_context.conversation)
+                  ? {
+                      conversation: body.review_context.conversation
+                        .filter((t) => t && t.content)
+                        .map((t) => ({
+                          role: String(t.role ?? 'user'),
+                          content: String(t.content),
+                        })),
+                    }
+                  : {}),
+              },
+            }
+          : {}),
+      },
+    });
+
+    return {
+      status: 'evaluated',
+      materiality: result.materiality,
+      lifecycle_decision: result.lifecycle_decision,
+      governance_impacts: result.governance_impacts,
+      materiality_reasons: result.materiality_reasons,
+      change_types: result.change.change_types,
+      change_id: result.change.change_id,
+      request_id: result.change.request_id,
+      evaluation_id: result.evaluation_id,
+      pdp_invoked: result.pdp_invoked,
+      previous_baseline: result.previous_baseline,
+      next_baseline: result.next_baseline,
+      policy_decision: result.policy_decision
+        ? {
+            decision: result.policy_decision.decision,
+            reason_codes: result.policy_decision.reason_codes,
+            evaluation_id: result.policy_decision.evaluation_id,
+            policy_ids:
+              (result.policy_decision as { policy_ids?: string[] }).policy_ids,
+          }
+        : undefined,
+    };
+  });
+
+  // --- V1 Administration: auth + user management ---
+
+  app.post('/v1/admin/auth/login', async (request, reply) => {
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const username = String(body.username ?? '').trim();
+    const password = String(body.password ?? '');
+    if (!username || !password) {
+      return reply.status(400).send({
+        status: 'error',
+        message: 'username and password are required',
+      });
+    }
+    if (!ctx.adminUsers) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Admin user store unavailable',
+      });
+    }
+    const user = await ctx.adminUsers.getByUsername(username);
+    if (!user || !verifyAdminPassword(password, user.password_hash)) {
+      return reply.status(401).send({
+        status: 'blocked',
+        reason_code: 'UNAUTHENTICATED',
+      });
+    }
+    if (user.status !== 'ACTIVE') {
+      return reply.status(403).send({
+        status: 'error',
+        reason_code: 'USER_DISABLED',
+      });
+    }
+    const principal = {
+      user_id: user.user_id,
+      name: user.username,
+      organization_id: user.organization_id,
+      role: user.role,
+      status: user.status,
+      auth_method: 'session' as const,
+    };
+    const token = await issueAdminSessionToken(principal, ctx.config);
+    return {
+      status: 'ok',
+      token,
+      user: publicAdminUser(user),
+    };
+  });
+
+  app.get('/v1/admin/me', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const principal = __gate.principal;
+    return {
+      user_id: principal.user_id,
+      name: principal.name,
+      organization_id: principal.organization_id,
+      role: principal.role,
+      status: principal.status,
+      auth_method: principal.auth_method,
+    };
+  });
+
+  app.get('/v1/admin/users', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const principal = __gate.principal;
+    if (!ctx.adminUsers) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Admin user store unavailable',
+      });
+    }
+    const users = await ctx.adminUsers.listByOrganization(
+      principal.organization_id,
+    );
+    return { users: users.map(publicAdminUser) };
+  });
+
+  app.post('/v1/admin/users', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const principal = __gate.principal;
+    if (!ctx.adminUsers) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Admin user store unavailable',
+      });
+    }
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const username = String(body.username ?? '').trim();
+    const password = String(body.password ?? '');
+    const role = parseAdminRole(body.role);
+    if (!username || !password || !role) {
+      return reply.status(400).send({
+        status: 'error',
+        message: 'username, password, and valid role are required',
+      });
+    }
+    // Organization is always derived from the authenticated administrator.
+    if (body.organization_id !== undefined) {
+      return reply.status(400).send({
+        status: 'error',
+        message: 'organization_id cannot be set by the client',
+      });
+    }
+    const existingUsername = await ctx.adminUsers.getByUsername(username);
+    if (existingUsername) {
+      return reply.status(409).send({
+        status: 'error',
+        message: 'username already exists',
+      });
+    }
+    const now = new Date().toISOString();
+    const created = await ctx.adminUsers.create({
+      user_id: `admin_${randomBytes(6).toString('hex')}`,
+      organization_id: principal.organization_id,
+      username,
+      password_hash: hashAdminPassword(password),
+      role,
+      status: 'ACTIVE',
+      created_at: now,
+      updated_at: now,
+    });
+    await recordAdminAudit(ctx.audit, {
+      principal,
+      action: 'user_created',
+      target_type: 'admin_user',
+      target_id: created.user_id,
+      after: publicAdminUser(created),
+    });
+    return reply.status(201).send({ user: publicAdminUser(created) });
+  });
+
+  app.patch('/v1/admin/users/:userId', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const principal = __gate.principal;
+    if (!ctx.adminUsers) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Admin user store unavailable',
+      });
+    }
+    const { userId } = request.params as { userId: string };
+    const existing = await ctx.adminUsers.getById(userId);
+    if (
+      !existing ||
+      !requireOrganizationScope(principal, existing.organization_id)
+    ) {
+      return reply.status(404).send({ status: 'error', message: 'Not found' });
+    }
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    if (body.organization_id !== undefined) {
+      return reply.status(400).send({
+        status: 'error',
+        message: 'organization_id cannot be changed',
+      });
+    }
+    if (body.username !== undefined) {
+      return reply.status(400).send({
+        status: 'error',
+        message: 'username cannot be changed',
+      });
+    }
+    const patch: {
+      role?: typeof existing.role;
+      status?: typeof existing.status;
+      password_hash?: string;
+    } = {};
+    if (body.role !== undefined) {
+      const role = parseAdminRole(body.role);
+      if (!role) {
+        return reply.status(400).send({ status: 'error', message: 'invalid role' });
+      }
+      if (userId === principal.user_id && role !== existing.role) {
+        return reply.status(400).send({
+          status: 'error',
+          message: 'cannot change your own role',
+        });
+      }
+      patch.role = role;
+    }
+    if (body.status !== undefined) {
+      const status = String(body.status).toUpperCase();
+      if (status !== 'ACTIVE' && status !== 'DISABLED') {
+        return reply
+          .status(400)
+          .send({ status: 'error', message: 'status must be ACTIVE or DISABLED' });
+      }
+      if (
+        userId === principal.user_id &&
+        status === 'DISABLED' &&
+        existing.status !== 'DISABLED'
+      ) {
+        return reply.status(400).send({
+          status: 'error',
+          message: 'cannot disable your own account',
+        });
+      }
+      patch.status = status as 'ACTIVE' | 'DISABLED';
+    }
+    if (body.password !== undefined) {
+      const password = String(body.password);
+      if (!password) {
+        return reply.status(400).send({ status: 'error', message: 'password empty' });
+      }
+      patch.password_hash = hashAdminPassword(password);
+    }
+    const updated = await ctx.adminUsers.update(userId, patch);
+    if (!updated) {
+      return reply.status(404).send({ status: 'error', message: 'Not found' });
+    }
+    const passwordOnly =
+      Boolean(patch.password_hash) &&
+      patch.role === undefined &&
+      patch.status === undefined;
+    const enabled =
+      patch.status === 'ACTIVE' && existing.status === 'DISABLED';
+    await recordAdminAudit(ctx.audit, {
+      principal,
+      action: passwordOnly
+        ? 'user_password_reset'
+        : patch.status === 'DISABLED'
+          ? 'user_disabled'
+          : enabled
+            ? 'user_enabled'
+            : patch.role
+              ? 'user_role_changed'
+              : 'user_updated',
+      target_type: 'admin_user',
+      target_id: userId,
+      before: publicAdminUser(existing),
+      after: publicAdminUser(updated),
+    });
+    return { user: publicAdminUser(updated) };
   });
 }

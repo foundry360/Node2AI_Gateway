@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import type { Application, User } from '../../../identity/types.js';
 import type { PolicyRequestContext } from '../../types.js';
 import type { PackBackedEnterprisePdp } from '../pack-pdp.js';
-import type { InMemoryPolicyRepository } from '../repository.js';
+import type { PolicyRepository } from '../pg-repository.js';
 import type { PolicyDecision } from '../types.js';
 import { createGovernanceBaseline, nextBaselineFromChange } from './baseline.js';
 import { assessMateriality, lifecycleToPolicyHold } from './materiality.js';
@@ -16,6 +16,7 @@ import type { InMemoryChangeGovernanceRepository } from './repository.js';
 import type {
   ChangeEvaluationResult,
   ChangeInput,
+  ChangeReviewContext,
   GovernanceBaseline,
   NormalizedChange,
 } from './types.js';
@@ -26,7 +27,7 @@ export interface EvaluateChangeOptions {
   /** Existing generic PDP — required when re-evaluation / mandatory review. */
   pdp?: PackBackedEnterprisePdp;
   /** Policy evaluation store — used to persist lifecycle REVIEW holds on the same evaluation. */
-  policy_repository?: InMemoryPolicyRepository;
+  policy_repository?: PolicyRepository;
   /** Request context builder inputs for PDP invocation. */
   policy_context?: {
     user: User;
@@ -141,14 +142,16 @@ export function applyLifecycleReviewHold(
   };
 }
 
-function persistLifecycleHold(
-  policyRepo: InMemoryPolicyRepository | undefined,
+async function persistLifecycleHold(
+  policyRepo: PolicyRepository | undefined,
   decision: PolicyDecision,
   change: NormalizedChange,
   policyContext: EvaluateChangeOptions['policy_context'],
-): void {
-  if (!policyRepo || !decision.evaluation_id) return;
-  const existing = policyRepo.getEvaluation(decision.evaluation_id);
+): Promise<void> {
+  if (!policyRepo || !decision.evaluation_id || !policyRepo.getEvaluation) return;
+  const existing = await Promise.resolve(
+    policyRepo.getEvaluation(decision.evaluation_id),
+  );
   if (!existing) return;
 
   const held_request =
@@ -160,17 +163,12 @@ function persistLifecycleHold(
           user_id: policyContext.user.user_id,
           operation: policyContext.operation ?? 'lifecycle_change',
           model: policyContext.requestedModel ?? policyContext.application.allowed_models[0],
-          messages: [
-            {
-              role: 'system',
-              content: `Governance change ${change.change_id} held for review`,
-            },
-          ],
+          messages: buildLifecycleReviewMessages(change),
           correlation_id: change.correlation_id ?? change.request_id ?? change.change_id,
           classification: {
             sensitivity: policyContext.sensitivity ?? 'INTERNAL',
             confidence: 0.9,
-            risk: 'medium' as const,
+            risk: 'high' as const,
             reason_codes: [
               'LIFECYCLE_MANDATORY_REVIEW',
               ...change.materiality_reasons,
@@ -183,21 +181,499 @@ function persistLifecycleHold(
         }
       : existing.held_request;
 
-  policyRepo.recordEvaluation({
-    ...existing,
-    decision: decision.decision,
-    reason_codes: decision.reason_codes,
-    evidence_in: {
-      ...existing.evidence_in,
-      lifecycle_hold: true,
-      change_id: change.change_id,
-      materiality: change.materiality,
-      lifecycle_decision: change.lifecycle_decision,
-      governance_impacts: change.governance_impacts,
-      decision_reason_codes: decision.reason_codes,
-    },
-    held_request,
+  const change_review = buildLifecycleChangeInventory(change);
+
+  // Prefer evidence.requester_prompt (caller or synthesized) in review_context
+  // so reloads always have a prompt even if held_request is missing.
+  const review_context = {
+    ...(change.review_context ?? {}),
+    ...(change_review.evidence.requester_prompt
+      ? { requester_prompt: change_review.evidence.requester_prompt }
+      : {}),
+  };
+
+  if (!policyRepo.recordEvaluation) return;
+  await Promise.resolve(
+    policyRepo.recordEvaluation({
+      ...existing,
+      decision: decision.decision,
+      reason_codes: decision.reason_codes,
+      evidence_in: {
+        ...existing.evidence_in,
+        lifecycle_hold: true,
+        change_id: change.change_id,
+        materiality: change.materiality,
+        lifecycle_decision: change.lifecycle_decision,
+        governance_impacts: change.governance_impacts,
+        decision_reason_codes: decision.reason_codes,
+        proposed_state: change.proposed_state,
+        previous_state: change.previous_state,
+        change_types: change.change_types,
+        target_type: change.target_type,
+        target_id: change.target_id,
+        ...(change.previous_baseline_id
+          ? { previous_baseline_id: change.previous_baseline_id }
+          : {}),
+        ...(change.actor ? { actor: change.actor } : {}),
+        ...(change.source ? { source: change.source } : {}),
+        materiality_reasons: change.materiality_reasons,
+        review_context,
+        change_review,
+      },
+      held_request,
+    }),
+  );
+
+  // Dedicated held_request write (covers older schemas / async race on insert).
+  if (
+    held_request &&
+    decision.decision === 'REVIEW' &&
+    typeof policyRepo.attachHeldRequest === 'function'
+  ) {
+    await Promise.resolve(
+      policyRepo.attachHeldRequest(decision.evaluation_id, held_request),
+    );
+  }
+}
+
+/** Structured change line for human Authorize / Deny. */
+export type ChangeReviewAction = 'added' | 'removed' | 'updated' | 'modified';
+
+export interface ChangeReviewItem {
+  action: ChangeReviewAction;
+  kind: string;
+  /** Stable identifier the reviewer can cite (e.g. capability:write_capability, tool:update_clinical_notes). */
+  id: string;
+  label: string;
+  before?: string;
+  after?: string;
+}
+
+export interface ChangeReviewPreview {
+  change_id: string;
+  request_id?: string;
+  correlation_id?: string;
+  target_type: string;
+  target_id: string;
+  previous_baseline_id?: string;
+  actor?: string;
+  source?: string;
+  materiality: string;
+  lifecycle_decision: string;
+  change_types: string[];
+  governance_impacts: string[];
+  materiality_reasons: string[];
+  items: ChangeReviewItem[];
+  /** Plain-language evidence for Authorize / Deny. */
+  evidence: ChangeReviewEvidence;
+}
+
+/** Reviewer-facing narrative (prompt, rationale, consequences). */
+export interface ChangeReviewEvidence {
+  title: string;
+  summary: string;
+  requester_prompt?: string;
+  rationale?: string;
+  intended_outcome?: string;
+  if_authorized: string;
+  if_denied: string;
+  conversation?: Array<{ role: string; content: string }>;
+}
+
+function clipText(value: string | undefined, max = 4000): string | undefined {
+  if (value == null) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
+}
+
+function sanitizeConversation(
+  rows: ChangeReviewContext['conversation'] | undefined,
+): Array<{ role: string; content: string }> | undefined {
+  if (!Array.isArray(rows) || rows.length === 0) return undefined;
+  const out: Array<{ role: string; content: string }> = [];
+  for (const row of rows.slice(0, 20)) {
+    if (!row || typeof row !== 'object') continue;
+    const content = clipText(String(row.content ?? ''), 4000);
+    if (!content) continue;
+    out.push({
+      role: String(row.role ?? 'user').trim() || 'user',
+      content,
+    });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
+function synthesizeIfAuthorized(items: ChangeReviewItem[]): string {
+  if (items.length === 0) {
+    return 'If Authorize is chosen, the proposed capability/configuration change is accepted and a new governance baseline may be committed.';
+  }
+  const lines = items.map((item) => {
+    if (item.action === 'added') {
+      return `• Add ${item.label} (${item.id})${item.after ? `: ${item.after}` : ''}`;
+    }
+    if (item.action === 'removed') {
+      return `• Remove ${item.label} (${item.id})${item.before ? `: was ${item.before}` : ''}`;
+    }
+    return `• Change ${item.label} (${item.id}): ${item.before ?? '—'} → ${item.after ?? '—'}`;
   });
+  return ['If Authorize is chosen, Enigma will allow this change:', ...lines].join(
+    '\n',
+  );
+}
+
+function synthesizeIfDenied(): string {
+  return 'If Deny is chosen, the current baseline remains in force. Write capability stays disabled and write tools stay unavailable until a new approved change.';
+}
+
+/** Build plain-language evidence a reviewer can use to Authorize or Deny. */
+export function buildChangeReviewEvidence(
+  change: NormalizedChange,
+  items: ChangeReviewItem[],
+): ChangeReviewEvidence {
+  const ctx = change.review_context;
+  const title =
+    clipText(ctx?.title) ??
+    `Request to change ${change.target_type} “${change.target_id}”`;
+  // requester_prompt = what the end user asked the agent to do (business ask).
+  // Never invent write-capability / inventory text as a stand-in.
+  const prompt = clipText(ctx?.requester_prompt);
+  const defaultSummary = [
+    `A ${change.materiality.toLowerCase()} governance change was submitted for ${change.target_type}/${change.target_id}.`,
+    change.change_types.length
+      ? `Detected change types: ${change.change_types.join(', ')}.`
+      : null,
+    `Lifecycle requires ${change.lifecycle_decision.replace(/_/g, ' ').toLowerCase()}.`,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const evidence: ChangeReviewEvidence = {
+    title,
+    summary: clipText(ctx?.summary) ?? defaultSummary,
+    if_authorized: synthesizeIfAuthorized(items),
+    if_denied: synthesizeIfDenied(),
+  };
+  if (prompt) evidence.requester_prompt = prompt;
+  const rationale = clipText(ctx?.rationale ?? ctx?.agent_rationale);
+  if (rationale) evidence.rationale = rationale;
+  const intended = clipText(ctx?.intended_outcome);
+  if (intended) evidence.intended_outcome = intended;
+  const conversation = sanitizeConversation(ctx?.conversation);
+  if (conversation) evidence.conversation = conversation;
+  return evidence;
+}
+
+function capsFromState(state: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!state) return {};
+  const nested = (state.capabilities as Record<string, unknown> | undefined) ?? {};
+  return { ...nested, ...state };
+}
+
+/** True when proposed_state (or nested capabilities) explicitly mentions a key. */
+function proposedTouches(
+  proposed: Record<string, unknown> | undefined,
+  key: string,
+): boolean {
+  if (!proposed) return false;
+  if (key in proposed) return true;
+  const caps = proposed.capabilities;
+  return (
+    !!caps &&
+    typeof caps === 'object' &&
+    key in (caps as Record<string, unknown>)
+  );
+}
+
+function toolMap(value: unknown): Map<string, Record<string, unknown>> {
+  const map = new Map<string, Record<string, unknown>>();
+  if (!Array.isArray(value)) return map;
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') continue;
+    const row = raw as Record<string, unknown>;
+    const id = row.id != null ? String(row.id) : '';
+    if (!id) continue;
+    map.set(id, row);
+  }
+  return map;
+}
+
+function displayTool(row: Record<string, unknown> | undefined): string {
+  if (!row) return '—';
+  const parts = [`id=${String(row.id)}`];
+  if (typeof row.write === 'boolean') parts.push(`write=${row.write}`);
+  if (row.permission != null && String(row.permission)) {
+    parts.push(`permission=${String(row.permission)}`);
+  }
+  return parts.join(', ');
+}
+
+/** Build reviewer-facing inventory of what changed (with stable IDs). */
+export function buildLifecycleChangeInventory(
+  change: NormalizedChange,
+): ChangeReviewPreview {
+  const prev = capsFromState(change.previous_state);
+  const next = capsFromState(change.proposed_state);
+  const items: ChangeReviewItem[] = [];
+
+  const proposed = change.proposed_state;
+
+  if (proposedTouches(proposed, 'write_capability')) {
+    const writeBefore = prev.write_capability === true;
+    const writeAfter = next.write_capability === true;
+    if (writeBefore !== writeAfter) {
+      items.push({
+        action: 'updated',
+        kind: 'capability',
+        id: 'capability:write_capability',
+        label: 'Write capability',
+        before: String(writeBefore),
+        after: String(writeAfter),
+      });
+    }
+  }
+
+  if (proposedTouches(proposed, 'autonomy_level')) {
+    const autonomyBefore =
+      prev.autonomy_level != null ? String(prev.autonomy_level) : undefined;
+    const autonomyAfter =
+      next.autonomy_level != null ? String(next.autonomy_level) : undefined;
+    if (autonomyBefore !== autonomyAfter) {
+      items.push({
+        action:
+          autonomyBefore == null
+            ? 'added'
+            : autonomyAfter == null
+              ? 'removed'
+              : 'updated',
+        kind: 'capability',
+        id: 'capability:autonomy_level',
+        label: 'Autonomy level',
+        before: autonomyBefore ?? '—',
+        after: autonomyAfter ?? '—',
+      });
+    }
+  }
+
+  for (const field of [
+    ['model_id', 'Model ID'],
+    ['model_version', 'Model version'],
+    ['model_provider', 'Model provider'],
+    ['processing_location', 'Processing location'],
+    ['deployment_context', 'Deployment context'],
+    ['system_prompt_hash', 'System prompt'],
+    ['agent_instruction_hash', 'Agent instruction'],
+  ] as const) {
+    const [key, label] = field;
+    if (!proposedTouches(proposed, key)) continue;
+    const before = prev[key] != null ? String(prev[key]) : undefined;
+    const after = next[key] != null ? String(next[key]) : undefined;
+    if (before === after) continue;
+    items.push({
+      action: before == null ? 'added' : after == null ? 'removed' : 'updated',
+      kind: 'configuration',
+      id: `config:${key}`,
+      label,
+      before: before ?? '—',
+      after: after ?? '—',
+    });
+  }
+
+  const prevTools = toolMap(prev.tools);
+  const nextTools = toolMap(next.tools);
+  if (proposedTouches(proposed, 'tools')) {
+    for (const [id, afterRow] of nextTools) {
+      const beforeRow = prevTools.get(id);
+      if (!beforeRow) {
+        items.push({
+          action: 'added',
+          kind: 'tool',
+          id: `tool:${id}`,
+          label: `Tool ${id}`,
+          after: displayTool(afterRow),
+        });
+        continue;
+      }
+      const beforeWrite = beforeRow.write === true;
+      const afterWrite = afterRow.write === true;
+      const beforePerm =
+        beforeRow.permission != null ? String(beforeRow.permission) : '';
+      const afterPerm =
+        afterRow.permission != null ? String(afterRow.permission) : '';
+      if (beforeWrite !== afterWrite || beforePerm !== afterPerm) {
+        items.push({
+          action: 'modified',
+          kind: 'tool',
+          id: `tool:${id}`,
+          label: `Tool ${id}`,
+          before: displayTool(beforeRow),
+          after: displayTool(afterRow),
+        });
+      }
+    }
+    for (const [id, beforeRow] of prevTools) {
+      if (nextTools.has(id)) continue;
+      items.push({
+        action: 'removed',
+        kind: 'tool',
+        id: `tool:${id}`,
+        label: `Tool ${id}`,
+        before: displayTool(beforeRow),
+      });
+    }
+  }
+
+  const prevSources = new Set(
+    Array.isArray(prev.data_sources) ? prev.data_sources.map(String) : [],
+  );
+  const nextSources = new Set(
+    Array.isArray(next.data_sources) ? next.data_sources.map(String) : [],
+  );
+  if (proposedTouches(proposed, 'data_sources')) {
+    for (const id of nextSources) {
+      if (prevSources.has(id)) continue;
+      items.push({
+        action: 'added',
+        kind: 'data_source',
+        id: `data_source:${id}`,
+        label: `Data source ${id}`,
+        after: id,
+      });
+    }
+    for (const id of prevSources) {
+      if (nextSources.has(id)) continue;
+      items.push({
+        action: 'removed',
+        kind: 'data_source',
+        id: `data_source:${id}`,
+        label: `Data source ${id}`,
+        before: id,
+      });
+    }
+  }
+
+  const prevLabel =
+    change.previous_state?.ui_label != null
+      ? String(change.previous_state.ui_label)
+      : change.previous_state?.configuration &&
+          typeof change.previous_state.configuration === 'object' &&
+          (change.previous_state.configuration as Record<string, unknown>)
+            .ui_label != null
+        ? String(
+            (change.previous_state.configuration as Record<string, unknown>)
+              .ui_label,
+          )
+        : undefined;
+  const nextLabel =
+    change.proposed_state?.ui_label != null
+      ? String(change.proposed_state.ui_label)
+      : change.proposed_state?.configuration &&
+          typeof change.proposed_state.configuration === 'object' &&
+          (change.proposed_state.configuration as Record<string, unknown>)
+            .ui_label != null
+        ? String(
+            (change.proposed_state.configuration as Record<string, unknown>)
+              .ui_label,
+          )
+        : undefined;
+  if (
+    (proposedTouches(proposed, 'ui_label') ||
+      (proposed?.configuration &&
+        typeof proposed.configuration === 'object' &&
+        'ui_label' in (proposed.configuration as Record<string, unknown>))) &&
+    prevLabel !== nextLabel
+  ) {
+    items.push({
+      action:
+        prevLabel == null ? 'added' : nextLabel == null ? 'removed' : 'updated',
+      kind: 'configuration',
+      id: 'config:ui_label',
+      label: 'UI label',
+      before: prevLabel ?? '—',
+      after: nextLabel ?? '—',
+    });
+  }
+
+  return {
+    change_id: change.change_id,
+    ...(change.request_id ? { request_id: change.request_id } : {}),
+    ...(change.correlation_id ? { correlation_id: change.correlation_id } : {}),
+    target_type: change.target_type,
+    target_id: change.target_id,
+    ...(change.previous_baseline_id
+      ? { previous_baseline_id: change.previous_baseline_id }
+      : {}),
+    ...(change.actor ? { actor: change.actor } : {}),
+    ...(change.source ? { source: change.source } : {}),
+    materiality: change.materiality,
+    lifecycle_decision: change.lifecycle_decision,
+    change_types: [...change.change_types],
+    governance_impacts: [...change.governance_impacts],
+    materiality_reasons: [...change.materiality_reasons],
+    items,
+    evidence: buildChangeReviewEvidence(change, items),
+  };
+}
+
+/** Human-readable held messages for Request Review on lifecycle holds. */
+export function buildLifecycleReviewMessages(
+  change: NormalizedChange,
+): Array<{ role: string; content: string }> {
+  const inventory = buildLifecycleChangeInventory(change);
+  const evidence = inventory.evidence;
+  const messages: Array<{ role: string; content: string }> = [];
+
+  if (evidence.conversation?.length) {
+    for (const turn of evidence.conversation) {
+      messages.push({ role: turn.role, content: turn.content });
+    }
+  }
+  // Always retain a user prompt message for Authorize/Deny (caller or synthesized).
+  const hasUser = messages.some((m) => m.role.toLowerCase() === 'user');
+  if (!hasUser && evidence.requester_prompt) {
+    messages.push({ role: 'user', content: evidence.requester_prompt });
+  }
+
+  const decisionBrief = [
+    evidence.title,
+    '',
+    evidence.summary,
+    evidence.requester_prompt
+      ? `\nRequester prompt:\n${evidence.requester_prompt}`
+      : null,
+    evidence.rationale ? `\nRationale:\n${evidence.rationale}` : null,
+    evidence.intended_outcome
+      ? `\nIntended outcome:\n${evidence.intended_outcome}`
+      : null,
+    `\n${evidence.if_authorized}`,
+    `\n${evidence.if_denied}`,
+    '',
+    `Change ID: ${inventory.change_id}`,
+    inventory.request_id ? `Request ID: ${inventory.request_id}` : null,
+    `Target: ${inventory.target_type} / ${inventory.target_id}`,
+    `Materiality: ${inventory.materiality}`,
+    `Lifecycle decision: ${inventory.lifecycle_decision}`,
+  ]
+    .filter((line) => line != null)
+    .join('\n');
+
+  messages.push({ role: 'system', content: decisionBrief });
+
+  if (inventory.items.length > 0) {
+    const lines = inventory.items.map((item) => {
+      const delta =
+        item.before != null || item.after != null
+          ? ` | ${item.before ?? '—'} → ${item.after ?? '—'}`
+          : '';
+      return `${item.action.toUpperCase()} [${item.kind}] ${item.id} — ${item.label}${delta}`;
+    });
+    messages.push({
+      role: 'assistant',
+      content: ['Technical change inventory:', ...lines].join('\n'),
+    });
+  }
+
+  return messages;
 }
 
 /**
@@ -243,6 +719,9 @@ export async function evaluateGovernanceChange(
     lifecycle_decision: assessment.lifecycle_decision,
     governance_impacts: assessment.governance_impacts,
     materiality_reasons: assessment.materiality_reasons,
+    ...(input.review_context
+      ? { review_context: structuredClone(input.review_context) }
+      : {}),
   };
 
   let policy_decision: PolicyDecision | undefined;
@@ -273,7 +752,7 @@ export async function evaluateGovernanceChange(
           'LIFECYCLE_MANDATORY_REVIEW',
           ...change.materiality_reasons,
         ]);
-        persistLifecycleHold(
+        await persistLifecycleHold(
           opts.policy_repository,
           policy_decision,
           change,

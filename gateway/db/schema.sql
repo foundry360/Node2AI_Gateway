@@ -215,3 +215,28 @@ CREATE TABLE system_config (
 );
 
 -- Example keys: deployment_mode (connected|airgap), audit_policy, egress_allowlist
+
+-- ---------------------------------------------------------------------------
+-- Console admin users (V1 RBAC — separate from AI subject users)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS admin_users (
+  user_id           TEXT PRIMARY KEY,
+  organization_id   TEXT NOT NULL REFERENCES organizations(organization_id),
+  username          TEXT NOT NULL,
+  password_hash     TEXT NOT NULL,
+  role              TEXT NOT NULL
+                      CHECK (role IN (
+                        'ADMINISTRATOR',
+                        'GOVERNANCE_REVIEWER',
+                        'OPERATOR',
+                        'READ_ONLY'
+                      )),
+  status            TEXT NOT NULL
+                      CHECK (status IN ('ACTIVE', 'DISABLED')),
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS admin_users_username_uidx
+  ON admin_users (lower(username));

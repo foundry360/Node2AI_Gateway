@@ -39,7 +39,7 @@ export function LoginForm() {
 
   return (
     <form className="login-form" onSubmit={onSubmit}>
-      {error ? <div className="error">{error}</div> : null}
+      {error ? <div className="error login-form-error">{error}</div> : null}
       <label>
         Username
         <input name="username" autoComplete="username" required autoFocus />
@@ -53,9 +53,16 @@ export function LoginForm() {
           required
         />
       </label>
-      <button type="submit" className="btn" disabled={busy}>
-        {busy ? 'Signing in…' : 'Sign in'}
+      <button type="submit" className="btn login-submit" disabled={busy}>
+        {busy ? 'Signing in…' : 'Log In'}
       </button>
+      <div className="login-form-meta">
+        <label className="login-remember">
+          <input type="checkbox" name="remember" />
+          Remember me
+        </label>
+        <span className="login-forgot muted">Forgot your password?</span>
+      </div>
     </form>
   );
 }

@@ -48,8 +48,6 @@ function badgeKind(status: string): string {
   }
   if (
     s === 'draft' ||
-    s === 'review' ||
-    s === 'review_required' ||
     s === 'warn' ||
     s === 'attention' ||
     s === 'memory' ||
@@ -62,17 +60,21 @@ function badgeKind(status: string): string {
   ) {
     return 'badge-warn';
   }
+  if (s === 'review' || s === 'review_required' || s === 'pending') {
+    return 'badge-info';
+  }
   if (s === 'release') {
     return 'badge-ok';
   }
   return 'badge-neutral';
 }
 
-function toneFromStatus(status: string): 'ok' | 'bad' | 'warn' | 'neutral' {
+function toneFromStatus(status: string): 'ok' | 'bad' | 'warn' | 'neutral' | 'info' {
   const kind = badgeKind(status);
   if (kind === 'badge-ok') return 'ok';
   if (kind === 'badge-bad') return 'bad';
   if (kind === 'badge-warn') return 'warn';
+  if (kind === 'badge-info') return 'info';
   return 'neutral';
 }
 
@@ -116,7 +118,7 @@ function badgeIcon(status: string): ReactNode {
   if (s === 'controls_applied' || s === 'tokenize' || s === 'redact' || s === 'restrict') {
     return <Shield {...props} />;
   }
-  if (s === 'review' || s === 'review_required' || s === 'attention' || s === 'warn') {
+  if (s === 'review' || s === 'review_required' || s === 'attention' || s === 'warn' || s === 'pending') {
     return <Clock {...props} />;
   }
   return <HelpCircle {...props} />;

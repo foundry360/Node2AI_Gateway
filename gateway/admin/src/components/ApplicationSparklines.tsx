@@ -42,12 +42,16 @@ function Sparkline({
   buckets,
   color = '#2697d9',
   emptyLabel = 'No data in the last 24 hours',
+  hoverIndex = null,
+  onHoverIndex,
 }: {
   buckets: SparkBucket[];
   color?: string;
   emptyLabel?: string;
+  /** Shared hover bucket index across sibling sparklines (null = none). */
+  hoverIndex?: number | null;
+  onHoverIndex?: (index: number | null) => void;
 }) {
-  const [hover, setHover] = useState<number | null>(null);
   const width = 280;
   const height = 56;
   const padY = 4;
@@ -70,7 +74,10 @@ function Sparkline({
       ? `${path} L${points[points.length - 1]!.x.toFixed(2)} ${height} L${points[0]!.x.toFixed(2)} ${height} Z`
       : '';
 
-  const active = hover !== null ? points[hover] : null;
+  const active =
+    hoverIndex !== null && hoverIndex >= 0 && hoverIndex < points.length
+      ? points[hoverIndex]
+      : null;
 
   return (
     <div className="sparkline">
@@ -84,8 +91,8 @@ function Sparkline({
             preserveAspectRatio="none"
             role="img"
             aria-label="24 hour sparkline"
-            onMouseLeave={() => setHover(null)}
-          >            <path d={area} fill={color} opacity={0.12} />
+          >
+            <path d={area} fill={color} opacity={0.12} />
             <path
               d={path}
               fill="none"
@@ -103,7 +110,7 @@ function Sparkline({
                 width={Math.max(width / buckets.length, 8)}
                 height={height}
                 fill="transparent"
-                onMouseEnter={() => setHover(p.index)}
+                onMouseEnter={() => onHoverIndex?.(p.index)}
               />
             ))}
             {active ? (
@@ -153,12 +160,16 @@ function SparkCard({
   total,
   buckets,
   color,
+  hoverIndex,
+  onHoverIndex,
 }: {
   title: string;
   subtitle: string;
   total?: number;
   buckets?: SparkBucket[];
   color: string;
+  hoverIndex?: number | null;
+  onHoverIndex?: (index: number | null) => void;
 }) {
   return (
     <div className="spark-card">
@@ -171,7 +182,12 @@ function SparkCard({
           <div className="spark-card-total">{total}</div>
         ) : null}
       </div>
-      <Sparkline buckets={buckets ?? []} color={color} />
+      <Sparkline
+        buckets={buckets ?? []}
+        color={color}
+        hoverIndex={hoverIndex}
+        onHoverIndex={onHoverIndex}
+      />
     </div>
   );
 }
@@ -186,6 +202,7 @@ export function ActivitySparklines({
 }) {
   const [data, setData] = useState<ActivityResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -210,13 +227,18 @@ export function ActivitySparklines({
   }, [applicationId]);
 
   return (
-    <div className={className ?? 'spark-grid spark-grid-4'}>
+    <div
+      className={className ?? 'spark-grid spark-grid-4'}
+      onMouseLeave={() => setHoverIndex(null)}
+    >
       <SparkCard
         title="Requests"
         subtitle="Rolling 24 hours"
         total={data?.series.requests.total}
         buckets={data?.series.requests.buckets}
         color="#2697d9"
+        hoverIndex={hoverIndex}
+        onHoverIndex={setHoverIndex}
       />
       <SparkCard
         title="Allowed"
@@ -224,6 +246,8 @@ export function ActivitySparklines({
         total={data?.series.allowed.total}
         buckets={data?.series.allowed.buckets}
         color="#2697d9"
+        hoverIndex={hoverIndex}
+        onHoverIndex={setHoverIndex}
       />
       <SparkCard
         title="Blocked"
@@ -231,6 +255,8 @@ export function ActivitySparklines({
         total={data?.series.blocked.total}
         buckets={data?.series.blocked.buckets}
         color="#2697d9"
+        hoverIndex={hoverIndex}
+        onHoverIndex={setHoverIndex}
       />
       <SparkCard
         title="Tokenize"
@@ -238,6 +264,8 @@ export function ActivitySparklines({
         total={data?.series.tokenize.total}
         buckets={data?.series.tokenize.buckets}
         color="#2697d9"
+        hoverIndex={hoverIndex}
+        onHoverIndex={setHoverIndex}
       />
       {error ? <div className="error spark-grid-error">{error}</div> : null}
     </div>

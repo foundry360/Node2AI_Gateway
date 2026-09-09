@@ -1,0 +1,21 @@
+{
+  "unevaluatedProperties": false,
+  "properties": {
+    "patientId": {
+      "title": "Patient Id",
+      "description": "Salesforce Id of the Patient__c record to update.",
+      "lightning:type": "lightning__recordIdType",
+      "lightning:isPII": false,
+      "copilotAction:isUserInput": true
+    },
+    "noteText": {
+      "title": "Note Text",
+      "description": "Clinical note text to append.",
+      "lightning:type": "lightning__multilineTextType",
+      "lightning:isPII": true,
+      "copilotAction:isUserInput": true
+    }
+  },
+  "required": ["patientId", "noteText"],
+  "lightning:type": "lightning__objectType"
+}

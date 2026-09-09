@@ -1,0 +1,35 @@
+{
+  "unevaluatedProperties": false,
+  "properties": {
+    "confirmEnableWrite": {
+      "title": "Confirm Enable Write",
+      "description": "Set true to evaluate enabling agent write capability in Enigma.",
+      "lightning:type": "lightning__booleanType",
+      "lightning:isPII": false,
+      "copilotAction:isUserInput": true
+    },
+    "requesterPrompt": {
+      "title": "User Request",
+      "description": "Exact text of what the end user asked the agent to do (e.g. add a note to a patient record, update a case, send an email). This is the Prompt shown in Enigma Request Review — not a justification for enabling write.",
+      "lightning:type": "lightning__multilineTextType",
+      "lightning:isPII": false,
+      "copilotAction:isUserInput": true
+    },
+    "agentRationale": {
+      "title": "Rationale",
+      "description": "Why write capability is needed to fulfill that user request (separate from the Prompt).",
+      "lightning:type": "lightning__multilineTextType",
+      "lightning:isPII": false,
+      "copilotAction:isUserInput": true
+    },
+    "intendedOutcome": {
+      "title": "Intended Outcome",
+      "description": "What should happen after a human Authorizes this change.",
+      "lightning:type": "lightning__multilineTextType",
+      "lightning:isPII": false,
+      "copilotAction:isUserInput": true
+    }
+  },
+  "required": ["confirmEnableWrite", "requesterPrompt"],
+  "lightning:type": "lightning__objectType"
+}
