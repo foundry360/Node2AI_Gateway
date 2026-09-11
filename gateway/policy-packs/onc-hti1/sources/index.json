@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "sources": [
+    {
+      "source_id": "src_onc_hti1",
+      "id": "src_onc_hti1",
+      "authority": "ONC HTI-1 Final Rule — Predictive Decision Support / Algorithm Transparency",
+      "authority_tier": 2,
+      "authority_type": "PRIMARY",
+      "legal_authority": true,
+      "authority_id": "auth_onc_hti1",
+      "title": "Health Data, Technology, and Interoperability: Certification Program Updates, Algorithm Transparency, and Information Sharing (HTI-1)",
+      "publisher": "Office of the National Coordinator for Health Information Technology (ONC)",
+      "citation": "89 FR 1192 (HTI-1 Final Rule) — Predictive DSI / algorithm transparency concepts",
+      "canonical_url": "https://www.healthit.gov/topic/laws-regulation-and-policy/health-data-technology-and-interoperability-certification-program",
+      "note": "Enigma maps selected transparency / FAVES / oversight concepts into runtime policy. This is not a certification determination."
+    }
+  ]
+}

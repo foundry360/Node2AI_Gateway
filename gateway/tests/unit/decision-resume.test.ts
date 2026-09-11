@@ -398,6 +398,7 @@ describe('Post-AUTHORIZE request resume', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       request_id: 'req_live_hold',
     });
     expect(decision.decision).toBe('REVIEW');
@@ -454,6 +455,7 @@ describe('Post-AUTHORIZE request resume', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       request_id: 'req_comp_hold',
     });
 

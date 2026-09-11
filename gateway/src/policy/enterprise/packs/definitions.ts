@@ -642,6 +642,144 @@ const PART2_OUTPUT: PolicyDefinition = {
   ],
 };
 
+const ONC_HTI1_INPUT: PolicyDefinition = {
+  description:
+    'Applies ONC/HTI-1-aligned predictive decision-support governance when HTI-1 applicability is asserted. Evaluates algorithm identity, intended use, transparency/FAVES evidence, risk management, human oversight, and version governance. Does not determine ONC certification or legal compliance.',
+  owner: 'compliance',
+  priority: 205,
+  scope_tier: 'regulatory',
+  domain: 'healthcare',
+  subjects: [
+    {
+      type: 'application',
+      match: 'any (when ONC_HTI1 applicability is asserted)',
+      description:
+        'Applies only when REGULATORY_APPLICABILITY:ONC_HTI1 is present — Healthcare+AI alone is insufficient.',
+    },
+  ],
+  resources: [
+    {
+      type: 'prompt_content',
+      classification: 'PREDICTIVE_DSI',
+      description: 'Predictive decision-support / algorithm transparency governance context.',
+    },
+  ],
+  actions: [
+    {
+      action: 'summarize|analyze|generate|classify|*',
+      effect: 'allow_with_controls',
+      description:
+        'Predictive DSI paths proceed when required governance evidence is present for the applicable risk tier.',
+    },
+  ],
+  ai_context: [
+    {
+      key: 'governance_context.predictive_dsi',
+      constraint:
+        'Applicability, algorithm/model identity, intended use, FAVES/transparency, risk management, oversight, version governance',
+    },
+  ],
+  conditions: [
+    {
+      id: 'ONC-R-DSI-IDENTITY',
+      statement: 'IF ONC applicable AND high-risk clinical AND NOT identity THEN DENY',
+    },
+    {
+      id: 'ONC-R-DSI-UNSUPPORTED-CONTEXT',
+      statement: 'IF ONC applicable AND clinical AND NOT identity THEN REVIEW',
+    },
+    {
+      id: 'ONC-R-DSI-FAVES',
+      statement: 'IF ONC applicable AND high-risk clinical AND NOT faves THEN REVIEW',
+    },
+  ],
+  decisions: [
+    {
+      when: 'High-risk clinical predictive model identity missing',
+      decision: 'DENY',
+      reason_codes: ['ONC_DSI_IDENTITY_REQUIRED'],
+    },
+    {
+      when: 'Required predictive-model governance evidence not available',
+      decision: 'REVIEW',
+      reason_codes: ['ONC_DSI_FAVES_EVIDENCE_INSUFFICIENT'],
+    },
+    {
+      when: 'ONC DSI governance evidence satisfied',
+      decision: 'ALLOW',
+      reason_codes: ['ONC_DSI_GOVERNANCE_CONTROLS_SATISFIED'],
+    },
+  ],
+  obligations: [
+    {
+      code: 'REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION',
+      when: 'REVIEW paths for missing FAVES/oversight/intended-use/version governance',
+      description: 'Human resolution hold — not an automatic legal finding.',
+    },
+    {
+      code: 'LOG_GOVERNANCE_EVENT',
+      when: 'always',
+      description: 'Emit a governance audit event for ONC HTI-1 decisions.',
+    },
+  ],
+};
+
+const ONC_HTI1_OUTPUT: PolicyDefinition = {
+  description:
+    'Output-phase ONC/HTI-1-aligned predictive DSI governance. Allows controlled release when input governance evidence was satisfied. Does not assert HTI-1 compliance.',
+  owner: 'compliance',
+  priority: 205,
+  scope_tier: 'regulatory',
+  domain: 'healthcare',
+  subjects: [
+    {
+      type: 'application',
+      match: 'any (when ONC_HTI1 applicability is asserted)',
+      description: 'Output path when ONC HTI-1 predictive DSI applicability is in scope.',
+    },
+  ],
+  resources: [
+    {
+      type: 'model_response',
+      classification: 'PREDICTIVE_DSI',
+      description: 'Model output under ONC HTI-1-aligned predictive DSI governance.',
+    },
+  ],
+  actions: [
+    {
+      action: 'release|*',
+      effect: 'allow_if_controls',
+      description: 'Release when ONC DSI governance controls were satisfied on input.',
+    },
+  ],
+  ai_context: [
+    {
+      key: 'governance_context.predictive_dsi',
+      constraint: 'Output release gated by onc_controls_satisfied derived from predictive_dsi evidence',
+    },
+  ],
+  conditions: [
+    {
+      id: 'ONC-R-DSI-OUT-RELEASE',
+      statement: 'IF ONC applicable AND controls_satisfied THEN ALLOW_WITH_CONTROLS',
+    },
+  ],
+  decisions: [
+    {
+      when: 'ONC DSI output governance satisfied',
+      decision: 'ALLOW',
+      reason_codes: ['ONC_DSI_OUTPUT_GOVERNANCE_SATISFIED'],
+    },
+  ],
+  obligations: [
+    {
+      code: 'LOG_GOVERNANCE_EVENT',
+      when: 'always',
+      description: 'Emit a governance audit event for ONC HTI-1 output decisions.',
+    },
+  ],
+};
+
 const FINANCIAL: PolicyDefinition = {
   description:
     'Protects financial data in AI requests: sensitive fields are safeguarded before processing, and write, export, and sharing actions stay controlled unless human approval allows them.',
@@ -893,6 +1031,8 @@ const BY_POLICY_ID: Record<string, PolicyDefinition> = {
   pol_hipaa_release: HIPAA_OUTPUT,
   pol_part2_sud_records: PART2_INPUT,
   pol_part2_redisclosure: PART2_OUTPUT,
+  pol_onc_hti1_dsi_input: ONC_HTI1_INPUT,
+  pol_onc_hti1_dsi_output: ONC_HTI1_OUTPUT,
   pol_financial_tokenize: FINANCIAL,
   pol_legal_no_external: LEGAL,
 };
@@ -907,6 +1047,8 @@ const BY_INTERPRETER: Record<string, PolicyDefinition> = {
   hipaa_pack_v3_output: HIPAA_OUTPUT,
   part2_pack_v1: PART2_INPUT,
   part2_pack_v1_output: PART2_OUTPUT,
+  onc_hti1_pack_v1: ONC_HTI1_INPUT,
+  onc_hti1_pack_v1_output: ONC_HTI1_OUTPUT,
   financial_overlay_v1: FINANCIAL,
   legal_overlay_v1: LEGAL,
 };

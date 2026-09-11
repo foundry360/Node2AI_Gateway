@@ -67,6 +67,7 @@ describe('HIPAA v3.1 provenance & evidence hardening', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('REVIEW');
     const prov = decision.explanation.provenance;
@@ -108,6 +109,7 @@ describe('HIPAA v3.1 provenance & evidence hardening', () => {
       },
       deploymentMode: 'connected',
       purpose: 'utilization_management',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('ALLOW');
     const rule = decision.explanation.provenance?.matched_rules.find(
@@ -194,6 +196,7 @@ describe('HIPAA v3.1 provenance & evidence hardening', () => {
       },
       input_was_tokenized: true,
       purpose: 'utilization_management',
+      authorization_context: 'authorized',
     });
     expect(released.reason_codes).toContain('ENIGMA_RELEASE_AUTHORIZED_DETOKENIZATION');
     const rule = released.explanation.provenance?.matched_rules.find(
@@ -232,6 +235,7 @@ describe('HIPAA v3.1 provenance & evidence hardening', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     const stored = repo.getEvaluation(decision.evaluation_id);
     expect(stored).toBeDefined();
@@ -260,6 +264,7 @@ describe('HIPAA v3.1 provenance & evidence hardening', () => {
       },
       deploymentMode: 'connected',
       purpose: 'utilization_management',
+      authorization_context: 'authorized',
     });
     expect(cloudDeny.decision).toBe('DENY');
 
@@ -278,6 +283,7 @@ describe('HIPAA v3.1 provenance & evidence hardening', () => {
       },
       deploymentMode: 'connected',
       purpose: 'utilization_management',
+      authorization_context: 'authorized',
     });
     expect(localAllow.decision).toBe('ALLOW');
     expect(localAllow.reason_codes).toContain('HIPAA_PHI_PROCESSING_CONTROLS_SATISFIED');
@@ -341,6 +347,7 @@ describe('HIPAA v3.1 provenance & evidence hardening', () => {
       },
       deploymentMode: 'connected',
       purpose: 'utilization_management',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('TOKENIZE');
     const rule = decision.explanation.provenance?.matched_rules.find(

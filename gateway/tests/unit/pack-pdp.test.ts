@@ -72,6 +72,8 @@ describe('Enigma EPA M2 pack-backed PDP', () => {
     const decision = await pdp.evaluateLegacyRequest(
       ctx({
         requestedModel: 'local-general-v1',
+        purpose: 'treatment',
+        authorization_context: 'authorized',
         classification: {
           sensitivity: 'PHI',
           confidence: 0.99,

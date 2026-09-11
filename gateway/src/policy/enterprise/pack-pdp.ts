@@ -73,6 +73,9 @@ function factsFromRequest(context: PolicyRequestContext): BaselineFacts {
     source_system: context.source_system,
     processing_location: context.processing_location,
     authorization_context: context.authorization_context,
+    agent_id: context.agent_id,
+    tool_id: context.tool_id,
+    permitted_entity_types: context.permitted_entity_types,
     governance_context: context.governance_context,
     evaluation_as_of: context.evaluation_as_of ?? new Date().toISOString(),
     nist_governance_documented:
@@ -122,6 +125,9 @@ function factsFromResponse(
     purpose: context.purpose,
     recipient: context.recipient,
     authorization_context: context.authorization_context,
+    agent_id: context.agent_id,
+    tool_id: context.tool_id,
+    permitted_entity_types: context.permitted_entity_types,
     governance_context: context.governance_context,
     evaluation_as_of: context.evaluation_as_of ?? new Date().toISOString(),
     nist_governance_documented:

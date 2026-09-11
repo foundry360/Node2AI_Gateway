@@ -608,6 +608,11 @@ export function projectRequestContext(
     if (g.regulatory && typeof g.regulatory === 'object') {
       governance.regulatory = g.regulatory as NonNullable<GovernanceContext['regulatory']>;
     }
+    if (g.predictive_dsi && typeof g.predictive_dsi === 'object') {
+      governance.predictive_dsi = g.predictive_dsi as NonNullable<
+        GovernanceContext['predictive_dsi']
+      >;
+    }
     if (g.management_system && typeof g.management_system === 'object') {
       governance.management_system = g.management_system as NonNullable<
         GovernanceContext['management_system']

@@ -23,6 +23,108 @@
       "derived_from": ["src_45cfr164"]
     },
     {
+      "rule_id": "HIPAA-R-INPUT-UNAUTHORIZED-AUTHZ",
+      "name": "Deny PHI when authorization context is unauthorized",
+      "phase": "input",
+      "priority": 95,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "HIPAA",
+        "classification": "PHI",
+        "authorization_state": "unauthorized"
+      },
+      "decision": "DENY",
+      "reason_codes": ["HIPAA_PHI_AUTHORIZATION_CONTEXT_UNAUTHORIZED"],
+      "obligation_ids": ["HIPAA-OBL-AUTHORIZATION", "HIPAA-OBL-PHI-PROTECTION"],
+      "control_ids": ["ctrl_authorization", "ctrl_audit_logging"],
+      "enigma_obligations": ["NO_EXTERNAL_TRANSMISSION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_45cfr164"],
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr164"]
+    },
+    {
+      "rule_id": "HIPAA-R-INPUT-UNAUTHORIZED-PURPOSE",
+      "name": "Deny PHI when purpose is unauthorized for AI processing",
+      "phase": "input",
+      "priority": 95,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "HIPAA",
+        "classification": "PHI",
+        "unauthorized_purpose": true
+      },
+      "decision": "DENY",
+      "reason_codes": ["HIPAA_PHI_PURPOSE_UNAUTHORIZED"],
+      "obligation_ids": ["HIPAA-OBL-AUTHORIZATION", "HIPAA-OBL-MINIMUM-NECESSARY"],
+      "control_ids": ["ctrl_authorization", "ctrl_audit_logging"],
+      "enigma_obligations": ["NO_EXTERNAL_TRANSMISSION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_45cfr164"],
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr164"]
+    },
+    {
+      "rule_id": "HIPAA-R-INPUT-UNAUTHORIZED-AGENT",
+      "name": "Deny PHI when agent is unauthorized",
+      "phase": "input",
+      "priority": 94,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "HIPAA",
+        "classification": "PHI",
+        "agent_present": true,
+        "agent_unauthorized": true
+      },
+      "decision": "DENY",
+      "reason_codes": ["HIPAA_PHI_AGENT_UNAUTHORIZED"],
+      "obligation_ids": ["HIPAA-OBL-AUTHORIZATION", "HIPAA-OBL-ACCESS"],
+      "control_ids": ["ctrl_authorization", "ctrl_audit_logging"],
+      "enigma_obligations": ["NO_EXTERNAL_TRANSMISSION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_45cfr164"],
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr164"]
+    },
+    {
+      "rule_id": "HIPAA-R-INPUT-UNAUTHORIZED-ROLE",
+      "name": "Deny PHI when user role is not authorized for clinical processing",
+      "phase": "input",
+      "priority": 93,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "HIPAA",
+        "classification": "PHI",
+        "clinician_role": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["HIPAA_PHI_USER_UNAUTHORIZED"],
+      "obligation_ids": ["HIPAA-OBL-AUTHORIZATION", "HIPAA-OBL-ACCESS"],
+      "control_ids": ["ctrl_authorization", "ctrl_audit_logging"],
+      "enigma_obligations": ["NO_EXTERNAL_TRANSMISSION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_45cfr164"],
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr164"]
+    },
+    {
+      "rule_id": "HIPAA-R-INPUT-UNAUTHORIZED-TOOL",
+      "name": "Deny PHI when tool is unauthorized for the agent",
+      "phase": "input",
+      "priority": 94,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "HIPAA",
+        "classification": "PHI",
+        "tool_present": true,
+        "tool_unauthorized": true
+      },
+      "decision": "DENY",
+      "reason_codes": ["HIPAA_PHI_TOOL_UNAUTHORIZED"],
+      "obligation_ids": ["HIPAA-OBL-AUTHORIZATION", "HIPAA-OBL-ACCESS"],
+      "control_ids": ["ctrl_authorization", "ctrl_audit_logging"],
+      "enigma_obligations": ["NO_EXTERNAL_TRANSMISSION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_45cfr164"],
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr164"]
+    },
+    {
       "rule_id": "HIPAA-R-INPUT-WRITE-REQUIRE-APPROVAL",
       "name": "Require approval for PHI write without prior authorization path",
       "phase": "input",
@@ -109,6 +211,27 @@
       "source_type": "DERIVED_CONTROL",
       "derived_from": ["src_45cfr164"],
       "note": "Does NOT assert HIPAA compliance. Means applicable pack controls were satisfied for this evaluation."
+    },
+    {
+      "rule_id": "HIPAA-R-INPUT-MIN-NECESSARY-RESTRICT",
+      "name": "Restrict excess entity types under minimum necessary scope",
+      "phase": "input",
+      "priority": 56,
+      "requirement_type": "IMPLEMENTATION_OPTION",
+      "conditions": {
+        "regulatory_applicability": "HIPAA",
+        "classification": "PHI",
+        "excess_entity_types": true
+      },
+      "decision": "TRANSFORM",
+      "reason_codes": ["HIPAA_MINIMUM_NECESSARY_RESTRICTED"],
+      "obligation_ids": ["HIPAA-OBL-MINIMUM-NECESSARY", "HIPAA-OBL-PHI-PROTECTION"],
+      "control_ids": ["ctrl_tokenization", "ctrl_audit_logging"],
+      "enigma_obligations": ["TOKENIZE_PII", "LOCAL_MODEL_ONLY", "LOG_GOVERNANCE_EVENT"],
+      "transforms": [{ "type": "redact", "targets": [] }],
+      "sources": ["src_45cfr164"],
+      "source_type": "IMPLEMENTATION_OPTION",
+      "note": "Redacts detected entity types outside permitted_entity_types. TOKENIZE/REDACT are Enigma controls implementing minimum necessary."
     },
     {
       "rule_id": "HIPAA-R-INPUT-TOKENIZE-OPTION",

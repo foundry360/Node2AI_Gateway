@@ -84,6 +84,8 @@ export interface PolicyAIContext {
   model_provider?: string;
   model_version?: string;
   model_type?: string;
+  /** Optional predictive/algorithm identifier when distinct from model_id. */
+  algorithm_id?: string;
   execution?: 'local' | 'private' | 'cloud';
   agent_id?: string;
   agent_version?: string;

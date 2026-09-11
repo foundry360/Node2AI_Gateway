@@ -48,6 +48,7 @@ describe('Policy evaluation authority (policy_evaluations)', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
 
     const policyId =
@@ -82,6 +83,7 @@ describe('Policy evaluation authority (policy_evaluations)', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
 
     const stored = repo.getEvaluation(decision.evaluation_id);

@@ -2,9 +2,9 @@
 
 **Status:** Active  
 **Invariant:** Agent reasons · Policy decides · Gateway enforces  
-**Reference packs:** HIPAA Policy Pack **v3.1.0** (`pack_hipaa`); 42 CFR Part 2 **v1.0.0** (`pack_42_cfr_part_2`)
+**Reference packs:** HIPAA Policy Pack **v3.1.0** (`pack_hipaa`); 42 CFR Part 2 **v1.0.0** (`pack_42_cfr_part_2`); ONC HTI-1 Thin Pack **v1.0.0** (`pack_onc_hti1`)
 
-Enigma is a **runtime governance and policy enforcement platform**. It is not a HIPAA or Part 2 assessment app, compliance checklist, regulatory document repository, or healthcare use-case library.
+Enigma is a **runtime governance and policy enforcement platform**. It is not a HIPAA, Part 2, or ONC assessment app, compliance checklist, regulatory document repository, or healthcare use-case library.
 
 ```text
 Regulation → Policy → Decision → Enforcement → Evidence
@@ -21,7 +21,7 @@ A **domain** is a business/regulatory governance area.
 | `domain_id` | `healthcare` |
 | `name` | Healthcare |
 | `status` | `active` |
-| `pack_ids` | `["pack_hipaa", "pack_42_cfr_part_2", …]` |
+| `pack_ids` | `["pack_hipaa", "pack_42_cfr_part_2", "pack_onc_hti1", …]` |
 
 The Healthcare Domain is **not** a policy pack. It holds membership, shared governance concepts, and cross-pack resolution contracts. It does not contain CFR text or executable HIPAA rules.
 
@@ -39,7 +39,9 @@ A **policy pack** is a versioned regulatory authority/framework authored as docs
 | Domain identity, pack membership, cross-pack resolution concepts | **Domain** |
 | Provenance graph, overlay registry, PDP, gateway | **Platform (generic)** |
 
-HIPAA v3.1 is Pack #1 under Healthcare. 42 CFR Part 2 v1.0 is Pack #2 (architecture validation). Future packs (HITECH, ONC, CMS, …) are **not** implemented here. See [HEALTHCARE_POLICY_PACKS.md](./HEALTHCARE_POLICY_PACKS.md).
+HIPAA v3.1 is Pack #1 under Healthcare. 42 CFR Part 2 v1.0 is Pack #2. ONC HTI-1 Thin Pack v1.0 is Pack #3 (predictive DSI / algorithm transparency). Future packs (HITECH, CMS, …) are **not** implemented here. See [HEALTHCARE_POLICY_PACKS.md](./HEALTHCARE_POLICY_PACKS.md).
+
+Enigma provides executable governance controls aligned to applicable ONC/HTI-1 concepts. It does not represent itself as a legal compliance determination or substitute for ONC certification or legal/regulatory analysis.
 
 ---
 
@@ -140,13 +142,32 @@ Generic layers:
 
 Existing fields are sufficient for multi-pack healthcare. Do not add speculative fields.
 
-### Present today (`PolicyContext` / `BaselineFacts`)
+### Present today (`PolicyContext` / `BaselineFacts` / live completions)
 
-`subject` (via request), `resource`, `action`/`operation`, `purpose`, `recipient`, `source`/`source_system`, `environment`, `authorization`, `classification`, `processing_location`, model/application/trust, `tenant`, `evidence`, `regulatory_applicability`, entity/health context markers.
+`subject` (user, application, optional `agent_id`), `resource`, `action`/`operation`, `purpose`, `recipient`, `source`/`source_system`, `environment`, `authorization` / `authorization_context`, `classification`, `processing_location`, model/application/trust, `tenant`, `evidence`, `regulatory_applicability`, entity/health context markers, optional `tool_id`, optional `permitted_entity_types` (minimum-necessary scope), `governance.agent_authorized` / `governance.tool_authorized`.
 
-### Healthcare-relevant (generic names)
+Live completions forward purpose, authorization, agent/tool identity, and governance context through **input and output** PDP evaluations and into `policy_evaluations` (including REVIEW hold snapshots).
 
-`purpose`, `recipient`, `authorization`, `classification`, `processing_location`, `regulatory_applicability`, `release_conditions_satisfied`.
+### Phase 1–2 HIPAA runtime (implemented)
+
+| Capability | Runtime behavior |
+| --- | --- |
+| Authorization context | HIPAA distinguishes `authorized` / `delegated` / `unauthorized` / `unknown` / `absent`; unauthorized → DENY; absent/unknown → REVIEW |
+| Purpose | Missing/unknown → REVIEW; marketing/research → DENY; authorized TPO/care purposes evaluate normally |
+| Agent / tool identity | Optional `agent_id` / `tool_id` on request → EPA subject + `ai_context`; unauthorized agent/tool → DENY |
+| Minimum necessary | `permitted_entity_types` scopes detected entities; excess → REDACT via gateway transform targets |
+| Output context | Purpose/authz/agent/tool survive to response policy evaluation |
+| Evidence | `policy_evaluations` retains context; enforcement join via `request_id` |
+
+### Not yet implemented (Healthcare Domain)
+
+- CMS interoperability / Patient Access / Provider Access / Payer-to-Payer packs
+- CMS prior-authorization prepare-vs-submit pack rules (beyond HIPAA purpose enum)
+- Full safe-harbor 18-identifier field ACL / FHIR resource ontology
+- Broader healthcare regulatory packs (HITECH, Information Blocking as packs)
+- Complete ONC HTI-1 / certification program (thin predictive-DSI pack only — see Pack #3)
+
+Do **not** claim ONC or CMS compliance. The ONC thin pack operationalizes selected HTI-1-aligned governance concepts at runtime; it is not a certification determination.
 
 ### Must remain generic
 

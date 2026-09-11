@@ -464,11 +464,76 @@ export interface SensitiveDataProcessingEvidence {
   external_processing_authorized?: boolean;
 }
 
+/**
+ * Generic predictive decision-support / algorithm governance facts.
+ * Pack-agnostic — ONC HTI-1 and similar packs map these into control inputs.
+ * Not a model registry, FAVES scorecard, or certification attestation.
+ */
+export interface PredictiveDsiEvidence {
+  /** applicable | not_applicable | unknown */
+  applicability?: string;
+  /** provider | payer | health_it_developer | other */
+  organization_role?: string;
+  certified_health_it_context?: boolean;
+  algorithm_id?: string;
+  model_id?: string;
+  model_version?: string;
+  provider?: string;
+  application?: string;
+  agent?: string;
+  intended_use?: string;
+  intended_users?: string;
+  population?: string;
+  /** clinical | administrative | other */
+  use_class?: string;
+  /** low | medium | high */
+  risk_tier?: string;
+  /** Alias accepted by packs that read risk_level */
+  risk_level?: string;
+  environment?: string;
+  /** sufficient | incomplete | stale | unknown */
+  governance_status?: string;
+  transparency_sufficient?: boolean;
+  source_attributes_documented?: boolean;
+  development_info_available?: boolean;
+  evaluation_info_available?: boolean;
+  performance_info_available?: boolean;
+  known_limitations_documented?: boolean;
+  fairness_considerations_documented?: boolean;
+  monitoring_info_available?: boolean;
+  /** sufficient | complete | incomplete | unknown */
+  faves_status?: string;
+  faves?: {
+    fair?: boolean;
+    appropriate?: boolean;
+    valid?: boolean;
+    effective?: boolean;
+    safe?: boolean;
+  };
+  /** sufficient | complete | insufficient | unknown */
+  risk_management_status?: string;
+  risk_management_sufficient?: boolean;
+  human_oversight?: boolean;
+  /** present | sufficient | required_and_present | missing | unknown */
+  human_oversight_status?: string;
+  version_governance_current?: boolean;
+  version_changed?: boolean;
+}
+
 export interface GovernanceContext {
   accountability_documented?: boolean;
   system_context_documented?: boolean;
   measurement_documented?: boolean;
   risk_response_documented?: boolean;
+  /**
+   * Explicit agent authorization when an agent_id is present on the request.
+   * Distinct from authorization_context (consent/authorization basis).
+   */
+  agent_authorized?: boolean;
+  /**
+   * Explicit tool authorization when a tool_id is present on the request.
+   */
+  tool_authorized?: boolean;
   /**
    * Generic sensitive-data processing attestations (e.g. controlled external PHI).
    * Distinct from security_controls and authorization_context.
@@ -494,6 +559,8 @@ export interface GovernanceContext {
   privacy?: PrivacyGovernanceEvidence;
   /** Generic regulatory / AI-system governance facts. */
   regulatory?: RegulatoryGovernanceEvidence;
+  /** Generic predictive DSI / algorithm transparency governance facts. */
+  predictive_dsi?: PredictiveDsiEvidence;
 }
 
 export interface PolicyRequestContext {
@@ -512,6 +579,15 @@ export interface PolicyRequestContext {
   processing_location?: string;
   /** Authorization/consent basis only — not governance documentation. */
   authorization_context?: string;
+  /** Agent identity when an agent (not only a human/app) is acting. */
+  agent_id?: string;
+  /** Tool identity when a tool invocation is in scope for this request. */
+  tool_id?: string;
+  /**
+   * Entity types permitted under minimum-necessary scope (e.g. MRN, DOB).
+   * When set, excess detected entity types are restricted via transform obligations.
+   */
+  permitted_entity_types?: string[];
   /** Generic governance evidence (accountability, context, measurement, risk response). */
   governance_context?: GovernanceContext;
   /**
@@ -555,6 +631,12 @@ export interface PolicyResponseContext {
   recipient?: string;
   /** Authorization/consent basis only — not governance documentation. */
   authorization_context?: string;
+  /** Agent identity forwarded from the input request when applicable. */
+  agent_id?: string;
+  /** Tool identity forwarded from the input request when applicable. */
+  tool_id?: string;
+  /** Minimum-necessary entity scope forwarded from the input request. */
+  permitted_entity_types?: string[];
   /** Generic governance evidence for output-phase packs when applicable. */
   governance_context?: GovernanceContext;
   /** Evaluation timestamp for phased obligations (ISO-8601). */

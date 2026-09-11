@@ -883,6 +883,7 @@ describe('Control Plane Hardening — Pre-Pack #9', () => {
         },
         deploymentMode: 'connected',
         purpose: 'treatment',
+        authorization_context: 'authorized',
         governance_context: {
           impact: FULL_GOVERNANCE.impact,
         },

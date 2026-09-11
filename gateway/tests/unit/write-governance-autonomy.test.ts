@@ -113,7 +113,7 @@ describe('Write governance — governed autonomy', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
-      authorization_context: 'treatment',
+      authorization_context: 'authorized',
       governance_context: {
         accountability_documented: true,
         system_context_documented: true,
@@ -145,6 +145,7 @@ describe('Write governance — governed autonomy', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     expect(['REVIEW', 'REQUIRE_APPROVAL']).toContain(
       String(decision.decision).toUpperCase(),
@@ -173,6 +174,7 @@ describe('Write governance — governed autonomy', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('DENY');
     expect(decision.reason_codes).toContain('HIPAA_PHI_WRITEBACK_NOT_AUTHORIZED');

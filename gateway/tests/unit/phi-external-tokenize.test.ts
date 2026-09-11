@@ -96,6 +96,7 @@ describe('Controlled PHI external TOKENIZE', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('DENY');
     expect(decision.reason_codes).toContain('PHI_PUBLIC_CLOUD_BLOCKED');
@@ -119,6 +120,7 @@ describe('Controlled PHI external TOKENIZE', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       governance_context: controlledGov,
     });
     expect(decision.decision).toBe('DENY');
@@ -148,6 +150,7 @@ describe('Controlled PHI external TOKENIZE', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       governance_context: controlledGov,
     });
     expect(decision.decision).toBe('DENY');
@@ -176,6 +179,7 @@ describe('Controlled PHI external TOKENIZE', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       governance_context: controlledGov,
     });
     expect(decision.decision).toBe('TOKENIZE');
@@ -241,6 +245,7 @@ describe('Controlled PHI external TOKENIZE', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       governance_context: controlledGov,
     });
     expect(pre.decision).toBe('TOKENIZE');
@@ -252,6 +257,7 @@ describe('Controlled PHI external TOKENIZE', () => {
       operation: 'summarize',
       model: 'cloud-public-gpt',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       governance_context: controlledGov,
       messages: [{ role: 'user', content: original }],
     });
@@ -363,6 +369,7 @@ describe('Controlled PHI external TOKENIZE', () => {
       operation: 'summarize',
       model: 'local-general-v1',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       messages: [
         {
           role: 'user',
@@ -448,6 +455,7 @@ describe('Controlled PHI external TOKENIZE', () => {
       operation: 'summarize',
       model: 'cloud-public-gpt',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       governance_context: controlledGov,
       messages: [{ role: 'user', content: chart }],
       metadata: {
@@ -504,6 +512,7 @@ describe('Controlled PHI external TOKENIZE', () => {
       operation: 'summarize',
       model: 'cloud-public-gpt',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       governance_context: controlledGov,
       messages: [{ role: 'user', content: original }],
     });

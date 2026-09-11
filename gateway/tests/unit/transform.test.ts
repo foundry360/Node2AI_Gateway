@@ -54,4 +54,35 @@ describe('InputTransformService', () => {
     expect(result.transformed_text).not.toContain('555-123-4567');
     expect(result.transformed_text).toMatch(/\*+4567/);
   });
+
+  it('filters entities by transform targets (minimum necessary)', async () => {
+    const svc = new InputTransformService(new InMemoryTokenVault());
+    const result = await svc.apply({
+      organization_id: 'org_demo',
+      request_id: 'req_targets',
+      correlation_id: 'corr_1',
+      text: 'MRN ABC12345 and SSN 123-45-6789',
+      entities: [
+        {
+          type: 'MRN',
+          preview: 'AB…45',
+          start: 4,
+          end: 12,
+          source: 'deterministic',
+        },
+        {
+          type: 'SSN',
+          preview: '12…89',
+          start: 21,
+          end: 32,
+          source: 'deterministic',
+        },
+      ],
+      decision: 'REDACT',
+      transforms: [{ type: 'redact', targets: ['SSN'] }],
+    });
+    expect(result.transformed_text).toContain('ABC12345');
+    expect(result.transformed_text).toContain('[REDACTED_SSN]');
+    expect(result.transformed_text).not.toContain('123-45-6789');
+  });
 });

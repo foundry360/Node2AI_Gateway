@@ -501,23 +501,19 @@ input:focus-visible,
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   background: var(--panel);
   border-radius: 999px;
   padding: 0.45rem 0.85rem;
   min-width: 14rem;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.55);
   font-size: 0.9rem;
 }
 
-.global-search kbd {
-  margin-left: auto;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 0.05rem 0.3rem;
-  font-size: 0.68rem;
-  font-family: inherit;
-  color: var(--muted);
+[data-theme='light'] .global-search {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .icon-btn {
@@ -3081,7 +3077,7 @@ table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 14px;
+  font-size: 13px;
   background: transparent;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -3499,6 +3495,10 @@ samp {
 
 .mono {
   font-size: 0.9rem;
+}
+
+table .mono {
+  font-size: inherit;
 }
 
 .badge {

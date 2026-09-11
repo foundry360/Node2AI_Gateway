@@ -11,4 +11,5 @@ export {
   FailingTransformService,
   InputTransformService,
   PrivilegedDetokenizationService,
+  filterEntitiesByTargets,
 } from './service.js';

@@ -12,6 +12,14 @@ import { newTokenValue } from './vault.js';
 
 const TOKEN_PATTERN = /\{\{TOK_[A-Za-z0-9_]+\}\}/g;
 
+/** Bucket labels expand to concrete detector entity types. */
+const TARGET_BUCKETS: Record<string, readonly string[]> = {
+  PHI: ['MRN', 'NPI', 'DOB', 'EMAIL', 'PHONE', 'SSN', 'NAME', 'ADDRESS'],
+  PII: ['EMAIL', 'PHONE', 'SSN', 'NAME', 'ADDRESS'],
+  CREDENTIAL: ['PASSWORD', 'API_KEY', 'SECRET', 'TOKEN'],
+  FINANCIAL: ['CREDIT_CARD', 'BANK_ACCOUNT'],
+};
+
 function resolveAction(decision: TransformRequest['decision']): TransformAction {
   switch (decision) {
     case 'TOKENIZE':
@@ -45,8 +53,41 @@ function extractOriginal(text: string, entity: DetectedEntity): string {
   return text.slice(entity.start, entity.end);
 }
 
+function expandTargets(targets: string[]): Set<string> {
+  const out = new Set<string>();
+  for (const raw of targets) {
+    const key = String(raw ?? '')
+      .trim()
+      .toUpperCase();
+    if (!key) continue;
+    const bucket = TARGET_BUCKETS[key];
+    if (bucket) {
+      for (const t of bucket) out.add(t);
+    } else {
+      out.add(key);
+    }
+  }
+  return out;
+}
+
+/**
+ * Filter entities by policy transform targets.
+ * Empty targets = no restriction (all non-marker entities).
+ */
+export function filterEntitiesByTargets(
+  entities: DetectedEntity[],
+  transforms: Array<{ type: string; targets: string[] }>,
+): DetectedEntity[] {
+  const allTargets = transforms.flatMap((t) => t.targets ?? []);
+  const expanded = expandTargets(allTargets);
+  const base = entities.filter((e) => e.type !== 'DIAGNOSIS_MARKER');
+  if (expanded.size === 0) return base;
+  return base.filter((e) => expanded.has(String(e.type).toUpperCase()));
+}
+
 /**
  * Applies policy-required input transforms. Failures must propagate (fail closed).
+ * Honors transforms[].targets as entity-type / bucket allowlists (minimum necessary).
  */
 export class InputTransformService implements TransformService {
   constructor(
@@ -64,12 +105,11 @@ export class InputTransformService implements TransformService {
       return { action, transformed_text: request.text, replacements: [] };
     }
 
-    const entities = [...request.entities]
-      // Markers classify PHI; they are not vault-token targets.
-      .filter((e) => e.type !== 'DIAGNOSIS_MARKER')
-      .sort((a, b) => b.start - a.start);
+    const entities = filterEntitiesByTargets(request.entities, request.transforms).sort(
+      (a, b) => b.start - a.start,
+    );
     if (entities.length === 0) {
-      // Policy required transform but no spans — fail closed
+      // Policy required transform but no spans matched targets — fail closed
       throw new Error('Transform required but no entities detected');
     }
 

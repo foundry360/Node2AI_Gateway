@@ -55,6 +55,7 @@ export interface PolicyAuthority {
 export const POLICY_AUTHORITY_IDS = {
   hipaa: 'auth_hipaa',
   part2: 'auth_42_cfr_part_2',
+  oncHti1: 'auth_onc_hti1',
   nistAiRmf: 'auth_nist_ai_rmf',
   owaspLlm2025: 'auth_owasp_llm_2025',
   iso42001: 'auth_iso_42001',
@@ -73,6 +74,7 @@ export const POLICY_AUTHORITY_IDS = {
 const PACK_AUTHORITY_BY_PACK_ID: Record<string, string> = {
   pack_hipaa: POLICY_AUTHORITY_IDS.hipaa,
   pack_42_cfr_part_2: POLICY_AUTHORITY_IDS.part2,
+  pack_onc_hti1: POLICY_AUTHORITY_IDS.oncHti1,
   pack_nist_ai_rmf: POLICY_AUTHORITY_IDS.nistAiRmf,
   pack_owasp_llm_2025: POLICY_AUTHORITY_IDS.owaspLlm2025,
   pack_eu_ai_act: POLICY_AUTHORITY_IDS.euAiAct,
@@ -176,6 +178,23 @@ function defineBuiltIns(): void {
     provenance: {
       legal_authority: true,
       notes: 'Confidentiality of Substance Use Disorder Patient Records.',
+    },
+  });
+
+  registerPolicyAuthority({
+    id: POLICY_AUTHORITY_IDS.oncHti1,
+    name: 'ONC HTI-1',
+    type: 'REGULATION',
+    publisher: 'Office of the National Coordinator for Health Information Technology',
+    jurisdiction: 'US',
+    authority_tier: 2,
+    version: null,
+    effective_date: null,
+    source_reference: '89 FR 1192 (HTI-1 Final Rule) — Predictive DSI / algorithm transparency',
+    provenance: {
+      legal_authority: true,
+      notes:
+        'ONC Health IT Certification Program updates including predictive decision support / algorithm transparency (FAVES). Enigma operationalizes selected concepts at runtime; not a certification determination.',
     },
   });
 

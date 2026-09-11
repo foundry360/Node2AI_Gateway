@@ -372,6 +372,7 @@ describe('Healthcare Policy Resolution v0.1', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     expect(deny.decision).toBe('REVIEW');
     expect(deny.reason_codes).toContain('HIPAA_PHI_WRITE_REQUIRES_APPROVAL');

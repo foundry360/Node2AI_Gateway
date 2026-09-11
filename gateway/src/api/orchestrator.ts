@@ -244,6 +244,10 @@ export class GatewayOrchestrator {
           request_id: requestId,
           purpose: body.purpose,
           authorization_context: body.authorization_context,
+          recipient: body.recipient,
+          agent_id: body.agent_id,
+          tool_id: body.tool_id,
+          permitted_entity_types: body.permitted_entity_types,
           source_system: body.source_system,
           processing_location: body.processing_location,
           governance_context: body.governance_context,
@@ -294,6 +298,18 @@ export class GatewayOrchestrator {
             },
             allowed_models: [...principal.application.allowed_models],
             available_models: this.deps.models.listAvailableModels(),
+            purpose: body.purpose,
+            authorization_context: body.authorization_context,
+            recipient: body.recipient,
+            agent_id: body.agent_id,
+            tool_id: body.tool_id,
+            permitted_entity_types: body.permitted_entity_types,
+            source_system: body.source_system,
+            processing_location: body.processing_location,
+            evaluation_as_of: body.evaluation_as_of,
+            governance_context: body.governance_context as
+              | Record<string, unknown>
+              | undefined,
           };
           try {
             await Promise.resolve(
@@ -436,6 +452,14 @@ export class GatewayOrchestrator {
           inspection,
           input_was_tokenized: inputTransformation === 'tokenize',
           request_id: requestId,
+          purpose: body.purpose,
+          authorization_context: body.authorization_context,
+          recipient: body.recipient,
+          agent_id: body.agent_id,
+          tool_id: body.tool_id,
+          permitted_entity_types: body.permitted_entity_types,
+          governance_context: body.governance_context,
+          evaluation_as_of: body.evaluation_as_of,
         });
       } catch {
         return block(
@@ -861,6 +885,14 @@ export class GatewayOrchestrator {
           inspection,
           input_was_tokenized: inputTransformation === 'tokenize',
           request_id: requestId,
+          purpose: held.purpose,
+          authorization_context: held.authorization_context,
+          recipient: held.recipient,
+          agent_id: held.agent_id,
+          tool_id: held.tool_id,
+          permitted_entity_types: held.permitted_entity_types,
+          governance_context: held.governance_context as never,
+          evaluation_as_of: held.evaluation_as_of,
         });
       } catch {
         return fail('POLICY_ENGINE_FAILURE', {

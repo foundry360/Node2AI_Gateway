@@ -174,6 +174,7 @@ describe('Phase 5 acceptance — Response Governance', () => {
       operation: 'summarize',
       model: 'cloud-public-gpt',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       governance_context: {
         sensitive_data_processing: { external_processing_authorized: true },
       },

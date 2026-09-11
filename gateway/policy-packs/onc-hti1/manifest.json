@@ -1,0 +1,44 @@
+{
+  "pack_id": "pack_onc_hti1",
+  "name": "ONC HTI-1 Predictive DSI (Thin)",
+  "domain": "healthcare",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "authority_id": "auth_onc_hti1",
+  "scope": "AI_PREDICTIVE_DSI_GOVERNANCE",
+  "not": "ONC_HTI1_COMPLIANCE_CERTIFICATION",
+  "description": "Thin ONC/HTI-1-aligned policy pack for runtime governance of predictive decision-support / algorithm transparency concepts. Healthcare Pack #3. Does not determine ONC certification or legal compliance.",
+  "interpreters": {
+    "input": "onc_hti1_pack_v1",
+    "output": "onc_hti1_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_onc_hti1_dsi_input",
+      "version": 1,
+      "phase": "input",
+      "name": "ONC HTI-1 predictive DSI input governance"
+    },
+    {
+      "policy_id": "pol_onc_hti1_dsi_output",
+      "version": 1,
+      "phase": "output",
+      "name": "ONC HTI-1 predictive DSI output governance"
+    }
+  ],
+  "semantic_notes": [
+    "Applicability is explicit (ONC_HTI1 tag + predictive_dsi.applicability) — Healthcare+AI alone does not imply HTI-1",
+    "FAVES and source-attribute checks are Enigma governance evidence gates, not legal findings",
+    "REVIEW maps to Gateway human-resolution hold — not automatic DENY for every missing optional field",
+    "Low-risk administrative predictive use has reduced evidence requirements"
+  ],
+  "deliberately_not_implemented": [
+    "Full ONC Health IT Certification Program",
+    "Complete HTI-1 source-attribute catalog",
+    "Information Blocking as a regulatory program",
+    "USCDI",
+    "FHIR interoperability enforcement",
+    "CMS Prior Authorization",
+    "Legal compliance determinations"
+  ]
+}

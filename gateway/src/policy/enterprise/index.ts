@@ -28,7 +28,7 @@ export {
   type BridgedEnterprisePdp,
 } from './pack-pdp.js';
 export { InMemoryPolicyRepository, mergeDefaultSnapshot } from './repository.js';
-export { applyRegulatoryOverlays, regulatoryPackExtras, ensureDefaultOverlayRegistry, part2PackContribution, hipaaPackContribution, nistAiRmfPackContribution, owaspLlm2025PackContribution, euAiActPackContribution, iso42001PackContribution, iso23894PackContribution, iso42005PackContribution, soc2PackContribution, nistCsf2PackContribution, iso38507PackContribution, iso27001PackContribution, iso27701PackContribution, nistPrivacyFrameworkPackContribution } from './packs/regulatory.js';
+export { applyRegulatoryOverlays, regulatoryPackExtras, ensureDefaultOverlayRegistry, part2PackContribution, oncHti1PackContribution, hipaaPackContribution, nistAiRmfPackContribution, owaspLlm2025PackContribution, euAiActPackContribution, iso42001PackContribution, iso23894PackContribution, iso42005PackContribution, soc2PackContribution, nistCsf2PackContribution, iso38507PackContribution, iso27001PackContribution, iso27701PackContribution, nistPrivacyFrameworkPackContribution } from './packs/regulatory.js';
 export {
   HEALTHCARE_DOMAIN,
   AI_RISK_DOMAIN,
@@ -53,6 +53,7 @@ export {
 } from './overlay-registry.js';
 export { compileHipaaPack } from './packs/hipaa/compile.js';
 export { compilePart2Pack } from './packs/part2/compile.js';
+export { compileOncHti1Pack } from './packs/onc-hti1/compile.js';
 export { compileNistAiRmfPack } from './packs/nist-ai-rmf/compile.js';
 export { compileOwaspLlm2025Pack } from './packs/owasp-llm-2025/compile.js';
 export { compileEuAiActPack } from './packs/eu-ai-act/compile.js';
@@ -73,6 +74,11 @@ export {
   applyHipaaClassificationProfile,
 } from './packs/hipaa/pack-v2.js';
 export { applyPart2PackV1Input, applyPart2PackV1Output } from './packs/part2/pack.js';
+export {
+  applyOncHti1PackV1Input,
+  applyOncHti1PackV1Output,
+  deriveOncHti1Gates,
+} from './packs/onc-hti1/pack.js';
 export {
   applyNistAiRmfPackV1Input,
   applyNistAiRmfPackV1Output,
@@ -135,6 +141,10 @@ export {
   deriveNistPrivacyFrameworkGates,
 } from './packs/nist-privacy-framework/pack.js';
 export { PART2_PROVENANCE_GRAPH, PART2_PACK_META } from './packs/part2/compiled-bundle.js';
+export {
+  ONC_HTI1_PROVENANCE_GRAPH,
+  ONC_HTI1_PACK_META,
+} from './packs/onc-hti1/compiled-bundle.js';
 export {
   NIST_AI_RMF_PROVENANCE_GRAPH,
   NIST_AI_RMF_PACK_META,

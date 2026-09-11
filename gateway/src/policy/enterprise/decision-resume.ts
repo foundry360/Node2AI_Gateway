@@ -53,6 +53,17 @@ export interface HeldRequestSnapshot {
   };
   allowed_models: string[];
   available_models: string[];
+  /** Healthcare / governance context preserved across human resolution. */
+  purpose?: string;
+  authorization_context?: string;
+  recipient?: string;
+  agent_id?: string;
+  tool_id?: string;
+  permitted_entity_types?: string[];
+  source_system?: string;
+  processing_location?: string;
+  evaluation_as_of?: string;
+  governance_context?: Record<string, unknown>;
 }
 
 export class ResumeEvaluationError extends Error {

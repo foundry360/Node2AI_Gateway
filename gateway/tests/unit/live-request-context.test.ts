@@ -96,6 +96,7 @@ describe('Live request context persistence', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       evaluation_phase: 'simulate',
       request_id: 'req_sim_ctx',
     });

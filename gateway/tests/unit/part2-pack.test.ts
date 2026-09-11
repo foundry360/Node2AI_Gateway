@@ -197,6 +197,7 @@ describe('42 CFR Part 2 — multi-pack with HIPAA', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('DENY');
     expect(decision.explanation.resolution?.category).toBe('RESTRICTIVE');
@@ -288,7 +289,8 @@ describe('42 CFR Part 2 — multi-pack with HIPAA', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
-      // No authorization_context → Part 2 consent absent → DENY; HIPAA still ALLOW
+      // HIPAA-authorized basis; Part 2 treats non-consent tokens as absent → DENY
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('REVIEW');
     expect(decision.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
@@ -337,6 +339,7 @@ describe('42 CFR Part 2 — multi-pack with HIPAA', () => {
       requested_model: 'local-general-v1',
       regulatory_applicability: ['HIPAA', 'PART2'],
       purpose: 'treatment',
+      authorization_context: 'authorized',
     };
     const out = applyRegulatoryOverlays(baseAllow(), facts, [hipaaMeta, part2Meta]);
     expect(out.decision).toBe('DENY');
@@ -363,6 +366,7 @@ describe('42 CFR Part 2 — multi-pack with HIPAA', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     const rules = decision.explanation.provenance?.matched_rules ?? [];
     expect(rules.some((r) => r.rule_id.startsWith('HIPAA-R-'))).toBe(true);

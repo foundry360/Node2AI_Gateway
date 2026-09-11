@@ -106,6 +106,8 @@ describe('Phase 2 acceptance — Data Interrogation', () => {
       application_id: 'app_clinical',
       user: { id: 'user_clinician' },
       operation: 'summarize',
+      purpose: 'treatment',
+      authorization_context: 'authorized',
       messages: [
         {
           role: 'user',

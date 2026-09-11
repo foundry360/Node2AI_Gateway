@@ -57,6 +57,7 @@ export function toInputEvaluationRequest(
       roles: context.user.roles,
       trust_level: context.application.trust_level,
       status: context.user.status,
+      ...(context.agent_id != null ? { agent_id: context.agent_id } : {}),
     },
     resource: {
       type: 'document',
@@ -66,6 +67,9 @@ export function toInputEvaluationRequest(
         application_type: context.application.type,
         allowed_operations: context.application.allowed_operations,
         allowed_models: context.application.allowed_models,
+        ...(context.permitted_entity_types != null
+          ? { permitted_entity_types: context.permitted_entity_types }
+          : {}),
       },
     },
     action: mapOperationToAction(context.operation),
@@ -99,6 +103,8 @@ export function toInputEvaluationRequest(
         : context.requestedModel
           ? 'cloud'
           : undefined,
+      ...(context.agent_id != null ? { agent_id: context.agent_id } : {}),
+      ...(context.tool_id != null ? { tool_id: context.tool_id } : {}),
     },
     evidence: {
       classification: classification as PolicyEvidence['classification'],
@@ -140,6 +146,7 @@ export function toOutputEvaluationRequest(
       roles: context.user.roles,
       trust_level: context.application.trust_level,
       status: context.user.status,
+      ...(context.agent_id != null ? { agent_id: context.agent_id } : {}),
     },
     resource: {
       type: 'model_output',
@@ -149,6 +156,9 @@ export function toOutputEvaluationRequest(
         application_type: context.application.type,
         allowed_operations: context.application.allowed_operations,
         allowed_models: context.application.allowed_models,
+        ...(context.permitted_entity_types != null
+          ? { permitted_entity_types: context.permitted_entity_types }
+          : {}),
       },
     },
     action: mapOperationToAction(context.operation),
@@ -173,6 +183,8 @@ export function toOutputEvaluationRequest(
     ai_context: {
       model_id: context.model_id,
       execution: context.model_id.startsWith('local-') ? 'local' : 'cloud',
+      ...(context.agent_id != null ? { agent_id: context.agent_id } : {}),
+      ...(context.tool_id != null ? { tool_id: context.tool_id } : {}),
     },
     evidence: {
       classification: classification as PolicyEvidence['classification'],

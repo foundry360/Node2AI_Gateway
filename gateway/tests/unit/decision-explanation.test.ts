@@ -129,6 +129,7 @@ describe('Multi-pack decision explanation — invariants', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     expect(decision.explanation.operator).toBeDefined();
     // HIPAA requires approval (REVIEW); Part 2 denies write without consent → restrictive DENY.
@@ -201,6 +202,7 @@ describe('Multi-pack decision explanation — simulate scenarios A–E', () => {
       requested_model: 'local-general-v1',
       regulatory_applicability: ['HIPAA', 'PART2'],
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('DENY');
     expect(decision.explanation.resolution?.category).toBe('AGREEMENT');
@@ -248,6 +250,7 @@ describe('Multi-pack decision explanation — simulate scenarios A–E', () => {
       requested_model: 'local-general-v1',
       regulatory_applicability: ['HIPAA', 'PART2'],
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('REVIEW');
     expect(decision.explanation.resolution?.category).toBe('UNRESOLVED');
@@ -341,6 +344,7 @@ describe('Multi-pack decision explanation — simulate scenarios A–E', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     const contribs = decision.explanation.resolution?.contributions ?? [];
     expect(contribs.length).toBeGreaterThanOrEqual(2);
@@ -371,6 +375,7 @@ describe('Multi-pack decision explanation — simulate scenarios A–E', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     const op = buildOperatorDecisionExplanation(decision);
     expect(op.final_decision).toBe(decision.decision);

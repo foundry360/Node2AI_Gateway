@@ -928,6 +928,7 @@ describe('Ten-Pack Cross-Control-Plane Validation', () => {
         },
         deploymentMode: 'connected',
         purpose: 'treatment',
+        authorization_context: 'authorized',
         governance_context: {
           assurance: FULL_GOVERNANCE.assurance,
           cybersecurity: FULL_GOVERNANCE.cybersecurity,

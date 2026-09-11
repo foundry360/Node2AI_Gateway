@@ -209,6 +209,7 @@ describe('PolicyAuthority architecture', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
 
     expect(decision.decision).toBe('REVIEW');

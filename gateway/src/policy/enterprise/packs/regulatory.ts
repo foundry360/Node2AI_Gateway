@@ -14,6 +14,8 @@ import {
 } from './hipaa/pack-v2.js';
 import { compilePart2Pack } from './part2/compile.js';
 import { applyPart2PackV1Input, applyPart2PackV1Output } from './part2/pack.js';
+import { compileOncHti1Pack } from './onc-hti1/compile.js';
+import { applyOncHti1PackV1Input, applyOncHti1PackV1Output } from './onc-hti1/pack.js';
 import { compileNistAiRmfPack } from './nist-ai-rmf/compile.js';
 import {
   applyNistAiRmfPackV1Input,
@@ -287,6 +289,8 @@ export function ensureDefaultOverlayRegistry(): void {
   registerOverlayInterpreter('hipaa_overlay_v1', applyHipaa);
   registerOverlayInterpreter('part2_pack_v1', applyPart2PackV1Input);
   registerOverlayInterpreter('part2_pack_v1_output', applyPart2PackV1Output);
+  registerOverlayInterpreter('onc_hti1_pack_v1', applyOncHti1PackV1Input);
+  registerOverlayInterpreter('onc_hti1_pack_v1_output', applyOncHti1PackV1Output);
   registerOverlayInterpreter('nist_ai_rmf_pack_v1', applyNistAiRmfPackV1Input);
   registerOverlayInterpreter('nist_ai_rmf_pack_v1_output', applyNistAiRmfPackV1Output);
   registerOverlayInterpreter('owasp_llm_2025_pack_v1', applyOwaspLlm2025PackV1Input);
@@ -320,6 +324,7 @@ export function ensureDefaultOverlayRegistry(): void {
   registerOverlayInterpreter('financial_overlay_v1', applyFinancial);
   registerOverlayInterpreter('legal_overlay_v1', applyLegal);
   addPackToDomain('healthcare', 'pack_42_cfr_part_2');
+  addPackToDomain('healthcare', 'pack_onc_hti1');
   addPackToDomain('ai_risk', 'pack_nist_ai_rmf');
   addPackToDomain('ai_risk', 'pack_owasp_llm_2025');
   addPackToDomain('ai_risk', 'pack_eu_ai_act');
@@ -446,6 +451,23 @@ export function part2PackContribution(): PackContribution {
       },
     ],
     policies: [...part2.policies],
+  };
+}
+
+/** ONC HTI-1 thin pack contribution (Healthcare Pack #3). */
+export function oncHti1PackContribution(): PackContribution {
+  const onc = compileOncHti1Pack();
+  return {
+    packs: [
+      {
+        pack_id: 'pack_onc_hti1',
+        status: 'active',
+        name: 'ONC HTI-1 Predictive DSI (Thin)',
+        domain: 'healthcare',
+        authority_id: POLICY_AUTHORITY_IDS.oncHti1,
+      },
+    ],
+    policies: [...onc.policies],
   };
 }
 
@@ -662,6 +684,7 @@ export function regulatoryPackExtras(): Pick<PackSnapshot, 'packs' | 'policies'>
   return mergePackContributions(
     hipaaPackContribution(),
     part2PackContribution(),
+    oncHti1PackContribution(),
     nistAiRmfPackContribution(),
     owaspLlm2025PackContribution(),
     euAiActPackContribution(),

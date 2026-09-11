@@ -397,6 +397,7 @@ describe('Product Reality Test — Enigma governance lifecycle', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       source_system: 'ehr',
       governance_context: GOVERNANCE_DOCUMENTED,
       request_id: 'req_complementary',
@@ -1710,6 +1711,7 @@ describe('Product Reality Test — Enigma governance lifecycle', () => {
       },
       deploymentMode: 'connected',
       purpose: 'marketing',
+      authorization_context: 'authorized',
       request_id: 'req_q_blocked',
     });
     const denyExplained = withOperatorExplanation(deny);
@@ -3228,6 +3230,7 @@ describe('Product Reality Test — Enigma governance lifecycle', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       governance_context: { privacy: PRIVACY_ALL },
       request_id: 'req_27701_hipaa',
     });
@@ -3651,6 +3654,7 @@ describe('Product Reality Test — Enigma governance lifecycle', () => {
       operation: 'summarize',
       model: 'cloud-public-gpt',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       governance_context: {
         sensitive_data_processing: { external_processing_authorized: true },
       },

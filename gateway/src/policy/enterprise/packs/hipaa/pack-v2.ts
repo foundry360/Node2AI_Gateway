@@ -43,6 +43,8 @@ export type HipaaPackFacts = BaselineFacts & {
   health_sensitive?: boolean;
   health_context?: boolean;
   agent_id?: string;
+  tool_id?: string;
+  permitted_entity_types?: string[];
   /** Explicit release flag from Enigma release evaluation — not "clinician may see PHI". */
   release_conditions_satisfied?: boolean;
   regulatory_applicability?: string[];
@@ -268,6 +270,96 @@ function isKnownPurpose(purpose: string): boolean {
   return known.has(purpose);
 }
 
+/** Purposes that are known but not authorized for general PHI AI processing. */
+function isUnauthorizedPurpose(purpose: string): boolean {
+  return purpose === 'marketing' || purpose === 'research';
+}
+
+/** Authorized purposes for PHI AI under this pack (TPO + care/ops). */
+function isAuthorizedPurpose(purpose: string): boolean {
+  return (
+    isKnownPurpose(purpose) &&
+    purpose !== 'unknown' &&
+    !isUnauthorizedPurpose(purpose)
+  );
+}
+
+export type AuthorizationContextState =
+  | 'authorized'
+  | 'unauthorized'
+  | 'unknown'
+  | 'absent'
+  | 'delegated';
+
+export function authorizationContextState(
+  authorizationContext?: string,
+): AuthorizationContextState {
+  if (authorizationContext == null || String(authorizationContext).trim() === '') {
+    return 'absent';
+  }
+  const raw = String(authorizationContext).trim().toLowerCase();
+  if (raw.startsWith('delegated:') || raw === 'delegated') return 'delegated';
+  if (
+    raw === 'unauthorized' ||
+    raw === 'denied' ||
+    raw === 'revoked' ||
+    raw === 'prohibited'
+  ) {
+    return 'unauthorized';
+  }
+  if (raw === 'unknown') return 'unknown';
+  // Authorized family — includes Part 2 consent tokens and treatment relationship.
+  if (
+    raw === 'authorized' ||
+    raw === 'treatment_relationship' ||
+    raw === 'part2_consent' ||
+    raw === 'baa_covered' ||
+    raw === 'consent_present' ||
+    raw.startsWith('authorized:')
+  ) {
+    return 'authorized';
+  }
+  // Unknown token — not silently approved.
+  return 'unknown';
+}
+
+function agentAuthorizationState(
+  facts: HipaaPackFacts,
+): 'n/a' | 'authorized' | 'unauthorized' {
+  if (!facts.agent_id) return 'n/a';
+  if (facts.governance_context?.agent_authorized === false) return 'unauthorized';
+  if (facts.governance_context?.agent_authorized === true) return 'authorized';
+  const auth = authorizationContextState(facts.authorization_context);
+  // Agent present without explicit authorization — fall back to authorization_context.
+  // `unknown` is not an agent grant; require authorized/delegated or agent_authorized=true.
+  if (auth === 'authorized' || auth === 'delegated') return 'authorized';
+  return 'unauthorized';
+}
+
+function toolAuthorizationState(
+  facts: HipaaPackFacts,
+): 'n/a' | 'authorized' | 'unauthorized' {
+  if (!facts.tool_id) return 'n/a';
+  if (facts.governance_context?.tool_authorized === false) return 'unauthorized';
+  if (facts.governance_context?.tool_authorized === true) return 'authorized';
+  const auth = authorizationContextState(facts.authorization_context);
+  if (auth === 'unauthorized') return 'unauthorized';
+  // Tool requires explicit tool_authorized=true when tool_id is present.
+  return 'unauthorized';
+}
+
+function excessEntityTypes(facts: HipaaPackFacts): string[] {
+  const permitted = (facts.permitted_entity_types ?? [])
+    .map((t) => t.trim().toUpperCase())
+    .filter(Boolean);
+  if (permitted.length === 0) return [];
+  const permittedSet = new Set(permitted);
+  const requested = (facts.entity_types ?? [])
+    .map((t) => t.trim().toUpperCase())
+    .filter((t) => t && t !== 'DIAGNOSIS_MARKER');
+  return [...new Set(requested.filter((t) => !permittedSet.has(t)))];
+}
+
 /** Regulatory HIPAA applicability — PHI/ePHI classification, not mere health-sensitive. */
 function hipaaApplicable(facts: HipaaPackFacts): boolean {
   if (facts.regulatory_applicability?.includes('HIPAA')) return true;
@@ -305,13 +397,22 @@ function processingEnvironment(
 function evidenceSufficient(facts: HipaaPackFacts): boolean {
   if (facts.evidence_sufficient === false) return false;
   if (facts.evidence_sufficient === true) return true;
-  // Purpose omitted (undefined) is not the same as explicit UNKNOWN.
+
+  // Missing / empty / unknown purpose must not silently approve PHI processing.
   if (facts.purpose === undefined || facts.purpose === null || facts.purpose === '') {
-    return true;
+    return false;
   }
   const purpose = normalizePurpose(facts.purpose);
-  if (purpose === 'unknown') return false;
-  return isKnownPurpose(purpose);
+  if (purpose === 'unknown' || !isKnownPurpose(purpose)) return false;
+  if (isUnauthorizedPurpose(purpose)) return false;
+
+  const auth = authorizationContextState(facts.authorization_context);
+  // Missing authorization context is insufficient. Explicit unauthorized is DENY
+  // via a dedicated rule. `unknown` remains evaluable so Part 2 can own consent-unknown
+  // REVIEW without forcing a second HIPAA REVIEW on the same fact.
+  if (auth === 'absent' || auth === 'unauthorized') return false;
+
+  return isAuthorizedPurpose(purpose);
 }
 
 /**
@@ -329,8 +430,14 @@ function requiredControlsSatisfied(
   if (!facts.roles.includes('clinician')) return false;
   if (facts.purpose !== undefined && facts.purpose !== null && facts.purpose !== '') {
     const purpose = normalizePurpose(facts.purpose);
-    if (purpose === 'unknown' || !isKnownPurpose(purpose)) return false;
+    if (purpose === 'unknown' || !isAuthorizedPurpose(purpose)) return false;
+  } else {
+    return false;
   }
+  const auth = authorizationContextState(facts.authorization_context);
+  if (auth === 'absent' || auth === 'unauthorized') return false;
+  if (agentAuthorizationState(facts) === 'unauthorized') return false;
+  if (toolAuthorizationState(facts) === 'unauthorized') return false;
 
   if (env === 'local_or_private') return true;
 
@@ -357,8 +464,14 @@ function releaseConditionsSatisfied(facts: HipaaPackFacts): boolean {
   if (!base) return false;
   if (facts.purpose !== undefined && facts.purpose !== null && facts.purpose !== '') {
     const purpose = normalizePurpose(facts.purpose);
-    if (purpose === 'unknown' || !isKnownPurpose(purpose)) return false;
+    if (purpose === 'unknown' || !isAuthorizedPurpose(purpose)) return false;
+  } else {
+    return false;
   }
+  const auth = authorizationContextState(facts.authorization_context);
+  if (auth === 'absent' || auth === 'unauthorized') return false;
+  if (agentAuthorizationState(facts) === 'unauthorized') return false;
+  if (toolAuthorizationState(facts) === 'unauthorized') return false;
   return true;
 }
 
@@ -387,6 +500,28 @@ function matchInputRule(
     return false;
   }
   if (c.trust_level_not && facts.trust_level === c.trust_level_not) return false;
+  if (c.authorization_state != null) {
+    if (authorizationContextState(facts.authorization_context) !== c.authorization_state) {
+      return false;
+    }
+  }
+  if (c.unauthorized_purpose === true) {
+    const purpose = normalizePurpose(facts.purpose);
+    if (!isUnauthorizedPurpose(purpose)) return false;
+  }
+  if (c.agent_unauthorized === true && agentAuthorizationState(facts) !== 'unauthorized') {
+    return false;
+  }
+  if (c.tool_unauthorized === true && toolAuthorizationState(facts) !== 'unauthorized') {
+    return false;
+  }
+  if (c.excess_entity_types === true && excessEntityTypes(facts).length === 0) {
+    return false;
+  }
+  if (c.agent_present === true && !facts.agent_id) return false;
+  if (c.tool_present === true && !facts.tool_id) return false;
+  if (c.clinician_role === false && facts.roles.includes('clinician')) return false;
+  if (c.clinician_role === true && !facts.roles.includes('clinician')) return false;
   return true;
 }
 
@@ -440,6 +575,7 @@ function applyRule(
   rule: HipaaCompiledRule,
   meta: PackPolicyMeta,
   current: InterpretedResult,
+  facts?: HipaaPackFacts,
 ): InterpretedResult {
   const matched = [
     ...current.matched,
@@ -513,15 +649,18 @@ function applyRule(
   }
 
   if (rule.decision === 'TRANSFORM') {
-    const transforms = rule.transforms ?? [{ type: 'tokenize', targets: ['PHI'] }];
+    let transforms = rule.transforms ?? [{ type: 'tokenize', targets: ['PHI'] }];
+    let decision: InterpretedResult['decision'] = 'TOKENIZE';
+    if (rule.conditions.excess_entity_types === true && facts) {
+      const excess = excessEntityTypes(facts);
+      transforms = [{ type: 'redact', targets: excess }];
+      decision = 'REDACT';
+    }
     const obligations = mergeObligations(current.obligations, rule.enigma_obligations);
-    // TOKENIZE is an Enigma control — do not strip external models when the
-    // controlled path already selected them. LOCAL_MODEL_ONLY is omitted from
-    // the tokenize implementation option (see compiled-bundle).
     const forceLocal = obligations.some((o) => o.code === 'LOCAL_MODEL_ONLY');
     return {
       ...current,
-      decision: 'TOKENIZE',
+      decision,
       reason_codes: [...(rule.reason_codes ?? []), ...current.reason_codes],
       eligible_models: forceLocal
         ? current.eligible_models.filter(
@@ -540,15 +679,15 @@ function applyRule(
 
   if (rule.decision === 'ALLOW_WITH_CONTROLS') {
     const keepExternalTokenizePath =
-      current.decision === 'TOKENIZE' &&
+      (current.decision === 'TOKENIZE' || current.decision === 'REDACT') &&
       current.eligible_models.some((m) => isCloudModel(m));
     return {
       ...current,
       decision:
         current.decision === 'DENY' || current.decision === 'REVIEW'
           ? current.decision
-          : current.decision === 'TOKENIZE'
-            ? 'TOKENIZE'
+          : current.decision === 'TOKENIZE' || current.decision === 'REDACT'
+            ? current.decision
             : 'ALLOW',
       reason_codes: [...(rule.reason_codes ?? []), ...current.reason_codes],
       eligible_models: keepExternalTokenizePath
@@ -641,6 +780,11 @@ export function applyHipaaPackV3Input(
     .filter((r) => r.phase === 'input')
     .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
+  const authState = authorizationContextState(facts.authorization_context);
+  const agentState = agentAuthorizationState(facts);
+  const toolState = toolAuthorizationState(facts);
+  const excess = excessEntityTypes(facts);
+
   let result: InterpretedResult = {
     ...current,
     matched: [
@@ -650,6 +794,12 @@ export function applyHipaaPackV3Input(
       `required_controls_satisfied:${controlsOk}`,
       `evidence_sufficient:${evidenceOk}`,
       `purpose:${normalizePurpose(facts.purpose)}`,
+      `authorization_context:${authState}`,
+      `agent_authorization:${agentState}`,
+      `tool_authorization:${toolState}`,
+      ...(facts.agent_id ? [`agent_id:${facts.agent_id}`] : []),
+      ...(facts.tool_id ? [`tool_id:${facts.tool_id}`] : []),
+      ...(excess.length ? [`excess_entity_types:${excess.join(',')}`] : []),
     ],
     provenance: {
       matched_rules: current.provenance?.matched_rules ?? [],
@@ -662,11 +812,12 @@ export function applyHipaaPackV3Input(
 
   for (const rule of inputRules) {
     if (!matchInputRule(rule, facts, env, controlsOk, evidenceOk)) continue;
-    result = applyRule(rule, meta, result);
+    result = applyRule(rule, meta, result, facts);
     if (
       result.decision === 'DENY' ||
       result.decision === 'REVIEW' ||
-      result.decision === 'TOKENIZE'
+      result.decision === 'TOKENIZE' ||
+      result.decision === 'REDACT'
     ) {
       break;
     }
@@ -696,7 +847,7 @@ export function applyHipaaPackV3Output(
 
   for (const rule of outputRules) {
     if (!matchOutputRule(rule, facts)) continue;
-    result = applyRule(rule, meta, result);
+    result = applyRule(rule, meta, result, facts);
     if (result.decision === 'BLOCK_OUTPUT') break;
     if (result.authorize_detokenization) break;
   }

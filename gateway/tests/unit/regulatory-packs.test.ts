@@ -136,6 +136,7 @@ describe('HIPAA pack v3 semantic refinement', () => {
       },
       deploymentMode: 'connected',
       purpose: 'utilization_management',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('ALLOW');
     expect(decision.reason_codes).toContain('HIPAA_PHI_PROCESSING_CONTROLS_SATISFIED');
@@ -161,6 +162,7 @@ describe('HIPAA pack v3 semantic refinement', () => {
       },
       deploymentMode: 'connected',
       purpose: 'utilization_management',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('DENY');
     expect(decision.reason_codes).toContain('PHI_PUBLIC_CLOUD_BLOCKED');
@@ -189,6 +191,7 @@ describe('HIPAA pack v3 semantic refinement', () => {
       },
       deploymentMode: 'connected',
       purpose: 'utilization_management',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('ALLOW');
     expect(decision.reason_codes).toContain('HIPAA_PHI_PROCESSING_CONTROLS_SATISFIED');
@@ -217,6 +220,7 @@ describe('HIPAA pack v3 semantic refinement', () => {
       },
       deploymentMode: 'connected',
       purpose: 'unknown',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('REVIEW');
     expect(decision.reason_codes).toContain('HIPAA_PHI_INSUFFICIENT_EVIDENCE_FOR_PROCESSING');
@@ -241,6 +245,7 @@ describe('HIPAA pack v3 semantic refinement', () => {
       },
       deploymentMode: 'connected',
       purpose: 'utilization_management',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('TOKENIZE');
     expect(decision.reason_codes).toContain('ENIGMA_TOKENIZE_SELECTED');
@@ -278,6 +283,7 @@ describe('HIPAA pack v3 semantic refinement', () => {
       },
       input_was_tokenized: false,
       purpose: 'utilization_management',
+      authorization_context: 'authorized',
     });
     expect(blocked.decision).toBe('BLOCK_OUTPUT');
     expect(blocked.reason_codes).toContain('HIPAA_PHI_OUTPUT_NOT_AUTHORIZED');
@@ -305,6 +311,7 @@ describe('HIPAA pack v3 semantic refinement', () => {
       },
       input_was_tokenized: true,
       purpose: 'utilization_management',
+      authorization_context: 'authorized',
     });
     expect(released.decision).not.toBe('BLOCK_OUTPUT');
     expect(released.reason_codes).toContain('ENIGMA_RELEASE_AUTHORIZED_DETOKENIZATION');
@@ -330,6 +337,7 @@ describe('HIPAA pack v3 semantic refinement', () => {
       },
       deploymentMode: 'connected',
       purpose: 'utilization_management',
+      authorization_context: 'authorized',
     });
     expect(
       decision.explanation.matched_conditions.some((m) =>
@@ -356,6 +364,7 @@ describe('HIPAA pack v3 semantic refinement', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     expect(
       decision.explanation.matched_conditions.some((m) => m.condition_key.startsWith('source:')),
@@ -411,6 +420,7 @@ describe('HIPAA pack v3 semantic refinement', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('REVIEW');
     expect(decision.reason_codes).toContain('HIPAA_PHI_WRITE_REQUIRES_APPROVAL');
@@ -443,6 +453,8 @@ describe('Enigma EPA M4 regulatory overlays', () => {
         reason_codes: ['HEALTH'],
       },
       deploymentMode: 'connected',
+      purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('ALLOW');
     expect(decision.obligations.some((o) => o.code === 'LOCAL_MODEL_ONLY')).toBe(true);

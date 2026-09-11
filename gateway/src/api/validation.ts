@@ -28,6 +28,17 @@ export const completionRequestSchema = z
     purpose: z.string().min(1).optional(),
     /** Authorization/consent basis only — not governance documentation. */
     authorization_context: z.string().min(1).optional(),
+    /** Optional disclosure/recipient context for output governance. */
+    recipient: z.string().min(1).optional(),
+    /** Agent identity when an agent is acting on the request. */
+    agent_id: z.string().min(1).optional(),
+    /** Tool identity when a tool invocation is in scope. */
+    tool_id: z.string().min(1).optional(),
+    /**
+     * Entity types permitted under minimum-necessary scope.
+     * Excess detected types are restricted by gateway transforms.
+     */
+    permitted_entity_types: z.array(z.string().min(1)).optional(),
     source_system: z.string().min(1).optional(),
     processing_location: z.string().min(1).optional(),
     /**
@@ -40,6 +51,8 @@ export const completionRequestSchema = z
         system_context_documented: z.boolean().optional(),
         measurement_documented: z.boolean().optional(),
         risk_response_documented: z.boolean().optional(),
+        agent_authorized: z.boolean().optional(),
+        tool_authorized: z.boolean().optional(),
         security_controls: z
           .object({
             prompt_injection_controls: z.boolean().optional(),
@@ -524,6 +537,53 @@ export const completionRequestSchema = z
             gpai_systemic_risk_mitigation: z.boolean().optional(),
             gpai_incident_reporting: z.boolean().optional(),
             gpai_cybersecurity: z.boolean().optional(),
+          })
+          .strict()
+          .optional(),
+        predictive_dsi: z
+          .object({
+            applicability: z.string().min(1).optional(),
+            organization_role: z.string().min(1).optional(),
+            certified_health_it_context: z.boolean().optional(),
+            algorithm_id: z.string().min(1).optional(),
+            model_id: z.string().min(1).optional(),
+            model_version: z.string().min(1).optional(),
+            provider: z.string().min(1).optional(),
+            application: z.string().min(1).optional(),
+            agent: z.string().min(1).optional(),
+            intended_use: z.string().min(1).optional(),
+            intended_users: z.string().min(1).optional(),
+            population: z.string().min(1).optional(),
+            use_class: z.string().min(1).optional(),
+            risk_tier: z.string().min(1).optional(),
+            risk_level: z.string().min(1).optional(),
+            environment: z.string().min(1).optional(),
+            governance_status: z.string().min(1).optional(),
+            transparency_sufficient: z.boolean().optional(),
+            source_attributes_documented: z.boolean().optional(),
+            development_info_available: z.boolean().optional(),
+            evaluation_info_available: z.boolean().optional(),
+            performance_info_available: z.boolean().optional(),
+            known_limitations_documented: z.boolean().optional(),
+            fairness_considerations_documented: z.boolean().optional(),
+            monitoring_info_available: z.boolean().optional(),
+            faves_status: z.string().min(1).optional(),
+            faves: z
+              .object({
+                fair: z.boolean().optional(),
+                appropriate: z.boolean().optional(),
+                valid: z.boolean().optional(),
+                effective: z.boolean().optional(),
+                safe: z.boolean().optional(),
+              })
+              .strict()
+              .optional(),
+            risk_management_status: z.string().min(1).optional(),
+            risk_management_sufficient: z.boolean().optional(),
+            human_oversight: z.boolean().optional(),
+            human_oversight_status: z.string().min(1).optional(),
+            version_governance_current: z.boolean().optional(),
+            version_changed: z.boolean().optional(),
           })
           .strict()
           .optional(),

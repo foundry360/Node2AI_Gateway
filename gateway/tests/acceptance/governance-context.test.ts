@@ -426,6 +426,7 @@ describe('Live completions forwards generic governance context', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
       governance_context: {
         accountability_documented: true,
         system_context_documented: true,

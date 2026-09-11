@@ -1,0 +1,69 @@
+{
+  "version": "1.0.0",
+  "obligations": [
+    {
+      "id": "ONC-OBL-ALGORITHM-IDENTITY",
+      "obligation_id": "ONC-OBL-ALGORITHM-IDENTITY",
+      "name": "Predictive algorithm / model identity",
+      "description": "Applicable predictive DSI uses should identify the algorithm or model in use.",
+      "citations": ["89 FR 1192 — algorithm transparency (identity)"],
+      "related_rules": ["ONC-R-DSI-IDENTITY"]
+    },
+    {
+      "id": "ONC-OBL-INTENDED-USE",
+      "obligation_id": "ONC-OBL-INTENDED-USE",
+      "name": "Intended use disclosure",
+      "description": "Applicable predictive DSI uses should declare intended use.",
+      "citations": ["89 FR 1192 — source attributes (intended use)"],
+      "related_rules": ["ONC-R-DSI-INTENDED-USE"]
+    },
+    {
+      "id": "ONC-OBL-TRANSPARENCY",
+      "obligation_id": "ONC-OBL-TRANSPARENCY",
+      "name": "Transparency / source attributes",
+      "description": "Governance evidence that required transparency attributes are available for the predictive system.",
+      "citations": ["89 FR 1192 — source attributes"],
+      "related_rules": ["ONC-R-DSI-TRANSPARENCY"]
+    },
+    {
+      "id": "ONC-OBL-FAVES",
+      "obligation_id": "ONC-OBL-FAVES",
+      "name": "FAVES governance evidence",
+      "description": "Fair, Appropriate, Valid, Effective, Safe evidence gates for high-risk predictive use.",
+      "citations": ["89 FR 1192 — FAVES"],
+      "related_rules": ["ONC-R-DSI-FAVES"]
+    },
+    {
+      "id": "ONC-OBL-RISK-MANAGEMENT",
+      "obligation_id": "ONC-OBL-RISK-MANAGEMENT",
+      "name": "Risk management evidence",
+      "description": "Risk-management status for applicable predictive systems.",
+      "citations": ["89 FR 1192 — risk management / monitoring concepts"],
+      "related_rules": ["ONC-R-DSI-RISK-MANAGEMENT"]
+    },
+    {
+      "id": "ONC-OBL-HUMAN-OVERSIGHT",
+      "obligation_id": "ONC-OBL-HUMAN-OVERSIGHT",
+      "name": "Human oversight",
+      "description": "Human oversight context for high-risk clinical predictive use.",
+      "citations": ["89 FR 1192 — ongoing use / oversight concepts"],
+      "related_rules": ["ONC-R-DSI-HUMAN-OVERSIGHT"]
+    },
+    {
+      "id": "ONC-OBL-VERSION-GOVERNANCE",
+      "obligation_id": "ONC-OBL-VERSION-GOVERNANCE",
+      "name": "Model/version governance",
+      "description": "Material model/version changes require current governance status.",
+      "citations": ["89 FR 1192 — ongoing monitoring / update concepts"],
+      "related_rules": ["ONC-R-DSI-VERSION-GOVERNANCE"]
+    },
+    {
+      "id": "ONC-OBL-APPLICABILITY",
+      "obligation_id": "ONC-OBL-APPLICABILITY",
+      "name": "HTI-1 applicability context",
+      "description": "ONC HTI-1-aligned controls apply only when certification/applicability context warrants.",
+      "citations": ["89 FR 1192 — Certification Program context"],
+      "related_rules": ["ONC-R-DSI-UNKNOWN-APPLICABILITY", "ONC-R-DSI-CONTROLS-SATISFIED"]
+    }
+  ]
+}

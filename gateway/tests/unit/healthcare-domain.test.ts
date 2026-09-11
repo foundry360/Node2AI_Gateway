@@ -134,7 +134,7 @@ describe('Healthcare Policy Domain — architecture', () => {
     unregisterOverlayInterpreter(MOCK_INTERPRETER);
     const domain = getPolicyDomain('healthcare');
     if (domain) {
-      domain.pack_ids = ['pack_hipaa', 'pack_42_cfr_part_2'];
+      domain.pack_ids = ['pack_hipaa', 'pack_42_cfr_part_2', 'pack_onc_hti1'];
     }
   });
 
@@ -229,6 +229,7 @@ describe('Healthcare Policy Domain — architecture', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
 
     expect(decision.decision).toBe('ALLOW');
@@ -270,6 +271,7 @@ describe('Healthcare Policy Domain — architecture', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
 
     const rules = decision.explanation.provenance?.matched_rules ?? [];
@@ -317,6 +319,7 @@ describe('Healthcare Policy Domain — architecture', () => {
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
+      authorization_context: 'authorized',
     });
     expect(held.decision).toBe('REVIEW');
     expect(held.reason_codes).toContain('HIPAA_PHI_WRITE_REQUIRES_APPROVAL');

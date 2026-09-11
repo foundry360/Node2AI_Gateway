@@ -19,7 +19,6 @@ export function TopChrome({ userName = 'admin' }: { userName?: string }) {
         <div className="global-search" role="search">
           <Search size={16} strokeWidth={1.75} aria-hidden />
           <span>Search</span>
-          <kbd>⌘K</kbd>
         </div>
         <ProfileMenu userName={userName} />
       </div>

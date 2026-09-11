@@ -40,6 +40,12 @@ export interface BaselineFacts {
   processing_location?: string;
   /** Authorization/consent basis only — not governance documentation. */
   authorization_context?: string;
+  /** Agent identity when present on the live request. */
+  agent_id?: string;
+  /** Tool identity when present on the live request. */
+  tool_id?: string;
+  /** Minimum-necessary permitted entity types when scoped by the caller. */
+  permitted_entity_types?: string[];
   /**
    * Generic governance evidence. Packs map these into control inputs.
    * Distinct from authorization_context.
