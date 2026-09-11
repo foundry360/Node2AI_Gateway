@@ -120,7 +120,7 @@ function Sparkline({
                   x2={active.x}
                   y1={0}
                   y2={height}
-                  stroke="rgba(255,255,255,0.2)"
+                  stroke="var(--chart-track)"
                   strokeWidth={1}
                   vectorEffect="non-scaling-stroke"
                 />
@@ -129,7 +129,7 @@ function Sparkline({
                   cy={active.y}
                   r={3.5}
                   fill={color}
-                  stroke="#0d1017"
+                  stroke="var(--panel)"
                   strokeWidth={1.5}
                 />
               </>

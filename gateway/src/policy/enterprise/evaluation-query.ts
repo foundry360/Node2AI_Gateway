@@ -105,9 +105,12 @@ export function deriveDecisionConsequence(
     };
   }
 
-  if (d === 'REVIEW') {
+  if (d === 'REVIEW' || d === 'REQUIRE_APPROVAL') {
     return {
-      action_summary: 'Hold for human review',
+      action_summary:
+        d === 'REQUIRE_APPROVAL'
+          ? 'Hold for human approval'
+          : 'Hold for human review',
       expected_action: 'HOLD',
       enforcement_result: 'HOLD (expected)',
       requires_review: true,

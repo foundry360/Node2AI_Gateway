@@ -43,6 +43,12 @@ export interface GatewayConfig {
    * (no silent fallback to admin key).
    */
   requireVaultKey: boolean;
+  /**
+   * When true, response policy may authorize vault detokenization for
+   * trusted clinical + clinician paths (still gated by pack rules).
+   * Default true. Set GATEWAY_ALLOW_DETOKENIZATION=false to disable.
+   */
+  allowDetokenization: boolean;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig {
@@ -68,6 +74,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
   }
 
   const requireVaultKey = env.GATEWAY_REQUIRE_VAULT_KEY === 'true';
+  const allowDetokenization = env.GATEWAY_ALLOW_DETOKENIZATION !== 'false';
 
   return {
     host: env.GATEWAY_HOST ?? '127.0.0.1',
@@ -91,5 +98,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
     policyActivatorKey: env.GATEWAY_POLICY_ACTIVATOR_KEY ?? adminApiKey,
     allowLegacyEngine,
     requireVaultKey,
+    allowDetokenization,
   };
 }

@@ -64,7 +64,10 @@ export class InputTransformService implements TransformService {
       return { action, transformed_text: request.text, replacements: [] };
     }
 
-    const entities = [...request.entities].sort((a, b) => b.start - a.start);
+    const entities = [...request.entities]
+      // Markers classify PHI; they are not vault-token targets.
+      .filter((e) => e.type !== 'DIAGNOSIS_MARKER')
+      .sort((a, b) => b.start - a.start);
     if (entities.length === 0) {
       // Policy required transform but no spans — fail closed
       throw new Error('Transform required but no entities detected');

@@ -11,12 +11,7 @@ export function TopChrome({ userName = 'admin' }: { userName?: string }) {
           <img
             src="/brand/enigma-logo.png"
             alt="Enigma"
-            className="topchrome-logo topchrome-logo-on-dark"
-          />
-          <img
-            src="/brand/enigma-logo-on-light.png"
-            alt="Enigma"
-            className="topchrome-logo topchrome-logo-on-light"
+            className="topchrome-logo"
           />
         </a>
       </div>

@@ -60,7 +60,12 @@ function badgeKind(status: string): string {
   ) {
     return 'badge-warn';
   }
-  if (s === 'review' || s === 'review_required' || s === 'pending') {
+  if (
+    s === 'review' ||
+    s === 'review_required' ||
+    s === 'require_approval' ||
+    s === 'pending'
+  ) {
     return 'badge-info';
   }
   if (s === 'release') {
@@ -118,7 +123,14 @@ function badgeIcon(status: string): ReactNode {
   if (s === 'controls_applied' || s === 'tokenize' || s === 'redact' || s === 'restrict') {
     return <Shield {...props} />;
   }
-  if (s === 'review' || s === 'review_required' || s === 'attention' || s === 'warn' || s === 'pending') {
+  if (
+    s === 'review' ||
+    s === 'review_required' ||
+    s === 'require_approval' ||
+    s === 'attention' ||
+    s === 'warn' ||
+    s === 'pending'
+  ) {
     return <Clock {...props} />;
   }
   return <HelpCircle {...props} />;

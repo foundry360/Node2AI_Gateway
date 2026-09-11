@@ -68,13 +68,19 @@ describe('HIPAA v3.1 provenance & evidence hardening', () => {
       deploymentMode: 'connected',
       purpose: 'treatment',
     });
-    expect(decision.decision).toBe('DENY');
+    expect(decision.decision).toBe('REVIEW');
     const prov = decision.explanation.provenance;
     expect(prov).toBeDefined();
-    const rule = prov!.matched_rules.find((r) => r.rule_id === 'HIPAA-R-INPUT-WRITE-DENY');
+    const rule = prov!.matched_rules.find(
+      (r) => r.rule_id === 'HIPAA-R-INPUT-WRITE-REQUIRE-APPROVAL',
+    );
     expect(rule).toBeDefined();
     expect(rule!.obligation_ids).toEqual(
-      expect.arrayContaining(['HIPAA-OBL-DISCLOSURE', 'HIPAA-OBL-INTEGRITY']),
+      expect.arrayContaining([
+        'HIPAA-OBL-DISCLOSURE',
+        'HIPAA-OBL-INTEGRITY',
+        'HIPAA-OBL-AUTHORIZATION',
+      ]),
     );
     expect(rule!.citations).toEqual(
       expect.arrayContaining(['45 CFR 164.502', '45 CFR 164.506', '45 CFR 164.312(c)']),

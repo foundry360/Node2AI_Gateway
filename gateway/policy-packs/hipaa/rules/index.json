@@ -23,15 +23,40 @@
       "derived_from": ["src_45cfr164"]
     },
     {
-      "rule_id": "HIPAA-R-INPUT-WRITE-DENY",
-      "name": "Deny PHI write/export/share without authorization path",
+      "rule_id": "HIPAA-R-INPUT-WRITE-REQUIRE-APPROVAL",
+      "name": "Require approval for PHI write without prior authorization path",
       "phase": "input",
       "priority": 90,
       "requirement_type": "DERIVED_CONTROL",
       "conditions": {
         "regulatory_applicability": "HIPAA",
         "classification": "PHI",
-        "operation_in": ["write", "export", "share", "transmit"]
+        "operation_in": ["write"]
+      },
+      "decision": "REVIEW",
+      "reason_codes": ["HIPAA_PHI_WRITE_REQUIRES_APPROVAL"],
+      "obligation_ids": ["HIPAA-OBL-DISCLOSURE", "HIPAA-OBL-INTEGRITY", "HIPAA-OBL-AUTHORIZATION"],
+      "control_ids": ["ctrl_no_write_back", "ctrl_audit_logging", "ctrl_authorization"],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "NO_WRITE_BACK",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": ["src_45cfr164"],
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr164"],
+      "note": "WRITE is not an automatic DENY. High-risk PHI write requires human approval."
+    },
+    {
+      "rule_id": "HIPAA-R-INPUT-EXTERNALIZE-DENY",
+      "name": "Deny PHI export/share/transmit without authorization path",
+      "phase": "input",
+      "priority": 90,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "HIPAA",
+        "classification": "PHI",
+        "operation_in": ["export", "share", "transmit"]
       },
       "decision": "DENY",
       "reason_codes": ["HIPAA_PHI_WRITEBACK_NOT_AUTHORIZED"],

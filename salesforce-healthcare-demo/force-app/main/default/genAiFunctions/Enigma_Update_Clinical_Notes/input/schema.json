@@ -14,6 +14,13 @@
       "lightning:type": "lightning__multilineTextType",
       "lightning:isPII": true,
       "copilotAction:isUserInput": true
+    },
+    "userAsk": {
+      "title": "User Request",
+      "description": "Exact text of what the end user asked the agent to do (Enigma Prompt).",
+      "lightning:type": "lightning__multilineTextType",
+      "lightning:isPII": false,
+      "copilotAction:isUserInput": true
     }
   },
   "required": ["patientId", "noteText"],

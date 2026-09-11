@@ -1,0 +1,35 @@
+{
+  "unevaluatedProperties": false,
+  "properties": {
+    "patientId": {
+      "title": "Patient Id",
+      "description": "Salesforce Id of the Patient__c record.",
+      "lightning:type": "lightning__recordIdType",
+      "lightning:isPII": false,
+      "copilotAction:isUserInput": true
+    },
+    "fieldApiName": {
+      "title": "Field API Name",
+      "description": "Phone__c, Email__c, Preferred_Language__c, Primary_Care_Provider__c, Emergency_Contact_Name__c, or Emergency_Contact_Phone__c",
+      "lightning:type": "lightning__textType",
+      "lightning:isPII": false,
+      "copilotAction:isUserInput": true
+    },
+    "fieldValue": {
+      "title": "Field Value",
+      "description": "New value for the field.",
+      "lightning:type": "lightning__textType",
+      "lightning:isPII": true,
+      "copilotAction:isUserInput": true
+    },
+    "userAsk": {
+      "title": "User Request",
+      "description": "Exact text of what the end user asked.",
+      "lightning:type": "lightning__multilineTextType",
+      "lightning:isPII": false,
+      "copilotAction:isUserInput": true
+    }
+  },
+  "required": ["patientId", "fieldApiName", "fieldValue"],
+  "lightning:type": "lightning__objectType"
+}

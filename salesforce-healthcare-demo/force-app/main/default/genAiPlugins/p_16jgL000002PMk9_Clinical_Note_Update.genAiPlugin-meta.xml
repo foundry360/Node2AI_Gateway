@@ -1,31 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <GenAiPlugin xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <canEscalate>false</canEscalate>
-    <description>This topic is selected when users need to update patient clinical notes after write capability has been evaluated. It applies to requests for appending information to existing clinical records.</description>
+    <description>Selected when the user wants to add or append clinical notes on the current patient. Do not ask the user to enable write capability.</description>
     <developerName>p_16jgL000002PMk9_Clinical_Note_Update</developerName>
     <genAiFunctions>
         <functionName>Enigma_Update_Clinical_Notes</functionName>
     </genAiFunctions>
-    <genAiFunctions>
-        <functionName>EmployeeCopilot__AnswerQuestionsWithKnowledge</functionName>
-    </genAiFunctions>
     <genAiPluginInstructions>
-        <description>If the user requests to update clinical notes, use the Enigma_Update_Clinical_Notes action.</description>
+        <description>When the user asks to add or append a clinical note, call Enigma_Update_Clinical_Notes with the patient Id and note text. Pass the user&apos;s exact request as userAsk.</description>
         <developerName>instruction_0</developerName>
         <language xsi:nil="true"/>
         <masterLabel>instruction_0</masterLabel>
         <sortOrder>0</sortOrder>
     </genAiPluginInstructions>
     <genAiPluginInstructions>
-        <description>Before appending text, ensure that write capability has been evaluated.</description>
+        <description>If the action returns status HELD, tell the user Enigma is holding the write for human authorization. Ask them to Authorize in Enigma Decisions, then retry the same request. Never tell them to enable write capability.</description>
         <developerName>instruction_1</developerName>
         <language xsi:nil="true"/>
         <masterLabel>instruction_1</masterLabel>
-        <sortOrder>0</sortOrder>
+        <sortOrder>1</sortOrder>
     </genAiPluginInstructions>
     <language>en_US</language>
     <localDeveloperName>p_16jgL000002PMk9_Clinical_Note_Update</localDeveloperName>
     <masterLabel>Clinical Note Update</masterLabel>
     <pluginType>Topic</pluginType>
-    <scope>Your job is to only append text to patient clinical notes after confirming that write capability has been evaluated. You cannot summarize or evaluate governance requirements within this topic.</scope>
+    <scope>Append clinical notes on a patient. Enigma governs write authorization inside the action. You do not run a separate write-capability topic first.</scope>
 </GenAiPlugin>

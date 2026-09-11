@@ -158,7 +158,7 @@ export function DecisionReviewProvider({
   );
 }
 
-/** Authorize / Deny controls for pending human review (shared by header + Request Review). */
+/** Authorize / Deny controls for pending human review (Human Review tab). */
 export function DecisionReviewResolveControls() {
   const ctx = useOptionalDecisionReview();
   const { canResolveGovernance, role } = useAdminCapabilities();
@@ -201,37 +201,6 @@ export function DecisionReviewResolveControls() {
   );
 }
 
-/** Authorize / Deny on the Decision page heading when review is pending. */
-export function DecisionReviewHeaderActions() {
-  const { pending, busy, reason, resolve } = useDecisionReview();
-  const { canResolveGovernance, role } = useAdminCapabilities();
-  if (!pending) return null;
-  if (role && !canResolveGovernance) return null;
-
-  return (
-    <div className="meridian-header-actions">
-      <div className="review-card-actions">
-        <button
-          type="button"
-          className="btn btn-secondary"
-          disabled={busy || !reason.trim()}
-          onClick={() => resolve('DENY')}
-        >
-          Deny
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={busy || !reason.trim()}
-          onClick={() => resolve('AUTHORIZE')}
-        >
-          Authorize
-        </button>
-      </div>
-    </div>
-  );
-}
-
 /**
  * Human review - machine decision stays immutable.
  * Expected action / Gateway verification live in DecisionConsequencePanel.
@@ -243,6 +212,7 @@ export function DecisionReviewPanel({
   contributingPacks,
   execution,
   heldRequestPresent,
+  reviewKind,
 }: {
   review?: ReviewInfo | null;
   decision?: string;
@@ -250,8 +220,10 @@ export function DecisionReviewPanel({
   contributingPacks?: string[];
   execution?: ResumeExecution | null;
   heldRequestPresent?: boolean;
+  /** lifecycle_change | runtime — from Request Review presentation */
+  reviewKind?: 'runtime' | 'lifecycle_change';
 }) {
-  const { reason, setReason, busy, error, state, resume } = useDecisionReview();
+  const { busy, error, state, resume } = useDecisionReview();
   const resolution = review?.human_resolution;
   const show =
     state === 'pending' ||
@@ -262,7 +234,9 @@ export function DecisionReviewPanel({
 
   if (!show) return null;
 
+  const isLifecycle = reviewKind === 'lifecycle_change';
   const canResume =
+    !isLifecycle &&
     resolution?.human_disposition === 'AUTHORIZE' &&
     resolution.final_decision === 'ALLOW' &&
     heldRequestPresent &&
@@ -276,8 +250,13 @@ export function DecisionReviewPanel({
       </div>
 
       <p className="muted decision-panel-lede review-card-lede">
-        Machine decision stays immutable. Human resolution sets final enforceable intent;
-        AUTHORIZE still requires resume to execute a held request.
+        {state === 'pending'
+          ? isLifecycle
+            ? 'Authorize applies the proposed capability change. Deny leaves the current baseline in force. The machine decision stays on record.'
+            : 'Authorize sets final ALLOW for this held request. Deny sets final DENY. The machine decision stays on record.'
+          : isLifecycle
+            ? 'Authorization is complete. Retry the original action in the requesting application — no Gateway resume is required for capability changes.'
+            : 'Machine decision stays immutable. After AUTHORIZE, resume only when a runtime request was retained for Gateway execution.'}
       </p>
 
       <div
@@ -339,7 +318,7 @@ export function DecisionReviewPanel({
                       ? 'AUTHORIZED'
                       : 'DENIED'}
                   </AttrRow>
-                  {execution?.status ? (
+                  {!isLifecycle && execution?.status ? (
                     <AttrRow label="Execution" mono>
                       {execution.status}
                     </AttrRow>
@@ -357,8 +336,8 @@ export function DecisionReviewPanel({
               <div className="review-card-action">
                 <div className="muted decision-sublabel">Resume</div>
                 <p className="muted review-card-hint">
-                  Final decision is ALLOW. Resume the held request through Gateway
-                  (idempotent).
+                  Final decision is ALLOW. Resume the held runtime request through
+                  Gateway (idempotent).
                 </p>
                 <div className="review-card-actions">
                   <button
@@ -379,17 +358,7 @@ export function DecisionReviewPanel({
             {state === 'pending' ? (
               <div className="review-card-action">
                 <div className="muted decision-sublabel">Resolve</div>
-                <label className="review-reason-field">
-                  <span className="sr-only">Resolution reason</span>
-                  <textarea
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    rows={4}
-                    required
-                    placeholder="Why authorize or deny this decision?"
-                  />
-                </label>
-                {error ? <div className="error">{error}</div> : null}
+                <DecisionReviewResolveControls />
               </div>
             ) : null}
           </div>

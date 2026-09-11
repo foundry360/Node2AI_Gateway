@@ -179,7 +179,7 @@ describe('42 CFR Part 2 — independent evaluation', () => {
 });
 
 describe('42 CFR Part 2 — multi-pack with HIPAA', () => {
-  it('A. AGREEMENT — both DENY on write without consent', async () => {
+  it('A. RESTRICTIVE — HIPAA requires approval; Part 2 DENYs write without consent', async () => {
     const repo = new InMemoryPolicyRepository();
     const pdp = new PackBackedEnterprisePdp(repo);
     const decision = await pdp.evaluateLegacyRequest({
@@ -199,7 +199,7 @@ describe('42 CFR Part 2 — multi-pack with HIPAA', () => {
       purpose: 'treatment',
     });
     expect(decision.decision).toBe('DENY');
-    expect(decision.explanation.resolution?.category).toBe('AGREEMENT');
+    expect(decision.explanation.resolution?.category).toBe('RESTRICTIVE');
     expect(decision.explanation.resolution?.contributing_pack_ids).toEqual(
       expect.arrayContaining(['pack_hipaa', 'pack_42_cfr_part_2']),
     );

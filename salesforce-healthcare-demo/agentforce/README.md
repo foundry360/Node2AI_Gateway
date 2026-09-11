@@ -1,51 +1,35 @@
-# Enigma Service Agent (Agentforce)
+# Enigma Clinical Copilot (Agentforce + Patient record)
 
-## Created in `cred-poc`
+## Primary demo (preferred)
+
+Use the **Clinical Copilot** panel on a **Patient** record in **Enigma Healthcare Demo**.
+
+1. Gateway on `:8080` + working HTTPS tunnel (Remote Site + Enigma Config in sync)
+2. Open **Patients → Charles Greene**
+3. In **Clinical Copilot**, try:
+   - “Summarize this chart”
+   - “Add a note that diet compliance improved”
+   - “Update phone to (415) 555-0199”
+4. First write should return **HELD** → Authorize in Enigma Decisions → ask again → note/field saves
+
+You do **not** enable write capability as a user step.
+
+## Agentforce Service Agent (optional)
 
 | Field | Value |
 |-------|-------|
 | Label | **Enigma Service Agent** |
 | API name | `Enigma_Service_Agent_v2` |
-| Type | Service Agent (`agentType: customer`) |
 | Status | Activated (v1) |
-| Agent user | `enigma_service_agent_v2@00dgl00000att0i801715973.ext` (has `Enigma_Healthcare_Demo`) |
-
-Open in Agent Builder:
 
 ```bash
 sf org open agent --api-name Enigma_Service_Agent_v2 -o cred-poc
-```
-
-## Topics → actions
-
-| Topic | GenAiFunction |
-|-------|---------------|
-| Patient Chart Summarization | `Enigma_Summarize_Patient` |
-| Write Capability Evaluation | `Enigma_Evaluate_Write_Capability_Change` |
-| Clinical Note Update | `Enigma_Update_Clinical_Notes` |
-
-Spec: [`enigmaServiceAgent.spec.yaml`](enigmaServiceAgent.spec.yaml)
-
-## Live preview (CLI)
-
-```bash
 sf agent preview --api-name Enigma_Service_Agent_v2 --use-live-actions -o cred-poc
 ```
 
-Test utterances:
+Topics should map to summarize / clinical note update / patient field update.
+Write-capability evaluation is no longer a user-facing topic — governance runs inside write actions.
 
-- “Enable write capability for this agent”
-- “Summarize patient Charles Greene”
-- “Append a note that diet compliance improved”
+## Legacy
 
-Expect write-capability evaluation → `CRITICAL` / `MANDATORY_REVIEW` / `REVIEW`.
-
-## Prerequisites for live actions
-
-1. Gateway on `:8080`
-2. Working HTTPS tunnel; Remote Site + Enigma Config endpoint in sync (`scripts/apex/update-tunnel-endpoint.apex`)
-3. Enigma Config **Admin API Key** = `GATEWAY_ADMIN_API_KEY`
-
-## Fallback without chat
-
-Use Lightning app **Enigma Agent Console** for the same write-capability CRITICAL path via Invocable Apex.
+**Enigma Agent Console** is deprecated diagnostics only (baseline / evaluate responses).

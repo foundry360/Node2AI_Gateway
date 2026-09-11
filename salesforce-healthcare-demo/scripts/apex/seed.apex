@@ -2,7 +2,7 @@
 
 Enigma_Config__c cfg = Enigma_Config__c.getOrgDefaults();
 if (cfg.Id == null || String.isBlank(cfg.Endpoint_URL__c)) {
-  cfg.Endpoint_URL__c = 'https://0ae2476ba757b2.lhr.life';
+  cfg.Endpoint_URL__c = 'https://efficiently-boxes-vacuum-shadows.trycloudflare.com';
   cfg.Application_Id__c = 'app_clinical';
   cfg.Api_Key__c = 'n2ai_test_key_approved_app';
   cfg.Default_Model__c = 'local-general-v1';

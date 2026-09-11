@@ -373,8 +373,8 @@ describe('Healthcare Policy Resolution v0.1', () => {
       deploymentMode: 'connected',
       purpose: 'treatment',
     });
-    expect(deny.decision).toBe('DENY');
-    expect(deny.reason_codes).toContain('HIPAA_PHI_WRITEBACK_NOT_AUTHORIZED');
+    expect(deny.decision).toBe('REVIEW');
+    expect(deny.reason_codes).toContain('HIPAA_PHI_WRITE_REQUIRES_APPROVAL');
     expect(deny.explanation.provenance?.matched_rules[0]?.citations).toEqual(
       expect.arrayContaining(['45 CFR 164.312(c)']),
     );

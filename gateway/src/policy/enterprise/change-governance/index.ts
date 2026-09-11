@@ -39,4 +39,9 @@ export {
   type EvaluateChangeOptions,
 } from './evaluate.js';
 
+export {
+  commitAuthorizedLifecycleChange,
+  isLifecycleHoldEvaluation,
+} from './commit-authorized.js';
+
 export { InMemoryChangeGovernanceRepository } from './repository.js';

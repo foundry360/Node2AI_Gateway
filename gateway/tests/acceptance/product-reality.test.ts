@@ -3518,7 +3518,7 @@ describe('Product Reality Test — Enigma governance lifecycle', () => {
     expect(policyRepo.getEvaluation(result.evaluation_id!)).toBeTruthy();
   });
 
-  it('TEST 56 — Critical write capability → REVIEW (not DENY from lifecycle alone)', async () => {
+  it('TEST 56 — High-risk PHI write capability → REVIEW via policy (not lifecycle CRITICAL)', async () => {
     const changeRepo = new InMemoryChangeGovernanceRepository();
     const policyRepo = new InMemoryPolicyRepository();
     const pdp = new PackBackedEnterprisePdp(policyRepo);
@@ -3535,11 +3535,16 @@ describe('Product Reality Test — Enigma governance lifecycle', () => {
       pdp,
       policy_context: {
         user: clinician,
-        application: { ...clinicalApp, type: 'internal' },
-        operation: 'summarize',
+        application: {
+          ...clinicalApp,
+          type: 'clinical',
+          allowed_operations: ['summarize', 'write'],
+        },
+        operation: 'write',
         requestedModel: 'local-general-v1',
         availableModels: ['local-general-v1'],
-        regulatory_applicability: ['NIST_AI_RMF'],
+        sensitivity: 'PHI',
+        regulatory_applicability: ['HIPAA'],
         governance_context: GOVERNANCE_DOCUMENTED,
       },
       input: {
@@ -3550,10 +3555,14 @@ describe('Product Reality Test — Enigma governance lifecycle', () => {
         request_id: 'req_pr_cg_56',
       },
     });
-    expect(result.materiality).toBe('CRITICAL');
-    expect(result.lifecycle_decision).toBe('MANDATORY_REVIEW');
+    expect(result.materiality).toBe('MATERIAL');
+    expect(result.lifecycle_decision).toBe('REEVALUATION_REQUIRED');
     expect(String(result.policy_decision?.decision).toUpperCase()).toBe('REVIEW');
+    expect(result.policy_decision?.reason_codes).toEqual(
+      expect.arrayContaining(['HIPAA_PHI_WRITE_REQUIRES_APPROVAL']),
+    );
     expect(String(result.policy_decision?.decision).toUpperCase()).not.toBe('DENY');
+    expect(result.next_baseline).toBeFalsy();
   });
 
   it('TEST 57 — UNKNOWN incomplete is never silently NON_MATERIAL', () => {

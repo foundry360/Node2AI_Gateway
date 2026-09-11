@@ -211,7 +211,10 @@ describe('PolicyAuthority architecture', () => {
       purpose: 'treatment',
     });
 
-    expect(decision.decision).toBe('DENY');
+    expect(decision.decision).toBe('REVIEW');
+    expect(decision.reason_codes).toEqual(
+      expect.arrayContaining(['HIPAA_PHI_WRITE_REQUIRES_APPROVAL']),
+    );
     expect(decision.explanation.provenance?.matched_rules?.length).toBeGreaterThan(0);
     expect(
       decision.explanation.provenance?.sources?.some(

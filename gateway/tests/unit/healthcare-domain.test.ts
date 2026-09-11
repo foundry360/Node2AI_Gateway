@@ -299,10 +299,10 @@ describe('Healthcare Policy Domain — architecture', () => {
     );
   });
 
-  it('F. Existing HIPAA behavior unchanged (smoke)', async () => {
+  it('F. PHI write requires approval (not automatic DENY)', async () => {
     const repo = new InMemoryPolicyRepository();
     const pdp = new PackBackedEnterprisePdp(repo);
-    const deny = await pdp.evaluateLegacyRequest({
+    const held = await pdp.evaluateLegacyRequest({
       user: clinician,
       application: clinicalApp,
       operation: 'write',
@@ -318,9 +318,9 @@ describe('Healthcare Policy Domain — architecture', () => {
       deploymentMode: 'connected',
       purpose: 'treatment',
     });
-    expect(deny.decision).toBe('DENY');
-    expect(deny.reason_codes).toContain('HIPAA_PHI_WRITEBACK_NOT_AUTHORIZED');
-    expect(deny.explanation.provenance?.matched_rules[0]?.citations).toEqual(
+    expect(held.decision).toBe('REVIEW');
+    expect(held.reason_codes).toContain('HIPAA_PHI_WRITE_REQUIRES_APPROVAL');
+    expect(held.explanation.provenance?.matched_rules[0]?.citations).toEqual(
       expect.arrayContaining(['45 CFR 164.312(c)']),
     );
   });

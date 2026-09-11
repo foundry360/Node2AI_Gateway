@@ -538,6 +538,253 @@ public with sharing class EnigmaGatewayService {
         return out;
     }
 
+    /**
+     * Result of a patient write that must pass Enigma change governance first.
+     * Callers never "enable write" as a user step — Enigma decides.
+     */
+    public class GovernedWriteResult {
+        @AuraEnabled public Boolean success;
+        /** COMPLETED | HELD | ERROR */
+        @AuraEnabled public String status;
+        @AuraEnabled public String message;
+        @AuraEnabled public String evaluationId;
+        @AuraEnabled public String requestId;
+        @AuraEnabled public String changeId;
+        @AuraEnabled public String materiality;
+        @AuraEnabled public String lifecycleDecision;
+        @AuraEnabled public Boolean writeCapability;
+        @AuraEnabled public String clinicalNotes;
+        @AuraEnabled public String updatedField;
+        @AuraEnabled public String updatedValue;
+    }
+
+    /**
+     * Append a clinical note only when Enigma baseline allows writes.
+     * If write is not allowed, evaluate enabling it using the user's natural ask
+     * as the Prompt and return HELD until a human Authorizes in Enigma.
+     */
+    public static GovernedWriteResult appendClinicalNoteGoverned(
+        Id patientId,
+        String noteText,
+        String userAsk
+    ) {
+        GovernedWriteResult out = new GovernedWriteResult();
+        if (patientId == null || String.isBlank(noteText)) {
+            out.success = false;
+            out.status = 'ERROR';
+            out.message = 'patientId and noteText are required.';
+            return out;
+        }
+
+        String prompt = String.isNotBlank(userAsk)
+            ? userAsk.trim()
+            : 'Add a clinical note: ' + noteText.trim();
+
+        GovernedWriteResult gate = ensureWriteAuthorized(
+            prompt,
+            'The agent needs write access to update clinical notes on this patient record.',
+            'After Authorize, the clinical note can be saved on the patient chart.'
+        );
+        if (gate.status != 'AUTHORIZED') {
+            return gate;
+        }
+
+        try {
+            Patient__c patient = [
+                SELECT Id, Clinical_Notes__c
+                FROM Patient__c
+                WHERE Id = :patientId
+                LIMIT 1
+            ];
+            String stamp =
+                '\n\n[Agent ' +
+                Datetime.now().formatGmt('yyyy-MM-dd HH:mm') +
+                ' UTC] ' +
+                noteText.trim();
+            patient.Clinical_Notes__c = String.isBlank(patient.Clinical_Notes__c)
+                ? noteText.trim()
+                : patient.Clinical_Notes__c + stamp;
+            update patient;
+
+            out.success = true;
+            out.status = 'COMPLETED';
+            out.writeCapability = true;
+            out.clinicalNotes = patient.Clinical_Notes__c;
+            out.message = 'Clinical note saved.';
+            return out;
+        } catch (Exception e) {
+            out.success = false;
+            out.status = 'ERROR';
+            out.message = e.getMessage();
+            return out;
+        }
+    }
+
+    /**
+     * Update a simple Patient field (Phone, Email, etc.) under the same write gate.
+     */
+    public static GovernedWriteResult updatePatientFieldGoverned(
+        Id patientId,
+        String fieldApiName,
+        String fieldValue,
+        String userAsk
+    ) {
+        GovernedWriteResult out = new GovernedWriteResult();
+        if (patientId == null || String.isBlank(fieldApiName)) {
+            out.success = false;
+            out.status = 'ERROR';
+            out.message = 'patientId and fieldApiName are required.';
+            return out;
+        }
+
+        String field = fieldApiName.trim();
+        Set<String> allowed = new Set<String>{
+            'Phone__c',
+            'Email__c',
+            'Preferred_Language__c',
+            'Primary_Care_Provider__c',
+            'Emergency_Contact_Name__c',
+            'Emergency_Contact_Phone__c'
+        };
+        if (!allowed.contains(field)) {
+            out.success = false;
+            out.status = 'ERROR';
+            out.message = 'Field is not allowed for agent update: ' + field;
+            return out;
+        }
+
+        String prompt = String.isNotBlank(userAsk)
+            ? userAsk.trim()
+            : 'Update patient ' + field + ' to ' + String.valueOf(fieldValue);
+
+        GovernedWriteResult gate = ensureWriteAuthorized(
+            prompt,
+            'The agent needs write access to update patient demographics on this record.',
+            'After Authorize, the field update can be saved.'
+        );
+        if (gate.status != 'AUTHORIZED') {
+            return gate;
+        }
+
+        try {
+            Patient__c patient = new Patient__c(Id = patientId);
+            patient.put(field, fieldValue);
+            update patient;
+
+            out.success = true;
+            out.status = 'COMPLETED';
+            out.writeCapability = true;
+            out.updatedField = field;
+            out.updatedValue = fieldValue;
+            out.message = 'Updated ' + field + '.';
+            return out;
+        } catch (Exception e) {
+            out.success = false;
+            out.status = 'ERROR';
+            out.message = e.getMessage();
+            return out;
+        }
+    }
+
+    /**
+     * Returns status AUTHORIZED when writes may proceed, HELD when Enigma needs
+     * human Authorize, or ERROR on failure. Does not perform DML.
+     */
+    public static GovernedWriteResult ensureWriteAuthorized(
+        String userAsk,
+        String rationale,
+        String intendedOutcome
+    ) {
+        GovernedWriteResult out = new GovernedWriteResult();
+        ChangeEvalResult baseline = getAgentBaseline();
+        if (!baseline.success) {
+            out.success = false;
+            out.status = 'ERROR';
+            out.message = String.isNotBlank(baseline.message)
+                ? baseline.message
+                : 'Could not load Enigma agent baseline.';
+            return out;
+        }
+        out.writeCapability = baseline.writeCapability == true;
+        if (baseline.writeCapability == true) {
+            out.success = true;
+            out.status = 'AUTHORIZED';
+            out.message = 'Write capability is already authorized.';
+            return out;
+        }
+
+        ChangeEvalResult eval = evaluateEnableWrite(
+            userAsk,
+            rationale,
+            intendedOutcome,
+            null
+        );
+        out.evaluationId = eval.evaluationId;
+        out.requestId = eval.requestId;
+        out.changeId = eval.changeId;
+        out.materiality = eval.materiality;
+        out.lifecycleDecision = eval.lifecycleDecision;
+        out.writeCapability = false;
+
+        if (!eval.success) {
+            out.success = false;
+            out.status = 'ERROR';
+            out.message = String.isNotBlank(eval.message)
+                ? eval.message
+                : 'Enigma could not evaluate this write.';
+            return out;
+        }
+
+        if (isHeldForHumanReview(eval)) {
+            out.success = false;
+            out.status = 'HELD';
+            out.message =
+                'Enigma is holding this change for human authorization' +
+                (String.isNotBlank(eval.evaluationId)
+                    ? ' (decision ' + eval.evaluationId + ')'
+                    : '') +
+                '. Authorize it in Enigma, then ask me again to complete the update.';
+            return out;
+        }
+
+        // Re-check baseline in case evaluate auto-allowed (unusual).
+        ChangeEvalResult again = getAgentBaseline();
+        if (again.success && again.writeCapability == true) {
+            out.success = true;
+            out.status = 'AUTHORIZED';
+            out.writeCapability = true;
+            out.message = 'Write capability authorized.';
+            return out;
+        }
+
+        out.success = false;
+        out.status = 'HELD';
+        out.message =
+            'Enigma has not authorized write capability yet. Authorize the held decision, then retry.';
+        return out;
+    }
+
+    private static Boolean isHeldForHumanReview(ChangeEvalResult eval) {
+        String life = String.isBlank(eval.lifecycleDecision)
+            ? ''
+            : eval.lifecycleDecision.toUpperCase();
+        String policy = String.isBlank(eval.policyDecision)
+            ? ''
+            : eval.policyDecision.toUpperCase();
+        // Human review only when policy/lifecycle explicitly requires it —
+        // not merely because the action is a write.
+        if (
+            life == 'MANDATORY_REVIEW' ||
+            life.contains('HOLD') ||
+            policy == 'REVIEW' ||
+            policy == 'REQUIRE_APPROVAL' ||
+            policy == 'HOLD'
+        ) {
+            return true;
+        }
+        return false;
+    }
+
     private static Enigma_Config__c requireConfig() {
         Enigma_Config__c cfg = Enigma_Config__c.getOrgDefaults();
         if (cfg == null || String.isBlank(cfg.Endpoint_URL__c)) {

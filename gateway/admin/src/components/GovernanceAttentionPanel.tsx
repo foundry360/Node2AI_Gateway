@@ -252,7 +252,11 @@ export function GovernanceAttentionPanel({
                       <td>
                         <StatusBadge variant="badge" status={e.decision} />
                       </td>
-                      <td className="mono">{e.resolution_category ?? '-'}</td>
+                      <td className="mono">
+                        {e.resolution_category
+                          ? formatFieldLabel(e.resolution_category)
+                          : '—'}
+                      </td>
                       <td>
                         <StatusBadge
                           variant="badge"

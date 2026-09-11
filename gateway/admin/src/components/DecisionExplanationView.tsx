@@ -140,19 +140,6 @@ export function DecisionExplanationView({
     decision.reason ??
     '';
   const contributions = operator?.contributions ?? [];
-  const authorities =
-    operator?.authorities ??
-    provenance?.sources?.map((s) => ({
-      source_id: s.source_id,
-      authority: s.authority,
-      citation: s.citation,
-      authority_tier: s.authority_tier,
-      authority_type: s.authority_type,
-      legal_authority: s.legal_authority,
-      pack_ids: [] as string[],
-    })) ??
-    [];
-
   const allRules = provenance?.matched_rules ?? [];
   const hasResolution = Boolean(resolution || operator?.resolution_category);
 
@@ -283,56 +270,6 @@ export function DecisionExplanationView({
           {hasResolution ? <DecisionResolutionPanel decision={decision} /> : null}
           {afterTop ?? null}
         </div>
-      ) : null}
-
-      {authorities.length > 0 ? (
-        <section
-          className="section-card resolution-card"
-          aria-labelledby="authorities-heading"
-        >
-          <div className="section-card-header">
-            <h3 id="authorities-heading">
-              Contributing Authorities ({authorities.length})
-            </h3>
-          </div>
-          <div className="contribution-list">
-            {authorities.map((a) => {
-              const citation =
-                a.citation && a.citation !== a.authority ? a.citation : null;
-              return (
-                <article key={a.source_id} className="contribution-block">
-                  <div className="contribution-attrs">
-                    <AttrRow label="Authority">{a.authority}</AttrRow>
-                    {citation ? (
-                      <AttrRow label="Citation">
-                        <span className="mono">{citation}</span>
-                      </AttrRow>
-                    ) : null}
-                    <AttrRow label="Source" mono>
-                      {a.source_id}
-                    </AttrRow>
-                    <AttrRow label="Authority Tier">
-                      {authorityTierLabel(a.authority_tier)}
-                    </AttrRow>
-                    {a.legal_authority != null ? (
-                      <AttrRow label="Legal Authority">
-                        {a.legal_authority ? 'Yes' : 'No'}
-                      </AttrRow>
-                    ) : null}
-                    {a.authority_type ? (
-                      <AttrRow label="Authority Type">{a.authority_type}</AttrRow>
-                    ) : null}
-                    {a.pack_ids?.length ? (
-                      <AttrRow label="Packs">
-                        <CodeInline items={a.pack_ids} empty="None" />
-                      </AttrRow>
-                    ) : null}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
       ) : null}
     </div>
   );

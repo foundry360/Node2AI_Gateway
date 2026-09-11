@@ -1,10 +1,19 @@
 <template>
-  <lightning-card title="Enigma Agent Console" icon-name="standard:bot">
+  <lightning-card title="Enigma Agent Console (legacy)" icon-name="standard:bot">
     <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+      <div
+        class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_warning slds-m-bottom_medium"
+        role="alert"
+      >
+        <span class="slds-assistive-text">Warning</span>
+        Prefer the <strong>Clinical Copilot</strong> on the Patient record. Ask it to add a
+        note or update a field — Enigma governs writes automatically. This console is kept
+        only for low-level baseline diagnostics.
+      </div>
+
       <p class="slds-text-body_small slds-m-bottom_medium">
-        Demonstrate Agentforce write-capability change with Enigma lifecycle
-        governance. Baseline starts write=false; enabling write should return
-        CRITICAL / MANDATORY_REVIEW.
+        Legacy lab for inspecting agent write_capability baseline and change evaluate
+        responses. Not the primary demo path.
       </p>
 
       <template lwc:if={loading}>

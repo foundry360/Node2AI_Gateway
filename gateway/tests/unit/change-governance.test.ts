@@ -19,11 +19,13 @@ import {
   assertResumeEligible,
   assessMateriality,
   buildHumanResolution,
+  commitAuthorizedLifecycleChange,
   createGovernanceBaseline,
   customerVerificationLabel,
   ensureDefaultOverlayRegistry,
   evaluateGovernanceChange,
   executionAfterAuthorize,
+  hasResumableHeldRequest,
   inferChangeTypes,
   isEligibleForHumanReview,
   nextBaselineFromChange,
@@ -185,16 +187,20 @@ function policyCtx(
     regulatory_applicability?: string[];
     governance_context?: Record<string, unknown>;
     evaluation_phase?: 'input' | 'simulate';
+    operation?: string;
+    sensitivity?: string;
+    application?: typeof app;
+    user?: typeof user;
   } = {},
 ) {
   return {
-    user,
-    application: app,
-    operation: 'summarize',
+    user: overrides.user ?? user,
+    application: overrides.application ?? app,
+    operation: overrides.operation ?? 'summarize',
     requestedModel: 'local-general-v1',
     availableModels: ['local-general-v1'],
     environment: 'prod',
-    sensitivity: 'INTERNAL',
+    sensitivity: overrides.sensitivity ?? 'INTERNAL',
     regulatory_applicability: overrides.regulatory_applicability ?? ['NIST_AI_RMF'],
     governance_context: overrides.governance_context ?? {
       accountability_documented: true,
@@ -204,6 +210,21 @@ function policyCtx(
     },
     evaluation_phase: overrides.evaluation_phase,
   };
+}
+
+/** High-risk clinical write context — policy (HIPAA) requires approval. */
+function highRiskWritePolicyCtx() {
+  return policyCtx({
+    operation: 'write',
+    sensitivity: 'PHI',
+    regulatory_applicability: ['HIPAA'],
+    user: { ...user, roles: ['clinician'] },
+    application: {
+      ...app,
+      type: 'clinical',
+      allowed_operations: ['summarize', 'write'],
+    },
+  });
 }
 
 function heldFor(evalId: string, requestId: string): HeldRequestSnapshot {
@@ -386,7 +407,7 @@ describe('Pack #15 — AI Lifecycle & Change Governance', () => {
     );
   });
 
-  it('6. Write capability → CRITICAL + REVIEW', async () => {
+  it('6. Low-risk write capability → MATERIAL + ALLOW (auto, no human review)', async () => {
     const changeRepo = new InMemoryChangeGovernanceRepository();
     const policyRepo = new InMemoryPolicyRepository();
     const pdp = new PackBackedEnterprisePdp(policyRepo);
@@ -405,13 +426,49 @@ describe('Pack #15 — AI Lifecycle & Change Governance', () => {
         request_id: 'req_cg_write',
       },
     });
-    expect(result.materiality).toBe('CRITICAL');
-    expect(result.lifecycle_decision).toBe('MANDATORY_REVIEW');
+    expect(result.materiality).toBe('MATERIAL');
+    expect(result.lifecycle_decision).toBe('REEVALUATION_REQUIRED');
     expect(result.pdp_invoked).toBe(true);
+    expect(String(result.policy_decision?.decision).toUpperCase()).toBe('ALLOW');
+    expect(result.policy_decision?.reason_codes ?? []).not.toContain(
+      'LIFECYCLE_MANDATORY_REVIEW',
+    );
+    expect(result.next_baseline?.capabilities.write_capability).toBe(true);
+    const stored = policyRepo.getEvaluation(result.evaluation_id!);
+    expect(stored?.evidence_in?.authorization_mode).toBe('AUTOMATICALLY_AUTHORIZED');
+    expect(stored?.evidence_in?.lifecycle_hold).toBe(false);
+    expect(stored?.held_request).toBeFalsy();
+  });
+
+  it('6b. High-risk PHI write capability → MATERIAL + REVIEW (policy, not lifecycle hardcode)', async () => {
+    const changeRepo = new InMemoryChangeGovernanceRepository();
+    const policyRepo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(policyRepo);
+    const previous = seedBaseline(changeRepo);
+
+    const result = await evaluateGovernanceChange({
+      repository: changeRepo,
+      policy_repository: policyRepo,
+      pdp,
+      policy_context: highRiskWritePolicyCtx(),
+      input: {
+        target_type: 'application',
+        target_id: app.application_id,
+        previous_baseline_id: previous.baseline_id,
+        proposed_state: { write_capability: true },
+        request_id: 'req_cg_write_phi',
+      },
+    });
+    expect(result.materiality).toBe('MATERIAL');
+    expect(result.lifecycle_decision).toBe('REEVALUATION_REQUIRED');
     expect(String(result.policy_decision?.decision).toUpperCase()).toBe('REVIEW');
     expect(result.policy_decision?.reason_codes).toEqual(
-      expect.arrayContaining(['LIFECYCLE_MANDATORY_REVIEW']),
+      expect.arrayContaining(['HIPAA_PHI_WRITE_REQUIRES_APPROVAL']),
     );
+    expect(result.next_baseline).toBeFalsy();
+    const stored = policyRepo.getEvaluation(result.evaluation_id!);
+    expect(stored?.evidence_in?.authorization_mode).toBe('HUMAN_AUTHORIZATION');
+    expect(stored?.held_request).toBeTruthy();
   });
 
   it('7. Autonomy ASSISTIVE→AUTONOMOUS → CRITICAL', () => {
@@ -502,7 +559,7 @@ describe('Pack #15 — AI Lifecycle & Change Governance', () => {
     expect(stored!.request_id).toBe('req_cg_eval_store');
   });
 
-  it('12. Critical → REVIEW not DENY; DENY/BLOCK from PDP preserved', async () => {
+  it('12. Autonomy CRITICAL → REVIEW not DENY; DENY/BLOCK from PDP preserved', async () => {
     const changeRepo = new InMemoryChangeGovernanceRepository();
     const policyRepo = new InMemoryPolicyRepository();
     const pdp = new PackBackedEnterprisePdp(policyRepo);
@@ -517,13 +574,16 @@ describe('Pack #15 — AI Lifecycle & Change Governance', () => {
         target_type: 'application',
         target_id: app.application_id,
         previous_baseline_id: previous.baseline_id,
-        proposed_state: { write_capability: true },
+        proposed_state: { autonomy_level: 'AUTONOMOUS' },
         request_id: 'req_cg_crit_review',
       },
     });
     expect(result.materiality).toBe('CRITICAL');
     expect(String(result.policy_decision?.decision).toUpperCase()).toBe('REVIEW');
     expect(String(result.policy_decision?.decision).toUpperCase()).not.toBe('DENY');
+    expect(result.policy_decision?.reason_codes).toEqual(
+      expect.arrayContaining(['LIFECYCLE_MANDATORY_REVIEW']),
+    );
 
     const denyBase: PolicyDecision = {
       decision: 'DENY',
@@ -562,7 +622,7 @@ describe('Pack #15 — AI Lifecycle & Change Governance', () => {
       repository: changeRepo,
       policy_repository: policyRepo,
       pdp,
-      policy_context: policyCtx(),
+      policy_context: highRiskWritePolicyCtx(),
       input: {
         target_type: 'application',
         target_id: app.application_id,
@@ -634,7 +694,7 @@ describe('Pack #15 — AI Lifecycle & Change Governance', () => {
         }),
       ]),
     );
-    expect(heldText).toContain('CRITICAL');
+    expect(heldText).toContain('MATERIAL');
     expect(stored.evidence_in?.change_types).toEqual(
       expect.arrayContaining(['WRITE_CAPABILITY']),
     );
@@ -644,29 +704,24 @@ describe('Pack #15 — AI Lifecycle & Change Governance', () => {
       }),
     );
 
-    const withHold: PolicyEvaluationRecord = {
-      ...stored,
-      held_request: heldFor(stored.evaluation_id, stored.request_id ?? 'req_cg_authorize'),
-    };
-    policyRepo.recordEvaluation(withHold);
-
-    expect(isEligibleForHumanReview(withHold)).toBe(true);
-    const resolution = buildHumanResolution(withHold, {
+    expect(isEligibleForHumanReview(stored)).toBe(true);
+    const resolution = buildHumanResolution(stored, {
       disposition: 'AUTHORIZE',
       reason: 'lifecycle write capability accepted after review',
       resolved_by: 'reviewer_cg',
     });
-    const authorized = {
-      ...withHumanResolution(withHold, resolution),
-      execution: executionAfterAuthorize({
-        ...withHumanResolution(withHold, resolution),
-      }),
-    };
+    const authorized = withHumanResolution(stored, resolution);
     expect(authorized.decision).toBe('REVIEW');
     expect(authorized.human_resolution?.human_disposition).toBe('AUTHORIZE');
     expect(authorized.human_resolution?.final_decision).toBe('ALLOW');
-    expect(authorized.execution?.status).toBe('AUTHORIZED_NOT_RESUMED');
-    expect(() => assertResumeEligible(authorized)).not.toThrow();
+    // Lifecycle holds are not resumed through completions — baseline commit is the effect.
+    expect(hasResumableHeldRequest(authorized)).toBe(false);
+    expect(executionAfterAuthorize(authorized)).toBeUndefined();
+    const committed = commitAuthorizedLifecycleChange({
+      record: authorized,
+      repository: changeRepo,
+    });
+    expect(committed?.capabilities.write_capability).toBe(true);
   });
 
   it('14. Human DENY no resume', async () => {
@@ -736,6 +791,58 @@ describe('Pack #15 — AI Lifecycle & Change Governance', () => {
     }
   });
 
+  it('15b. AUTHORIZE on lifecycle hold commits write_capability baseline; no resume', async () => {
+    const changeRepo = new InMemoryChangeGovernanceRepository();
+    const policyRepo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(policyRepo);
+    const previous = seedBaseline(changeRepo);
+
+    const result = await evaluateGovernanceChange({
+      repository: changeRepo,
+      policy_repository: policyRepo,
+      pdp,
+      policy_context: highRiskWritePolicyCtx(),
+      input: {
+        target_type: 'application',
+        target_id: app.application_id,
+        previous_baseline_id: previous.baseline_id,
+        proposed_state: {
+          write_capability: true,
+          tools: [{ id: 'update_clinical_notes', write: true }],
+        },
+        request_id: 'req_cg_auth_commit',
+      },
+    });
+    expect(result.policy_decision?.decision).toBe('REVIEW');
+    expect(result.next_baseline).toBeFalsy();
+    expect(
+      changeRepo.latestBaseline('application', app.application_id)?.capabilities
+        .write_capability,
+    ).toBe(false);
+
+    const evaluationId = result.evaluation_id!;
+    const held = policyRepo.getEvaluation(evaluationId)!;
+    expect(held.evidence_in.lifecycle_hold).toBe(true);
+    expect(hasResumableHeldRequest(held)).toBe(false);
+
+    const resolution = buildHumanResolution(held, {
+      disposition: 'AUTHORIZE',
+      reason: 'Approved write capability for clinical note updates.',
+      resolved_by: 'reviewer_cg',
+    });
+    const authorized = withHumanResolution(held, resolution);
+    const committed = commitAuthorizedLifecycleChange({
+      record: authorized,
+      repository: changeRepo,
+    });
+    expect(committed?.capabilities.write_capability).toBe(true);
+    expect(
+      changeRepo.latestBaseline('application', app.application_id)?.capabilities
+        .write_capability,
+    ).toBe(true);
+    expect(executionAfterAuthorize(authorized)).toBeUndefined();
+  });
+
   it('16. Historical baseline immutability after change', async () => {
     const changeRepo = new InMemoryChangeGovernanceRepository();
     const policyRepo = new InMemoryPolicyRepository();
@@ -747,7 +854,7 @@ describe('Pack #15 — AI Lifecycle & Change Governance', () => {
       repository: changeRepo,
       policy_repository: policyRepo,
       pdp,
-      policy_context: policyCtx(),
+      policy_context: highRiskWritePolicyCtx(),
       commit_baseline_on_hold: true,
       input: {
         target_type: 'application',

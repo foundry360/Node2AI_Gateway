@@ -291,14 +291,19 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
     if (!match) return true;
     return match.status === 'active';
   };
+  const allowDetokenization = config.allowDetokenization;
   const legacyPolicy =
     options.policy ??
     new DeterministicPolicyEngine({
       defaultLocalModel: 'local-general-v1',
       isPolicyActive,
+      allowDetokenization,
     });
   const packRepo = options.policyRepository ?? new InMemoryPolicyRepository();
-  const packPdp = new PackBackedEnterprisePdp(packRepo, { isPolicyActive });
+  const packPdp = new PackBackedEnterprisePdp(packRepo, {
+    isPolicyActive,
+    allowDetokenization,
+  });
   const policy: PolicyEngine =
     options.policy ??
     (config.policyEngineMode === 'legacy'

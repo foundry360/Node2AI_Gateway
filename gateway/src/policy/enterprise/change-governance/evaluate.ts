@@ -84,15 +84,31 @@ function buildPolicyContext(
     pc.regulatory_applicability ??
     (proposed.applicable_authorities as string[] | undefined) ??
     [];
-  const reason_codes = applicability.map((a) =>
-    a.startsWith('REGULATORY_APPLICABILITY:')
-      ? a
-      : `REGULATORY_APPLICABILITY:${a}`,
-  );
+  const reason_codes = [
+    ...applicability.map((a) =>
+      a.startsWith('REGULATORY_APPLICABILITY:')
+        ? a
+        : `REGULATORY_APPLICABILITY:${a}`,
+    ),
+    ...change.change_types.map((t) => `LIFECYCLE_CHANGE_TYPE:${t}`),
+  ];
+  const introducingWrite = change.change_types.includes('WRITE_CAPABILITY');
+  // Capability grants that introduce write must be evaluated as WRITE actions so
+  // policy packs can return ALLOW / ALLOW_WITH_CONTROLS / REQUIRE_APPROVAL / DENY.
+  const operation = introducingWrite ? 'write' : (pc.operation ?? 'summarize');
+  const allowedOperations = introducingWrite
+    ? [...new Set([...pc.application.allowed_operations, 'write'])]
+    : pc.application.allowed_operations;
+  const sensitivity =
+    (pc.sensitivity as PolicyRequestContext['classification']['sensitivity']) ??
+    'INTERNAL';
   return {
     user: pc.user,
-    application: pc.application,
-    operation: pc.operation ?? 'summarize',
+    application: {
+      ...pc.application,
+      allowed_operations: allowedOperations,
+    },
+    operation,
     requestedModel:
       pc.requestedModel ??
       (proposed.model_id as string | undefined) ??
@@ -100,9 +116,9 @@ function buildPolicyContext(
     availableModels: pc.availableModels ?? pc.application.allowed_models,
     environment: pc.environment ?? 'prod',
     classification: {
-      sensitivity: (pc.sensitivity as 'INTERNAL') ?? 'INTERNAL',
+      sensitivity,
       confidence: 0.9,
-      risk: 'medium',
+      risk: introducingWrite && sensitivity === 'PHI' ? 'high' : 'medium',
       reason_codes,
     },
     deploymentMode: 'connected',
@@ -116,9 +132,16 @@ function buildPolicyContext(
   };
 }
 
+/** Decisions that hold execution pending human authorization (compat: REVIEW ≈ REQUIRE_APPROVAL). */
+function isApprovalHoldDecision(decision: PolicyDecision | undefined): boolean {
+  const d = String(decision?.decision ?? '').toUpperCase();
+  return d === 'REVIEW' || d === 'REQUIRE_APPROVAL';
+}
+
 /**
  * Force a REVIEW hold for mandatory lifecycle review without weakening DENY/BLOCK.
  * Preserves pack contributions / reason codes from the PDP result when present.
+ * Prefer REQUIRE_APPROVAL when the PDP already returned it (explicit approval semantics).
  */
 export function applyLifecycleReviewHold(
   decision: PolicyDecision,
@@ -129,6 +152,17 @@ export function applyLifecycleReviewHold(
     return {
       ...decision,
       reason_codes: [...reasons, ...(decision.reason_codes ?? [])],
+    };
+  }
+  if (d === 'REQUIRE_APPROVAL') {
+    return {
+      ...decision,
+      decision: 'REQUIRE_APPROVAL',
+      reason_codes: [...reasons, ...(decision.reason_codes ?? [])],
+      restrictions: {
+        ...decision.restrictions,
+        eligible_models: [],
+      },
     };
   }
   return {
@@ -154,8 +188,9 @@ async function persistLifecycleHold(
   );
   if (!existing) return;
 
+  const approvalHold = isApprovalHoldDecision(decision);
   const held_request =
-    decision.decision === 'REVIEW' && policyContext
+    approvalHold && policyContext
       ? {
           version: 1 as const,
           application_id: policyContext.application.application_id,
@@ -170,7 +205,9 @@ async function persistLifecycleHold(
             confidence: 0.9,
             risk: 'high' as const,
             reason_codes: [
-              'LIFECYCLE_MANDATORY_REVIEW',
+              String(decision.decision).toUpperCase() === 'REQUIRE_APPROVAL'
+                ? 'POLICY_REQUIRE_APPROVAL'
+                : 'LIFECYCLE_MANDATORY_REVIEW',
               ...change.materiality_reasons,
             ],
           },
@@ -217,6 +254,7 @@ async function persistLifecycleHold(
         ...(change.actor ? { actor: change.actor } : {}),
         ...(change.source ? { source: change.source } : {}),
         materiality_reasons: change.materiality_reasons,
+        authorization_mode: 'HUMAN_AUTHORIZATION',
         review_context,
         change_review,
       },
@@ -227,7 +265,7 @@ async function persistLifecycleHold(
   // Dedicated held_request write (covers older schemas / async race on insert).
   if (
     held_request &&
-    decision.decision === 'REVIEW' &&
+    approvalHold &&
     typeof policyRepo.attachHeldRequest === 'function'
   ) {
     await Promise.resolve(
@@ -747,23 +785,66 @@ export async function evaluateGovernanceChange(
       const ctx = buildPolicyContext(opts, change);
       policy_decision = await opts.pdp.evaluateLegacyRequest(ctx);
 
+      // Lifecycle MANDATORY_REVIEW / UNKNOWN / CRITICAL still force a hold.
+      // MATERIAL write (and other re-eval paths) keep the PDP decision: ALLOW
+      // executes automatically; REVIEW / REQUIRE_APPROVAL enter human review.
       if (lifecycleToPolicyHold(change.materiality, change.lifecycle_decision)) {
         policy_decision = applyLifecycleReviewHold(policy_decision, [
           'LIFECYCLE_MANDATORY_REVIEW',
           ...change.materiality_reasons,
         ]);
+      }
+
+      if (isApprovalHoldDecision(policy_decision)) {
         await persistLifecycleHold(
           opts.policy_repository,
           policy_decision,
           change,
           opts.policy_context,
         );
+      } else if (
+        opts.policy_repository &&
+        policy_decision.evaluation_id &&
+        opts.policy_repository.getEvaluation &&
+        opts.policy_repository.recordEvaluation
+      ) {
+        // Automatic authorization evidence — do not create a human-review queue item.
+        const existing = await Promise.resolve(
+          opts.policy_repository.getEvaluation(policy_decision.evaluation_id),
+        );
+        if (existing) {
+          await Promise.resolve(
+            opts.policy_repository.recordEvaluation({
+              ...existing,
+              decision: policy_decision.decision,
+              reason_codes: policy_decision.reason_codes,
+              evidence_in: {
+                ...existing.evidence_in,
+                change_id: change.change_id,
+                materiality: change.materiality,
+                lifecycle_decision: change.lifecycle_decision,
+                governance_impacts: change.governance_impacts,
+                change_types: change.change_types,
+                target_type: change.target_type,
+                target_id: change.target_id,
+                authorization_mode: 'AUTOMATICALLY_AUTHORIZED',
+                lifecycle_hold: false,
+              },
+            }),
+          );
+        }
       }
     }
   }
 
   const decisionCode = String(policy_decision?.decision ?? '').toUpperCase();
-  const held = ['REVIEW', 'DENY', 'BLOCK', 'BLOCK_OUTPUT'].includes(decisionCode);
+  const held = [
+    'REVIEW',
+    'REQUIRE_APPROVAL',
+    'DENY',
+    'BLOCK',
+    'BLOCK_OUTPUT',
+  ].includes(decisionCode);
 
   const shouldCommitBaseline =
     !!proposed_state &&

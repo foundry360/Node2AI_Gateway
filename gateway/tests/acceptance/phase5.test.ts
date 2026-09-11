@@ -136,6 +136,70 @@ describe('Phase 5 acceptance — Response Governance', () => {
     expect(last.metadata?.authorize_detokenization).toBe(false);
   });
 
+  it('Trusted release detokenizes when input was tokenized and policy authorizes', async () => {
+    const prompt =
+      'Email jane.doe@example.com about MRN: A1234567. Phone (415) 555-0142.';
+
+    let modelSaw = '';
+    const cloudProvider = new ScriptedModelProvider(
+      ['cloud-public-gpt'],
+      'placeholder',
+      { providerId: 'external-openai-compatible', kind: 'cloud' },
+    );
+    const origExecute = cloudProvider.execute.bind(cloudProvider);
+    cloudProvider.execute = async (req) => {
+      modelSaw = req.messages.map((m) => m.content).join('\n');
+      const tokens = [...modelSaw.matchAll(/\{\{TOK_[A-Za-z0-9_]+\}\}/g)].map((m) => m[0]);
+      return {
+        ...(await origExecute(req)),
+        message: {
+          role: 'assistant' as const,
+          content: `Reachable at ${tokens.join(' / ')}`,
+        },
+      };
+    };
+
+    const local = new ScriptedModelProvider(['local-general-v1'], 'local ok', {
+      providerId: 'local-runtime',
+    });
+
+    const gw = createPhase1Gateway({
+      providers: [local, cloudProvider],
+      useStubRuntime: true,
+    });
+
+    const result = await gw.orchestrator.completions(PHASE1_DEMO_API_KEY, {
+      application_id: 'app_clinical',
+      user: { id: 'user_clinician' },
+      operation: 'summarize',
+      model: 'cloud-public-gpt',
+      purpose: 'treatment',
+      governance_context: {
+        sensitive_data_processing: { external_processing_authorized: true },
+      },
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    expect(modelSaw).toMatch(/\{\{TOK_/);
+    expect(modelSaw).not.toContain('jane.doe@example.com');
+    expect(modelSaw).not.toContain('A1234567');
+    expect(modelSaw).not.toContain('415) 555-0142');
+
+    expect(
+      result.body.status,
+      `unexpected block: ${JSON.stringify(result.body)}`,
+    ).toBe('approved');
+    if (result.body.status === 'approved') {
+      const out = result.body.response.message.content;
+      expect(out).toContain('jane.doe@example.com');
+      expect(out).toContain('A1234567');
+      expect(out).toContain('(415) 555-0142');
+      expect(out).not.toMatch(/\{\{TOK_/);
+    }
+    const last = (await gw.audit.list()).at(-1)!;
+    expect(last.metadata?.authorize_detokenization).toBe(true);
+  });
+
   it('Authorized detokenization restores tokens when policy allows', async () => {
     const token = '{{TOK_EMAIL_cafebabe}}';
     const policy = new DeterministicPolicyEngine({

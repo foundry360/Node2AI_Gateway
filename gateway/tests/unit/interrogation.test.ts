@@ -22,6 +22,28 @@ describe('Deterministic detectors', () => {
     const result = detectDeterministic('api_key=sk_live_abcdefghijklmnopqrstuv');
     expect(result.categories.has('Credential')).toBe(true);
   });
+
+  it('detects universal identifier patterns (email, phone, MRN, labeled DOB)', () => {
+    const text = [
+      'Contact jane.doe@example.com or (415) 555-0142.',
+      'MRN: CG-441902',
+      'DOB: 1978-08-22',
+    ].join('\n');
+    const result = detectDeterministic(text);
+    const value = (t: string) =>
+      result.entities.filter((e) => e.type === t).map((e) => text.slice(e.start, e.end));
+
+    expect(value('EMAIL')).toEqual(['jane.doe@example.com']);
+    expect(value('PHONE')[0]).toBe('(415) 555-0142');
+    expect(value('MRN')).toEqual(['CG-441902']);
+    expect(value('DOB')).toEqual(['1978-08-22']);
+  });
+
+  it('does not treat vault tokens as residual plaintext entities', () => {
+    const text = 'MRN: {{TOK_MRN_deadbeef}} Email: {{TOK_EMAIL_cafebabe}}';
+    const result = detectDeterministic(text);
+    expect(result.entities).toHaveLength(0);
+  });
 });
 
 describe('HybridDataInterrogator', () => {

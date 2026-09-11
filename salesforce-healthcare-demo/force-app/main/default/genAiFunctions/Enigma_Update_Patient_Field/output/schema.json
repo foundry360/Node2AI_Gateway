@@ -3,7 +3,6 @@
   "properties": {
     "success": {
       "title": "Success",
-      "description": "True when the note was saved.",
       "lightning:type": "lightning__booleanType"
     },
     "status": {
@@ -13,22 +12,22 @@
     },
     "message": {
       "title": "Message",
-      "description": "Human-readable result for the agent to relay.",
       "lightning:type": "lightning__multilineTextType"
     },
-    "clinicalNotes": {
-      "title": "Clinical Notes",
-      "description": "Updated notes when COMPLETED.",
-      "lightning:type": "lightning__multilineTextType"
+    "updatedField": {
+      "title": "Updated Field",
+      "lightning:type": "lightning__textType"
+    },
+    "updatedValue": {
+      "title": "Updated Value",
+      "lightning:type": "lightning__textType"
     },
     "evaluationId": {
       "title": "Evaluation Id",
-      "description": "Enigma decision id when held for review.",
       "lightning:type": "lightning__textType"
     },
     "requestId": {
       "title": "Request Id",
-      "description": "Enigma request id when available.",
       "lightning:type": "lightning__textType"
     }
   },

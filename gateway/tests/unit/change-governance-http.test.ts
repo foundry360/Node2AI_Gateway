@@ -5,7 +5,7 @@ import {
 import { createPhase1Gateway } from '../../src/api/app-factory.js';
 
 describe('Admin change governance HTTP', () => {
-  it('seeds agent baseline and evaluates write_capability → CRITICAL / REVIEW', async () => {
+  it('seeds agent baseline and evaluates clinical write_capability → MATERIAL / REVIEW (policy)', async () => {
     const gw = createPhase1Gateway({
       config: { adminApiKey: 'test_admin' },
     });
@@ -42,13 +42,16 @@ describe('Admin change governance HTTP', () => {
     });
     expect(evaluateRes.statusCode).toBe(200);
     const body = evaluateRes.json();
-    expect(body.materiality).toBe('CRITICAL');
-    expect(body.lifecycle_decision).toBe('MANDATORY_REVIEW');
+    expect(body.materiality).toBe('MATERIAL');
+    expect(body.lifecycle_decision).toBe('REEVALUATION_REQUIRED');
     expect(body.change_types).toContain('WRITE_CAPABILITY');
     expect(String(body.policy_decision?.decision).toUpperCase()).toBe('REVIEW');
+    expect(body.policy_decision?.reason_codes).toEqual(
+      expect.arrayContaining(['HIPAA_PHI_WRITE_REQUIRES_APPROVAL']),
+    );
     expect(String(body.policy_decision?.decision).toUpperCase()).not.toBe('DENY');
     expect(body.evaluation_id || body.policy_decision?.evaluation_id).toBeTruthy();
-    // Held critical change must not silently commit write=true
+    // Policy-held high-risk write must not silently commit write=true
     expect(body.next_baseline).toBeFalsy();
   });
 });

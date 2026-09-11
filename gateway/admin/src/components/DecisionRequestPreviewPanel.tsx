@@ -1,7 +1,6 @@
 'use client';
 
 import { StatusBadge } from '@/components/StatusBadge';
-import { DecisionReviewResolveControls } from '@/components/DecisionReviewPanel';
 
 export type ActionReviewPresentation = {
   kind: 'runtime' | 'lifecycle_change';
@@ -101,7 +100,7 @@ function resolvePrompt(preview: HeldRequestPreview): string | undefined {
 }
 
 /**
- * Request Review — show the user’s ask to the agent, then decide.
+ * Request Review — show the user’s ask to the agent (resolution is on Human Review).
  */
 export function DecisionRequestPreviewPanel({
   preview,
@@ -146,7 +145,6 @@ export function DecisionRequestPreviewPanel({
                 label={review.decision.status}
               />
             </div>
-            <DecisionReviewResolveControls />
           </div>
         </div>
       )}

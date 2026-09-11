@@ -39,7 +39,13 @@ const IMPACT_BY_CHANGE: Record<string, GovernanceImpactDimension[]> = {
 
 const NON_MATERIAL = new Set<string>(['UI_LABEL']);
 
-const CRITICAL = new Set<string>(['WRITE_CAPABILITY']);
+/**
+ * Change types that are always CRITICAL / MANDATORY_REVIEW by themselves.
+ * WRITE_CAPABILITY is intentionally excluded: write raises the importance of
+ * policy evaluation but must not force human approval by materiality alone.
+ * Autonomy escalation to AUTONOMOUS remains CRITICAL via autonomyEscalationCritical().
+ */
+const CRITICAL = new Set<string>([]);
 
 function uniq<T>(items: T[]): T[] {
   return [...new Set(items)];
@@ -256,17 +262,17 @@ export function assessMateriality(input: ChangeInput): MaterialityAssessment {
     };
   }
 
+  if (change_types.includes('WRITE_CAPABILITY')) {
+    reasons.push('LIFECYCLE_WRITE_CAPABILITY_INTRODUCED');
+  }
+
   const critical =
     change_types.some((t) => CRITICAL.has(t)) ||
-    autonomyEscalationCritical(input.previous_state, input.proposed_state) ||
-    change_types.includes('WRITE_CAPABILITY');
+    autonomyEscalationCritical(input.previous_state, input.proposed_state);
 
   if (critical) {
     if (autonomyEscalationCritical(input.previous_state, input.proposed_state)) {
       reasons.push('LIFECYCLE_AUTONOMY_ESCALATION_TO_AUTONOMOUS');
-    }
-    if (change_types.includes('WRITE_CAPABILITY')) {
-      reasons.push('LIFECYCLE_WRITE_CAPABILITY_INTRODUCED');
     }
     return {
       materiality: 'CRITICAL',

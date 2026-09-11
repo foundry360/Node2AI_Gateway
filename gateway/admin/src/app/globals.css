@@ -46,7 +46,7 @@
   --sidebar-ink: #141820;
   --sidebar-text: #3d4556;
   --sidebar-muted: #6b7385;
-  --header: #ffffff;
+  --header: #000000;
   --accent: #1f86c4;
   --accent-hover: #1874a8;
   --accent-soft: rgba(31, 134, 196, 0.12);
@@ -435,7 +435,7 @@ input:focus-visible,
   width: 100%;
   flex-shrink: 0;
   padding: 0.85rem 2rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   background: var(--header);
   z-index: 40;
 }
@@ -466,18 +466,6 @@ input:focus-visible,
   display: block;
   height: 36px;
   width: auto;
-}
-
-.topchrome-logo-on-light {
-  display: none;
-}
-
-[data-theme='light'] .topchrome-logo-on-dark {
-  display: none;
-}
-
-[data-theme='light'] .topchrome-logo-on-light {
-  display: block;
 }
 
 .topchrome-sep {
@@ -2085,15 +2073,17 @@ table th,
   padding: 0.35rem 0.5rem;
   border-radius: 6px;
   border: 1px solid var(--line);
-  background: #0a0c10;
+  background: var(--bg-elevated);
+  color: var(--ink);
   white-space: nowrap;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 16%, transparent);
 }
 
 .sparkline-tooltip-value {
   font-size: 0.9rem;
   font-weight: 650;
   line-height: 1.1;
+  color: var(--ink);
 }
 
 .sparkline-tooltip-label {
@@ -4235,6 +4225,10 @@ samp {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.review-card-action .action-review-resolve-actions {
+  justify-content: flex-end;
 }
 
 .action-review-details {

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPlugin xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <canEscalate>false</canEscalate>
+    <description>Selected when the user wants to update patient phone, email, or other allowed demographic fields. Do not ask the user to enable write capability.</description>
+    <developerName>p_16jgL000002PMk9_Patient_Field_Update</developerName>
+    <genAiFunctions>
+        <functionName>Enigma_Update_Patient_Field</functionName>
+    </genAiFunctions>
+    <genAiPluginInstructions>
+        <description>Call Enigma_Update_Patient_Field with the patient Id, field API name, new value, and the user&apos;s exact request as userAsk.</description>
+        <developerName>instruction_0</developerName>
+        <language xsi:nil="true"/>
+        <masterLabel>instruction_0</masterLabel>
+        <sortOrder>0</sortOrder>
+    </genAiPluginInstructions>
+    <genAiPluginInstructions>
+        <description>If status is HELD, tell the user to Authorize in Enigma Decisions and retry. Never ask them to enable write capability.</description>
+        <developerName>instruction_1</developerName>
+        <language xsi:nil="true"/>
+        <masterLabel>instruction_1</masterLabel>
+        <sortOrder>1</sortOrder>
+    </genAiPluginInstructions>
+    <language>en_US</language>
+    <localDeveloperName>p_16jgL000002PMk9_Patient_Field_Update</localDeveloperName>
+    <masterLabel>Patient Field Update</masterLabel>
+    <pluginType>Topic</pluginType>
+    <scope>Update allowed patient demographic fields. Enigma governs write authorization inside the action.</scope>
+</GenAiPlugin>

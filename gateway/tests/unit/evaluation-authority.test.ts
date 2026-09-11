@@ -86,14 +86,16 @@ describe('Policy evaluation authority (policy_evaluations)', () => {
 
     const stored = repo.getEvaluation(decision.evaluation_id);
     expect(stored).toBeDefined();
-    expect(stored!.explanation.resolution?.category).toBe('AGREEMENT');
+    // HIPAA REVIEW + Part 2 DENY → restrictive DENY (not agreement).
+    expect(stored!.decision).toBe('DENY');
+    expect(stored!.explanation.resolution?.category).toBe('RESTRICTIVE');
     const rules = stored!.explanation.provenance?.matched_rules ?? [];
     expect(rules.some((r) => r.rule_id.startsWith('HIPAA-R-'))).toBe(true);
     expect(rules.some((r) => r.rule_id.startsWith('PART2-R-'))).toBe(true);
 
     const payload = evaluationRecordToDecisionPayload(stored!);
     expect(payload.decision).toBe(decision.decision);
-    expect(payload.explanation.resolution?.category).toBe('AGREEMENT');
+    expect(payload.explanation.resolution?.category).toBe('RESTRICTIVE');
     expect(payload.explanation.operator).toBeDefined();
     expect(payload.explanation.operator?.contributions.length).toBeGreaterThanOrEqual(2);
     expect(payload.explanation.provenance?.matched_rules?.length).toBeGreaterThan(0);

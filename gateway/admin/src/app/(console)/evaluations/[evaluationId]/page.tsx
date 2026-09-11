@@ -5,7 +5,6 @@ import { DecisionExplanationView } from '@/components/DecisionExplanationView';
 import { DecisionConsequencePanel } from '@/components/DecisionConsequencePanel';
 import { DecisionDetailTabs } from '@/components/DecisionDetailTabs';
 import {
-  DecisionReviewHeaderActions,
   DecisionReviewPanel,
   DecisionReviewProvider,
 } from '@/components/DecisionReviewPanel';
@@ -177,7 +176,6 @@ export default async function EvaluationDetailPage({
               <StatusBadge variant="badge" status={finalDecision} />
             </div>
           </div>
-          {showReview ? <DecisionReviewHeaderActions /> : null}
         </div>
 
         {record ? (
@@ -268,10 +266,10 @@ export default async function EvaluationDetailPage({
         showPolicy={Boolean(decision || consequence)}
         showReview={showReview}
         defaultTab={
-          decision || consequence
-            ? 'policy'
-            : review?.review_state === 'pending'
-              ? 'preview'
+          review?.review_state === 'pending'
+            ? 'review'
+            : decision || consequence
+              ? 'policy'
               : 'policy'
         }
         preview={<DecisionRequestPreviewPanel preview={heldRequestPreview} />}
@@ -327,6 +325,7 @@ export default async function EvaluationDetailPage({
               }
               execution={execution?.resume}
               heldRequestPresent={execution?.held_request_present}
+              reviewKind={heldRequestPreview?.action_review?.kind}
             />
           ) : null
         }

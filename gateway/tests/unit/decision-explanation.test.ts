@@ -131,13 +131,15 @@ describe('Multi-pack decision explanation — invariants', () => {
       purpose: 'treatment',
     });
     expect(decision.explanation.operator).toBeDefined();
-    expect(decision.explanation.resolution?.category).toBe('AGREEMENT');
+    // HIPAA requires approval (REVIEW); Part 2 denies write without consent → restrictive DENY.
+    expect(decision.decision).toBe('DENY');
+    expect(decision.explanation.resolution?.category).toBe('RESTRICTIVE');
     const rules = decision.explanation.provenance?.matched_rules ?? [];
     expect(rules.some((r) => r.rule_id.startsWith('HIPAA-R-'))).toBe(true);
     expect(rules.some((r) => r.rule_id.startsWith('PART2-R-'))).toBe(true);
     const op = buildOperatorDecisionExplanation(decision);
     expect(op.contributions.length).toBeGreaterThanOrEqual(2);
-    expect(op.narrative.toLowerCase()).toContain('agreed');
+    expect(op.narrative.toLowerCase()).toMatch(/restrict|deny|review/);
     expect(op.narrative).not.toMatch(/HIPAA permits/i);
   });
 

@@ -83,6 +83,12 @@ export function hasResumableHeldRequest(
   if (!held.operation || !Array.isArray(held.messages) || held.messages.length === 0) {
     return false;
   }
+  // Lifecycle capability holds are authorized by committing baseline — not by
+  // replaying the synthetic held snapshot through /v1/ai/completions.
+  const op = String(held.operation).toLowerCase();
+  if (op === 'lifecycle_change' || op.includes('lifecycle')) return false;
+  const evidence = record.evidence_in as Record<string, unknown> | undefined;
+  if (evidence?.lifecycle_hold === true) return false;
   return true;
 }
 

@@ -4,5 +4,5 @@
     <description>Local Enigma Gateway via localhost.run (update when tunnel URL changes)</description>
     <disableProtocolSecurity>false</disableProtocolSecurity>
     <isActive>true</isActive>
-    <url>https://0ae2476ba757b2.lhr.life</url>
+    <url>https://efficiently-boxes-vacuum-shadows.trycloudflare.com</url>
 </RemoteSiteSetting>

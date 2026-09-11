@@ -1,22 +1,21 @@
-public with sharing class EnigmaAgentUpdateNotesAction {
+public with sharing class EnigmaAgentUpdatePatientFieldAction {
     public class Request {
-        @InvocableVariable(
-            required=true
-            label='Patient Id'
-            description='Patient__c Id (usually the record the user is viewing).'
-        )
+        @InvocableVariable(required=true label='Patient Id')
         public Id patientId;
 
         @InvocableVariable(
             required=true
-            label='Note Text'
-            description='Clinical note content to append.'
+            label='Field API Name'
+            description='Allowed: Phone__c, Email__c, Preferred_Language__c, Primary_Care_Provider__c, Emergency_Contact_Name__c, Emergency_Contact_Phone__c'
         )
-        public String noteText;
+        public String fieldApiName;
+
+        @InvocableVariable(required=true label='Field Value')
+        public String fieldValue;
 
         @InvocableVariable(
             label='User Request'
-            description='Exact text of what the user asked (Prompt for Enigma). Defaults to note intent if blank.'
+            description='Exact text of what the user asked (Prompt for Enigma).'
         )
         public String userAsk;
     }
@@ -28,8 +27,10 @@ public with sharing class EnigmaAgentUpdateNotesAction {
         public String status;
         @InvocableVariable(label='Message')
         public String message;
-        @InvocableVariable(label='Clinical Notes')
-        public String clinicalNotes;
+        @InvocableVariable(label='Updated Field')
+        public String updatedField;
+        @InvocableVariable(label='Updated Value')
+        public String updatedValue;
         @InvocableVariable(label='Evaluation Id')
         public String evaluationId;
         @InvocableVariable(label='Request Id')
@@ -37,8 +38,8 @@ public with sharing class EnigmaAgentUpdateNotesAction {
     }
 
     @InvocableMethod(
-        label='Enigma Update Clinical Notes'
-        description='Append a clinical note after Enigma authorizes write capability. If held for review, returns HELD — do not tell the user to enable write; tell them to Authorize in Enigma, then retry.'
+        label='Enigma Update Patient Field'
+        description='Update an allowed Patient field after Enigma authorizes write capability. If held, tell the user to Authorize in Enigma, then retry — never ask them to enable write capability.'
         category='Enigma'
     )
     public static List<Response> run(List<Request> requests) {
@@ -46,15 +47,17 @@ public with sharing class EnigmaAgentUpdateNotesAction {
         for (Request req : requests) {
             Response row = new Response();
             try {
-                EnigmaGatewayService.GovernedWriteResult r = EnigmaGatewayService.appendClinicalNoteGoverned(
+                EnigmaGatewayService.GovernedWriteResult r = EnigmaGatewayService.updatePatientFieldGoverned(
                     req != null ? req.patientId : null,
-                    req != null ? req.noteText : null,
+                    req != null ? req.fieldApiName : null,
+                    req != null ? req.fieldValue : null,
                     req != null ? req.userAsk : null
                 );
                 row.success = r.success;
                 row.status = r.status;
                 row.message = r.message;
-                row.clinicalNotes = r.clinicalNotes;
+                row.updatedField = r.updatedField;
+                row.updatedValue = r.updatedValue;
                 row.evaluationId = r.evaluationId;
                 row.requestId = r.requestId;
             } catch (Exception e) {

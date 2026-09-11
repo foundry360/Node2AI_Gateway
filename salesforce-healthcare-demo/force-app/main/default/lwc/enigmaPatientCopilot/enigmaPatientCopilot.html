@@ -1,0 +1,70 @@
+<template>
+  <div class="copilot">
+    <header class="copilot-header">
+      <h2 class="copilot-title">Clinical Copilot</h2>
+      <p class="copilot-sub">Conversational actions on this patient — Enigma governs writes.</p>
+    </header>
+
+    <div class="copilot-messages" role="log" aria-live="polite">
+      <template for:each={messages} for:item="m">
+        <div key={m.id} class={m.cssClass}>
+          <div class="bubble-text">{m.text}</div>
+          <template lwc:if={m.evaluationId}>
+            <div class="bubble-meta">Decision: {m.evaluationId}</div>
+          </template>
+        </div>
+      </template>
+      <template lwc:if={busy}>
+        <div class="bubble bubble-assistant bubble-pending">Working…</div>
+      </template>
+    </div>
+
+    <div class="copilot-suggestions">
+      <button
+        type="button"
+        class="chip"
+        data-text="Summarize this chart"
+        onclick={useSuggestion}
+        disabled={busy}
+      >
+        Summarize chart
+      </button>
+      <button
+        type="button"
+        class="chip"
+        data-text="Add a note that diet compliance improved"
+        onclick={useSuggestion}
+        disabled={busy}
+      >
+        Add note
+      </button>
+      <button
+        type="button"
+        class="chip"
+        data-text="Update phone to (415) 555-0199"
+        onclick={useSuggestion}
+        disabled={busy}
+      >
+        Update phone
+      </button>
+    </div>
+
+    <div class="copilot-composer">
+      <textarea
+        class="copilot-input"
+        rows="2"
+        placeholder="Ask about this patient…"
+        value={draft}
+        oninput={handleDraftChange}
+        onkeydown={handleKeydown}
+        disabled={busy}
+      ></textarea>
+      <lightning-button
+        variant="brand"
+        label={sendLabel}
+        onclick={send}
+        disabled={isSendDisabled}
+      ></lightning-button>
+    </div>
+  </div>
+</template>

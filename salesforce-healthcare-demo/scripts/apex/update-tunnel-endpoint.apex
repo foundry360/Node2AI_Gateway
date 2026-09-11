@@ -1,6 +1,6 @@
 // Point Enigma Config at the current localhost.run tunnel.
 Enigma_Config__c cfg = Enigma_Config__c.getOrgDefaults();
-cfg.Endpoint_URL__c = 'https://0ae2476ba757b2.lhr.life';
+cfg.Endpoint_URL__c = 'https://efficiently-boxes-vacuum-shadows.trycloudflare.com';
 if (String.isBlank(cfg.Application_Id__c)) {
   cfg.Application_Id__c = 'app_clinical';
 }

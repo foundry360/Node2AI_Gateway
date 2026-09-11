@@ -12,6 +12,14 @@
         <visible>true</visible>
     </applicationVisibilities>
     <classAccesses>
+        <apexClass>EnigmaPatientCopilotController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>EnigmaAgentUpdatePatientFieldAction</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>EnigmaGatewayService</apexClass>
         <enabled>true</enabled>
     </classAccesses>

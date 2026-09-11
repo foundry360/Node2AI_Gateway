@@ -1002,6 +1002,28 @@ export function registerAdminRoutes(
       });
     }
 
+    // Lifecycle AUTHORIZE: commit proposed governance baseline (write capability, tools…).
+    let committedBaseline: { baseline_id: string; version: number } | null = null;
+    if (
+      resolution.human_disposition === 'AUTHORIZE' &&
+      ctx.changeGovernance
+    ) {
+      const {
+        commitAuthorizedLifecycleChange,
+      } = await import('../policy/enterprise/change-governance/commit-authorized.js');
+      const next = commitAuthorizedLifecycleChange({
+        record: updated,
+        repository: ctx.changeGovernance,
+        now: resolution.resolved_at,
+      });
+      if (next) {
+        committedBaseline = {
+          baseline_id: next.baseline_id,
+          version: next.version,
+        };
+      }
+    }
+
     const { executionAfterAuthorize } = await import(
       '../policy/enterprise/decision-resume.js'
     );
@@ -1034,6 +1056,7 @@ export function registerAdminRoutes(
       reason_codes: [
         authorized ? 'HUMAN_AUTHORIZE' : 'HUMAN_DENY',
         'EVALUATION_RESOLVED',
+        ...(committedBaseline ? ['LIFECYCLE_BASELINE_COMMITTED'] : []),
       ],
       evaluation_id: binding.evaluation_id,
       decision_hash: binding.decision_hash,
@@ -1046,6 +1069,12 @@ export function registerAdminRoutes(
         resolution_reason: resolution.resolution_reason,
         resolved_by: resolution.resolved_by,
         resume_eligible: Boolean(exec),
+        ...(committedBaseline
+          ? {
+              committed_baseline_id: committedBaseline.baseline_id,
+              committed_baseline_version: committedBaseline.version,
+            }
+          : {}),
       },
     });
 
@@ -1068,6 +1097,9 @@ export function registerAdminRoutes(
       consequence,
       enforcement,
       request_id: requestId,
+      ...(committedBaseline
+        ? { committed_baseline: committedBaseline }
+        : {}),
     };
   });
 
@@ -2241,6 +2273,21 @@ export function registerAdminRoutes(
       });
     }
 
+    const proposed = body.proposed_state;
+    const introducingWrite =
+      proposed.write_capability === true ||
+      (proposed.capabilities &&
+        typeof proposed.capabilities === 'object' &&
+        (proposed.capabilities as Record<string, unknown>).write_capability ===
+          true) ||
+      (Array.isArray(proposed.tools) &&
+        proposed.tools.some(
+          (t) => t && typeof t === 'object' && (t as { write?: boolean }).write === true,
+        ));
+    const clinicalOrPhi =
+      application.type === 'clinical' ||
+      String(application.application_id).includes('clinical');
+
     const result = await evaluateGovernanceChange({
       repository: ctx.changeGovernance,
       policy_repository: ctx.policyRepository,
@@ -2249,9 +2296,10 @@ export function registerAdminRoutes(
       policy_context: {
         user,
         application,
-        operation: 'summarize',
+        operation: introducingWrite ? 'write' : 'summarize',
         requestedModel: application.allowed_models[0] ?? 'local-general-v1',
         availableModels: application.allowed_models,
+        sensitivity: clinicalOrPhi && introducingWrite ? 'PHI' : 'INTERNAL',
         regulatory_applicability: ['NIST_AI_RMF', 'HIPAA'],
       },
       input: {

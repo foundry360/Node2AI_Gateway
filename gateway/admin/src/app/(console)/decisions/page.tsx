@@ -65,6 +65,19 @@ function phaseLabel(phase: string | undefined): string {
   return formatFieldLabel(phase) || 'Decision';
 }
 
+/** Clearer machine-decision labels for governed autonomy outcomes. */
+function machineDecisionLabel(decision: string | undefined): string {
+  const d = String(decision ?? '').toUpperCase();
+  if (d === 'ALLOW') return 'Automatically allowed';
+  if (d === 'ALLOW_WITH_CONTROLS') return 'Allowed with controls';
+  if (d === 'REQUIRE_APPROVAL' || d === 'REVIEW') return 'Pending human approval';
+  if (d === 'DENY' || d === 'BLOCK' || d === 'BLOCK_OUTPUT') return 'Denied';
+  if (d === 'TRANSFORM' || d === 'TOKENIZE' || d === 'REDACT' || d === 'MASK') {
+    return 'Transform required';
+  }
+  return formatFieldLabel(decision) || '—';
+}
+
 function groupByRequest(rows: EvaluationRow[]): GroupedDecision[] {
   const order: string[] = [];
   const map = new Map<string, EvaluationRow[]>();
@@ -94,7 +107,7 @@ function groupByRequest(rows: EvaluationRow[]): GroupedDecision[] {
 }
 
 function DecisionsListView() {
-  const [filter, setFilter] = useState<FilterId>('all');
+  const [filter, setFilter] = useState<FilterId>('review');
   const [rows, setRows] = useState<EvaluationRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -158,7 +171,7 @@ function DecisionsListView() {
     <div>
       <PageHeader
         title="Decisions"
-        lede="The source of truth for what Enigma decided and why."
+        lede="Exception queue and decision history. Human review appears only when policy requires approval — not for every Agent write."
       />
 
       {error ? <div className="error">{error}</div> : null}
@@ -258,7 +271,11 @@ function DecisionsListView() {
                         <span className="decision-phase">{phaseLabel(e.phase)}</span>
                       </td>
                       <td>
-                        <StatusBadge variant="badge" status={e.decision} />
+                        <StatusBadge
+                          variant="badge"
+                          status={e.decision}
+                          label={machineDecisionLabel(e.decision)}
+                        />
                       </td>
                       <td>
                         <StatusBadge

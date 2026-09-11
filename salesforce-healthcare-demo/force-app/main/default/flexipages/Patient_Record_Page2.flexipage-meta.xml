@@ -79,6 +79,12 @@
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
+                <componentName>enigmaPatientCopilot</componentName>
+                <identifier>c_enigmaPatientCopilot</identifier>
+            </componentInstance>
+        </itemInstances>
+        <itemInstances>
+            <componentInstance>
                 <componentName>patientEnigmaSummary</componentName>
                 <identifier>c_patientEnigmaSummary</identifier>
             </componentInstance>

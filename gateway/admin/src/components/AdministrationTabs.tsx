@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 const TABS: Array<{ href: string; label: string }> = [
   { href: '/administration/users', label: 'Users' },
   { href: '/administration/system', label: 'System' },
-  { href: '/administration/credentials', label: 'Credentials' },
 ];
 
 export function AdministrationTabs() {

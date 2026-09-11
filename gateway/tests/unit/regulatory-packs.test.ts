@@ -393,7 +393,7 @@ describe('HIPAA pack v3 semantic refinement', () => {
     ).toBe(true);
   });
 
-  it('write of PHI is denied', async () => {
+  it('write of PHI requires approval (not automatic DENY)', async () => {
     const repo = new InMemoryPolicyRepository();
     const pdp = new PackBackedEnterprisePdp(repo);
     const decision = await pdp.evaluateLegacyRequest({
@@ -412,8 +412,8 @@ describe('HIPAA pack v3 semantic refinement', () => {
       deploymentMode: 'connected',
       purpose: 'treatment',
     });
-    expect(decision.decision).toBe('DENY');
-    expect(decision.reason_codes).toContain('HIPAA_PHI_WRITEBACK_NOT_AUTHORIZED');
+    expect(decision.decision).toBe('REVIEW');
+    expect(decision.reason_codes).toContain('HIPAA_PHI_WRITE_REQUIRES_APPROVAL');
   });
 });
 
