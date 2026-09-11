@@ -39,9 +39,16 @@ describe('Phase 2 acceptance — Data Interrogation', () => {
     expect(result.httpStatus).toBe(200);
     expect(result.body.status).toBe('approved');
     if (result.body.status === 'approved') {
-      expect(result.body.response.message.content).toContain('{{TOK_');
-      expect(result.body.response.message.content).not.toContain('jane.doe@example.com');
-      expect(result.body.response.message.content).not.toContain('123-45-6789');
+      // Model-bound evidence (tokens), not the client response after authorized detokenize.
+      const modelBound =
+        result.body.governance?.tokenized_input ??
+        result.body.governance?.tokenized_output ??
+        '';
+      expect(modelBound).toContain('{{TOK_');
+      expect(modelBound).not.toContain('jane.doe@example.com');
+      expect(modelBound).not.toContain('123-45-6789');
+      expect(result.body.governance?.policy_decision).toBe('TOKENIZE');
+      expect(result.body.governance?.input_transformation).toBe('tokenize');
     }
 
     const last = (await gw.audit.list()).at(-1)!;

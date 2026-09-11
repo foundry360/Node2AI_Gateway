@@ -28,9 +28,14 @@ describe('Phase 3 acceptance — Input Enforcement', () => {
     expect(result.httpStatus).toBe(200);
     expect(result.body.status).toBe('approved');
     if (result.body.status === 'approved') {
-      const content = result.body.response.message.content;
-      expect(content).toMatch(/\{\{TOK_EMAIL_[a-f0-9]+\}\}/);
-      expect(content).not.toContain('alice@example.org');
+      // Prove the model received tokens; authorized detokenize may restore plaintext for the client.
+      const modelBound =
+        result.body.governance?.tokenized_input ??
+        result.body.governance?.tokenized_output ??
+        '';
+      expect(modelBound).toMatch(/\{\{TOK_EMAIL_[a-f0-9]+\}\}/);
+      expect(modelBound).not.toContain('alice@example.org');
+      expect(result.body.governance?.input_transformation).toBe('tokenize');
     }
 
     expect(gw.vault.size()).toBeGreaterThan(0);
