@@ -3,6 +3,7 @@ import { requirePageSession } from '@/lib/page-auth';
 import { prisma } from '@/lib/prisma';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ReleasesFilters } from '@/components/ReleasesFilters';
+import { DeleteReleaseButton } from '@/components/DeleteReleaseButton';
 
 type Props = { searchParams: Promise<{ status?: string; q?: string }> };
 
@@ -11,6 +12,7 @@ export default async function ReleasesPage({ searchParams }: Props) {
   const sp = await searchParams;
   const status = sp.status?.trim();
   const q = sp.q?.trim();
+  const isAdmin = session.role === 'ADMINISTRATOR';
 
   const releases = await prisma.enigmaRelease.findMany({
     where: {
@@ -30,13 +32,15 @@ export default async function ReleasesPage({ searchParams }: Props) {
     include: { artifacts: true },
   });
 
+  const colSpan = isAdmin ? 6 : 5;
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-bold">Releases</h1>
         </div>
-        {session.role === 'ADMINISTRATOR' && (
+        {isAdmin && (
           <Link href="/releases/new" className="btn">
             Create Release
           </Link>
@@ -54,6 +58,7 @@ export default async function ReleasesPage({ searchParams }: Props) {
               <th className="px-5 py-2">VPC</th>
               <th className="px-5 py-2">Air-Gapped</th>
               <th className="px-5 py-2">Published</th>
+              {isAdmin && <th className="px-5 py-2 text-right">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -83,12 +88,21 @@ export default async function ReleasesPage({ searchParams }: Props) {
                         })
                       : '—'}
                   </td>
+                  {isAdmin && (
+                    <td className="px-5 py-3 text-right">
+                      <DeleteReleaseButton
+                        releaseId={r.id}
+                        version={r.version}
+                        compact
+                      />
+                    </td>
+                  )}
                 </tr>
               );
             })}
             {releases.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-5 py-8 text-muted">
+                <td colSpan={colSpan} className="px-5 py-8 text-muted">
                   No releases yet.
                 </td>
               </tr>

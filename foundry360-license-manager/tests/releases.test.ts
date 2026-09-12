@@ -77,6 +77,35 @@ describe('immutability helper', () => {
   });
 });
 
+describe('artifact write cleanup path', () => {
+  let dir: string;
+  const prev = process.env.ARTIFACT_DIR;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'f360-rel-del-'));
+    process.env.ARTIFACT_DIR = dir;
+  });
+
+  afterEach(() => {
+    process.env.ARTIFACT_DIR = prev;
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('stores packages under versioned releases directory removable as a tree', async () => {
+    const payload = Buffer.from('to-be-deleted');
+    const written = await writeReleaseArtifactFile({
+      version: '9.9.9',
+      fileName: 'enigma-9.9.9-vpc.tar.gz',
+      data: payload,
+    });
+    expect(existsSync(written.path)).toBe(true);
+    const versionDir = join(dir, 'releases', '9.9.9');
+    expect(existsSync(versionDir)).toBe(true);
+    rmSync(versionDir, { recursive: true, force: true });
+    expect(existsSync(written.path)).toBe(false);
+  });
+});
+
 describe('security invariants for release packages', () => {
   it('package names never encode customer or deployment ids', () => {
     const name = defaultPackageFileName('0.1.0', 'VPC');

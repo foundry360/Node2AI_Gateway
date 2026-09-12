@@ -20,6 +20,8 @@ Once **APPROVED**:
 - Artifacts cannot be replaced
 - Create a **new** release for fixes
 
+Administrators may **delete** a release from the Releases table (or release detail). Deletion permanently removes the release record and any uploaded packages on disk. Prefer **Deprecate** for production history when you only want to stop offering a version.
+
 ## What Foundry360 does
 
 - Register immutable Enigma software versions

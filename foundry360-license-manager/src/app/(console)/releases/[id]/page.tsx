@@ -3,6 +3,7 @@ import { requirePageSession } from '@/lib/page-auth';
 import { prisma } from '@/lib/prisma';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ReleaseAdminActions } from '@/components/ReleaseAdminActions';
+import { DeleteReleaseButton } from '@/components/DeleteReleaseButton';
 import { PackageDownloadButton } from '@/components/PackageDownloadButton';
 import { formatBytes } from '@/lib/format';
 
@@ -106,11 +107,18 @@ export default async function ReleaseDetailPage({ params }: Props) {
       </section>
 
       {session.role === 'ADMINISTRATOR' && (
-        <ReleaseAdminActions
-          releaseId={release.id}
-          status={release.status}
-          hasArtifacts={release.artifacts.length > 0}
-        />
+        <div className="space-y-4">
+          <ReleaseAdminActions
+            releaseId={release.id}
+            status={release.status}
+            hasArtifacts={release.artifacts.length > 0}
+          />
+          <DeleteReleaseButton
+            releaseId={release.id}
+            version={release.version}
+            redirectTo="/releases"
+          />
+        </div>
       )}
     </div>
   );

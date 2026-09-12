@@ -8,6 +8,7 @@ import {
   createWriteStream,
   existsSync,
   mkdirSync,
+  rmSync,
   unlinkSync,
   statSync,
   writeFileSync,
@@ -160,4 +161,42 @@ export function fileExists(path: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Remove release row, artifacts, and on-disk package files. Administrator-only via API. */
+export async function deleteReleaseCompletely(id: string) {
+  const release = await prisma.enigmaRelease.findUnique({
+    where: { id },
+    include: { artifacts: true },
+  });
+  if (!release) {
+    throw new Error('Release not found');
+  }
+
+  for (const artifact of release.artifacts) {
+    try {
+      if (existsSync(artifact.filePath)) {
+        unlinkSync(artifact.filePath);
+      }
+    } catch {
+      // Continue deleting DB rows even if a file is already gone.
+    }
+  }
+
+  const versionDir = releaseArtifactsRoot(release.version);
+
+  await prisma.$transaction([
+    prisma.enigmaReleaseArtifact.deleteMany({ where: { releaseId: id } }),
+    prisma.enigmaRelease.delete({ where: { id } }),
+  ]);
+
+  try {
+    if (existsSync(versionDir)) {
+      rmSync(versionDir, { recursive: true, force: true });
+    }
+  } catch {
+    // Best-effort cleanup of empty/partial version directory.
+  }
+
+  return { id: release.id, version: release.version };
 }
