@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.env
+.env.local
+artifacts/*
+!artifacts/.gitkeep
+secrets/*
+!secrets/.gitkeep
+!secrets/README.md
+*.private.jwk
+coverage/

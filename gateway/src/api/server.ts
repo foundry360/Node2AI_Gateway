@@ -1,6 +1,13 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import multipart from '@fastify/multipart';
 import type { GatewayOrchestrator } from './orchestrator.js';
 import { registerAdminRoutes, type AdminContext } from './admin-routes.js';
+import {
+  isLicenseOperational,
+  licenseBlockedBody,
+  resolvePlatformLicenseFromStore,
+} from '../admin/license.js';
+import { MAX_LICENSE_UPLOAD_BYTES } from '../admin/license-install.js';
 
 export interface BuildServerOptions {
   orchestrator: GatewayOrchestrator;
@@ -17,12 +24,46 @@ function extractBearer(header: string | undefined): string | undefined {
   return token;
 }
 
+async function assertAiLicense(admin: AdminContext | undefined) {
+  const license = await resolvePlatformLicenseFromStore({
+    deploymentIdentity: admin?.deploymentIdentity ?? null,
+    keyring: admin?.licenseInstallKeyring,
+  });
+  if (!isLicenseOperational(license)) {
+    return { ok: false as const, body: licenseBlockedBody(license) };
+  }
+  return { ok: true as const };
+}
+
 /**
  * Production HTTP surface for AI execution + admin read APIs.
  * Intentionally does NOT expose provider passthrough or "test chat" executors.
  */
 export async function buildServer(opts: BuildServerOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: opts.logger ?? false });
+
+  await app.register(multipart, {
+    limits: {
+      files: 1,
+      fileSize: MAX_LICENSE_UPLOAD_BYTES,
+      fields: 4,
+    },
+  });
+
+  app.addContentTypeParser(
+    'text/plain',
+    { parseAs: 'string' },
+    (_req, body, done) => {
+      done(null, body);
+    },
+  );
+  app.addContentTypeParser(
+    'application/jose',
+    { parseAs: 'string' },
+    (_req, body, done) => {
+      done(null, body);
+    },
+  );
 
   if (opts.admin?.config.corsOrigins.length) {
     const allowed = new Set(opts.admin.config.corsOrigins);
@@ -81,12 +122,20 @@ export async function buildServer(opts: BuildServerOptions): Promise<FastifyInst
   }));
 
   app.post('/v1/ai/completions', async (request, reply) => {
+    const gate = await assertAiLicense(opts.admin);
+    if (!gate.ok) {
+      return reply.status(403).send(gate.body);
+    }
     const rawKey = extractBearer(request.headers.authorization);
     const result = await opts.orchestrator.completions(rawKey, request.body);
     return reply.status(result.httpStatus).send(result.body);
   });
 
   app.post('/v1/ai/actions', async (request, reply) => {
+    const gate = await assertAiLicense(opts.admin);
+    if (!gate.ok) {
+      return reply.status(403).send(gate.body);
+    }
     const rawKey = extractBearer(request.headers.authorization);
     const result = await opts.orchestrator.actions(rawKey, request.body);
     return reply.status(result.httpStatus).send(result.body);

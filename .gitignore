@@ -117,15 +117,21 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
-# License keys and secrets
+# License keys and secrets (signing material only — not application source)
 *.key
 *.pem
 *.p12
 *.pfx
+*.private.jwk
+**/*.private.jwk
 secrets/
 .secrets/
-keys/
-license-*
+.keys/
+/keys/
+/license-keys/
+gateway/scripts/license-signing/.local/
+gateway/licenses/*.license
+!gateway/licenses/README.md
 
 # Model files (for air-gapped deployment)
 models/*.bin

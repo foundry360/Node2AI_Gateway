@@ -18,7 +18,7 @@ export default async function AdministrationSystemPage() {
     <div>
       <PageHeader
         title="System"
-        lede="Deployment, database, and organization settings for this Enigma appliance."
+        lede="Deployment, license, database, and organization settings for this Enigma appliance."
       />
       <SystemSettingsView data={data} error={error} />
     </div>

@@ -65,6 +65,11 @@ import {
 } from '../admin/authz.js';
 import { InMemoryAdminUserStore } from '../admin/admin-users.js';
 import type { AdminUserStore } from '../admin/authz.js';
+import {
+  InMemoryDeploymentIdentityStore,
+  PostgresDeploymentIdentityStore,
+  type DeploymentIdentityStore,
+} from '../admin/deployment-identity.js';
 
 function seedAdminUsers(): AdminUserRecord[] {
   const now = new Date().toISOString();
@@ -264,6 +269,10 @@ export interface CreateGatewayOptions {
   policyRepository?: import('../policy/enterprise/pg-repository.js').PolicyRepository;
   providerCredentials?: ProviderCredentialStore;
   adminUsers?: AdminUserStore;
+  /** Installation-scoped deployment identity store (defaults by persistence). */
+  deploymentIdentity?: DeploymentIdentityStore;
+  /** Test-only license install verification keyring. */
+  licenseInstallKeyring?: readonly import('../admin/license-keys.js').LicensePublicKeyEntry[];
 }
 
 export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
@@ -284,6 +293,11 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
       ? options.audit
       : new IntegrityAuditService(rawAudit, config.auditSigningKey);
   const persistence = options.persistence ?? 'memory';
+  const deploymentIdentity =
+    options.deploymentIdentity ??
+    (options.db
+      ? new PostgresDeploymentIdentityStore(options.db)
+      : new InMemoryDeploymentIdentityStore());
   const policyStore = options.policyStore ?? new InMemoryPolicyStore();
   const isPolicyActive = async (policyId: string) => {
     const latest = await policyStore.listLatest();
@@ -426,6 +440,7 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
     providerCredentials,
     changeGovernance,
     adminUsers,
+    deploymentIdentity,
     buildServer: () =>
       buildServer({
         orchestrator,
@@ -444,6 +459,8 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
           providerCredentials,
           changeGovernance,
           adminUsers,
+          deploymentIdentity,
+          licenseInstallKeyring: options.licenseInstallKeyring,
           checkDatabase: () => checkDatabase(config.databaseUrl),
           checkLocalRuntime: async () => {
             if ('status' in localRuntime && typeof (localRuntime as ResolvingLocalRuntime).status === 'function') {
@@ -506,6 +523,9 @@ export async function createApplianceGateway(
     pool,
     config.vaultEncryptionKey,
   );
+  const deploymentIdentity = new PostgresDeploymentIdentityStore(pool);
+  // First boot / existing install: ensure durable deployment_id exists.
+  await deploymentIdentity.getOrCreateDeploymentId();
   const dbModels = await loadModelsFromPostgres(pool);
   const registry = new InMemoryModelRegistry(
     dbModels.length > 0 ? dbModels : defaultPhase4Registry(),
@@ -524,6 +544,7 @@ export async function createApplianceGateway(
     db: pool,
     vault,
     providerCredentials,
+    deploymentIdentity,
     config: { ...config, requireVaultKey: true },
   });
 }

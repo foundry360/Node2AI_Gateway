@@ -13,11 +13,26 @@ async function proxy(req: NextRequest, path: string[], method: string) {
     authorization: `Bearer ${bearer}`,
     accept: 'application/json',
   };
-  let body: string | undefined;
+
+  let body: BodyInit | undefined;
   if (method !== 'GET' && method !== 'HEAD') {
-    body = await req.text();
-    headers['content-type'] = 'application/json';
+    const contentType = req.headers.get('content-type') ?? '';
+    if (contentType.includes('multipart/form-data')) {
+      // Preserve boundary; forward raw bytes for license install uploads.
+      body = await req.arrayBuffer();
+      headers['content-type'] = contentType;
+    } else if (
+      contentType.includes('text/plain') ||
+      contentType.includes('application/jose')
+    ) {
+      body = await req.text();
+      headers['content-type'] = contentType.split(';')[0]!.trim();
+    } else {
+      body = await req.text();
+      headers['content-type'] = 'application/json';
+    }
   }
+
   const res = await fetch(url, { method, headers, body, cache: 'no-store' });
   const text = await res.text();
   return new NextResponse(text, {

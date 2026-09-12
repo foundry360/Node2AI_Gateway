@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum DeploymentType {
+  VPC
+  AIR_GAPPED
+}
+
+enum DeploymentEnvironment {
+  PRODUCTION
+  NON_PRODUCTION
+}
+
+enum DeploymentStatus {
+  ACTIVE
+  INACTIVE
+  RETIRED
+}
+
+enum LicenseStatus {
+  DRAFT
+  ISSUED
+  REVOKED
+  SUPERSEDED
+}
+
+enum LicenseEventType {
+  CREATED
+  ISSUED
+  DOWNLOADED
+  RENEWED
+  REVOKED
+  REPLACED
+}
+
+enum UserRole {
+  VIEWER
+  ADMINISTRATOR
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         UserRole @default(VIEWER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Customer {
+  id                String         @id @default(cuid())
+  name              String
+  externalReference String?
+  contactName       String?
+  contactEmail      String?
+  status            CustomerStatus @default(ACTIVE)
+  notes             String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  deployments       Deployment[]
+  licenses          License[]
+}
+
+model Deployment {
+  id                String                @id @default(cuid())
+  customerId        String
+  customer          Customer              @relation(fields: [customerId], references: [id])
+  /// Enigma-generated installation UUID — never generated here.
+  deploymentId      String                @unique
+  deploymentType    DeploymentType
+  environment       DeploymentEnvironment @default(PRODUCTION)
+  description       String?
+  status            DeploymentStatus      @default(ACTIVE)
+  firstRegisteredAt DateTime              @default(now())
+  lastUpdatedAt     DateTime              @updatedAt
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  licenses          License[]
+
+  @@index([customerId])
+}
+
+model License {
+  id               String           @id @default(cuid())
+  /// Commercial entitlement ID (e.g. ENIGMA-ACME-2026-001)
+  licenseId        String           @unique
+  customerId       String
+  customer         Customer         @relation(fields: [customerId], references: [id])
+  deploymentDbId   String
+  deployment       Deployment       @relation(fields: [deploymentDbId], references: [id])
+  /// Cached copy of Enigma deployment UUID for convenience
+  deploymentId     String
+  deploymentType   DeploymentType
+  validFrom        String
+  validUntil       String
+  graceDays        Int              @default(30)
+  status           LicenseStatus    @default(DRAFT)
+  licenseVersion   Int              @default(1)
+  keyId            String           @default("enigma-lic-2026-09")
+  issuedAt         DateTime?
+  revokedAt        DateTime?
+  revocationReason String?
+  artifactSha256   String?
+  artifactFilename String?
+  artifactPath     String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  events           LicenseEvent[]
+  replacedById     String?
+  replacesId       String?
+
+  @@index([customerId])
+  @@index([deploymentDbId])
+  @@index([deploymentId])
+  @@index([status])
+}
+
+model LicenseEvent {
+  id        String           @id @default(cuid())
+  licenseDbId String
+  license   License          @relation(fields: [licenseDbId], references: [id])
+  /// Commercial license_id string for readability
+  licenseId String
+  eventType LicenseEventType
+  actor     String
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  @@index([licenseDbId])
+  @@index([licenseId])
+  @@index([createdAt])
+}

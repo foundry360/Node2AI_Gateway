@@ -4010,12 +4010,19 @@ table .mono {
 
 .admin-users-table {
   width: 100%;
+  /* Allow the row actions menu to escape the table chrome. */
+  overflow: visible;
 }
 
 .admin-users-table th:last-child,
 .admin-users-table td.admin-user-actions {
   width: 2.5rem;
   text-align: right;
+  overflow: visible;
+}
+
+.admin-users-table .card-menu-dropdown {
+  z-index: 40;
 }
 
 .admin-user-cell {
@@ -4032,6 +4039,46 @@ table .mono {
   margin: -0.25rem 0 0.25rem;
   font-size: 0.82rem;
   line-height: 1.4;
+}
+
+.license-renewal-note {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.license-renewal-note-expired {
+  color: var(--danger);
+}
+
+.license-days-expired {
+  color: var(--danger);
+  font-weight: 500;
+}
+
+.license-install {
+  margin-top: 1.25rem;
+}
+
+.license-install-note {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+}
+
+.license-install-success {
+  margin-top: 0.75rem;
+  color: var(--ok, #157347);
+  font-size: 0.9rem;
+}
+
+.license-install-modal .license-install-note {
+  margin-bottom: 1rem;
+}
+
+.license-install-filename {
+  margin: -0.35rem 0 1rem;
+  font-size: 0.85rem;
+  word-break: break-all;
 }
 
 .administration-page {

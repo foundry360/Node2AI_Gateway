@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-100 text-ink antialiased;
+  font-family: var(--font-sans), Inter, system-ui, sans-serif;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(11, 61, 92, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(11, 61, 92, 0.04), transparent);
+  min-height: 100vh;
+}
+
+.badge {
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-wide;
+}
+
+.badge-ok {
+  @apply bg-emerald-100 text-emerald-800;
+}
+.badge-warn {
+  @apply bg-amber-100 text-amber-900;
+}
+.badge-bad {
+  @apply bg-rose-100 text-rose-800;
+}
+.badge-neutral {
+  @apply bg-slate-200 text-slate-700;
+}
+.badge-info {
+  @apply bg-sky-100 text-sky-900;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-lg bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-accent disabled:opacity-50;
+}
+.btn-secondary {
+  @apply bg-white text-ink border border-line hover:bg-slate-50;
+}
+.btn-danger {
+  @apply bg-rose-700 hover:bg-rose-800;
+}
+
+.card {
+  @apply rounded-xl border border-line bg-panel shadow-sm;
+}
+
+.field {
+  @apply flex flex-col gap-1.5 text-sm text-muted;
+}
+.field input,
+.field select,
+.field textarea {
+  @apply rounded-lg border border-line bg-white px-3 py-2 text-ink outline-none focus:border-brand;
+}
+
+.mono {
+  @apply font-mono text-[0.9em];
+}

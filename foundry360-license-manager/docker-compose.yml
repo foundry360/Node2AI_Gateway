@@ -1,0 +1,52 @@
+# Foundry360 License Manager — local development / vendor workstation
+# Private signing keys must NEVER be committed. Mount them read-only.
+#
+# NOTE: Variable names are prefixed (F360_LM_*) so a parent shell exporting
+# POSTGRES_* / DATABASE_URL from the Enigma gateway does not override this stack.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: foundry360
+      POSTGRES_PASSWORD: ${F360_LM_POSTGRES_PASSWORD:-foundry360_dev_change_me}
+      POSTGRES_DB: foundry360_licenses
+    ports:
+      # Host mapping for optional local psql/pg_dump. App uses the Docker network.
+      - "${F360_LM_POSTGRES_PORT:-15434}:5432"
+    volumes:
+      - license_manager_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U foundry360 -d foundry360_licenses"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  license-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${F360_LM_PORT:-3085}:3085"
+    environment:
+      NODE_ENV: production
+      PORT: "3085"
+      HOSTNAME: "0.0.0.0"
+      DATABASE_URL: postgres://foundry360:${F360_LM_POSTGRES_PASSWORD:-foundry360_dev_change_me}@postgres:5432/foundry360_licenses
+      SESSION_SECRET: ${F360_LM_SESSION_SECRET:-change-me-to-a-long-random-string}
+      # Container path — host file is bind-mounted from ./secrets
+      ENIGMA_LICENSE_PRIVATE_KEY_PATH: /run/secrets/enigma-license-private-key.jwk
+      ENIGMA_LICENSE_KEY_ID: enigma-lic-2026-09
+      ARTIFACT_DIR: /var/lib/foundry360/licenses
+      SEED_ADMIN_PASSWORD: ${F360_LM_SEED_ADMIN_PASSWORD:-changeme-admin}
+      SEED_VIEWER_PASSWORD: ${F360_LM_SEED_VIEWER_PASSWORD:-changeme-viewer}
+    volumes:
+      - ./secrets:/run/secrets:ro
+      - license_artifacts:/var/lib/foundry360/licenses
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  license_manager_pg:
+  license_artifacts:

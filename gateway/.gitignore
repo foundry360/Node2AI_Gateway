@@ -4,3 +4,7 @@ coverage/
 *.log
 .env
 .env.local
+*.private.jwk
+scripts/license-signing/.local/
+licenses/*.license
+!licenses/README.md

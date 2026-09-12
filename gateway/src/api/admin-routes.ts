@@ -16,6 +16,13 @@ import {
   parseModelMapField,
   parseProviderKind,
 } from '../models/provider-credentials.js';
+import { resolvePlatformLicenseFromStore } from '../admin/license.js';
+import {
+  installSignedLicenseDocument,
+  resolveLicenseInstallPath,
+  MAX_LICENSE_UPLOAD_BYTES,
+} from '../admin/license-install.js';
+import type { LicensePublicKeyEntry } from '../admin/license-keys.js';
 import type { PolicyStore } from '../policy/store.js';
 import type { PolicyRepository } from '../policy/enterprise/pg-repository.js';
 import type { PackBackedEnterprisePdp } from '../policy/enterprise/pack-pdp.js';
@@ -130,6 +137,13 @@ export interface AdminContext {
   changeGovernance?: InMemoryChangeGovernanceRepository;
   /** Console admin users (V1 RBAC). */
   adminUsers?: AdminUserStore;
+  /** Installation-scoped deployment identity (Phase 1). */
+  deploymentIdentity?: import('../admin/deployment-identity.js').DeploymentIdentityStore;
+  /**
+   * Test-only: override public keyring for license install verification.
+   * Production never sets this.
+   */
+  licenseInstallKeyring?: readonly LicensePublicKeyEntry[];
 }
 
 function parseCsv(value: unknown): string[] {
@@ -1782,6 +1796,12 @@ export function registerAdminRoutes(
       ? await ctx.checkLocalRuntime()
       : undefined;
 
+    let deployment: { deployment_id: string } | null = null;
+    if (ctx.deploymentIdentity) {
+      const deployment_id = await ctx.deploymentIdentity.getOrCreateDeploymentId();
+      deployment = { deployment_id };
+    }
+
     return {
       deployment_mode: ctx.config.deploymentMode,
       host: ctx.config.host,
@@ -1808,6 +1828,144 @@ export function registerAdminRoutes(
         name: o.name,
         status: o.status,
       })),
+      deployment,
+      license: await resolvePlatformLicenseFromStore({
+        deploymentIdentity: ctx.deploymentIdentity ?? null,
+        keyring: ctx.licenseInstallKeyring,
+      }),
+    };
+  });
+
+  /**
+   * Install a Foundry360-signed license (ADMINISTRATOR only).
+   * Multipart field: license | enigma.license | file
+   * JSON body: { "license_document": "<compact-jws>" }
+   * text/plain or application/jose: raw JWS body
+   */
+  app.post('/v1/admin/license/install', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+
+    if (!ctx.deploymentIdentity) {
+      return reply.status(503).send({
+        status: 'error',
+        reason_code: 'LICENSE_INSTALL_FAILED',
+        message: 'Deployment identity is unavailable',
+      });
+    }
+
+    const licensePath = resolveLicenseInstallPath(process.env);
+    if (!licensePath) {
+      return reply.status(503).send({
+        status: 'error',
+        reason_code: 'LICENSE_PATH_NOT_CONFIGURED',
+        message:
+          'ENIGMA_LICENSE_PATH is not configured; cannot install a license file',
+      });
+    }
+
+    let document: string | null = null;
+    const contentType = String(request.headers['content-type'] ?? '');
+
+    try {
+      if (contentType.includes('multipart/form-data')) {
+        const file = await request.file();
+        if (!file) {
+          return reply.status(400).send({
+            status: 'error',
+            reason_code: 'LICENSE_MALFORMED',
+            message: 'Expected multipart file field: license',
+          });
+        }
+        const field = String(file.fieldname || '').toLowerCase();
+        const filename = String(file.filename || '').toLowerCase();
+        const allowedField =
+          field === 'license' ||
+          field === 'enigma.license' ||
+          field === 'file' ||
+          filename.endsWith('.license') ||
+          filename === 'enigma.license';
+        if (!allowedField) {
+          return reply.status(400).send({
+            status: 'error',
+            reason_code: 'LICENSE_MALFORMED',
+            message: 'Unexpected multipart field; use license or enigma.license',
+          });
+        }
+        const buf = await file.toBuffer();
+        if (buf.byteLength > MAX_LICENSE_UPLOAD_BYTES) {
+          return reply.status(413).send({
+            status: 'error',
+            reason_code: 'LICENSE_TOO_LARGE',
+            message: 'License document exceeds maximum allowed size',
+          });
+        }
+        document = buf.toString('utf8');
+      } else if (
+        contentType.includes('application/json') ||
+        typeof request.body === 'object'
+      ) {
+        const body = (request.body ?? {}) as {
+          license_document?: unknown;
+          document?: unknown;
+        };
+        const raw = body.license_document ?? body.document;
+        document = typeof raw === 'string' ? raw : null;
+      } else if (typeof request.body === 'string') {
+        document = request.body;
+      }
+    } catch {
+      return reply.status(400).send({
+        status: 'error',
+        reason_code: 'LICENSE_MALFORMED',
+        message: 'Unable to read license upload',
+      });
+    }
+
+    if (!document?.trim()) {
+      return reply.status(400).send({
+        status: 'error',
+        reason_code: 'LICENSE_MALFORMED',
+        message: 'License document is required',
+      });
+    }
+
+    // Do not log the JWS document.
+    const deploymentId = await ctx.deploymentIdentity.getOrCreateDeploymentId();
+    const result = await installSignedLicenseDocument({
+      document,
+      installationDeploymentId: deploymentId,
+      licensePath,
+      keyring: ctx.licenseInstallKeyring,
+    });
+
+    if (!result.ok) {
+      const status =
+        result.reason_code === 'LICENSE_TOO_LARGE'
+          ? 413
+          : result.reason_code === 'LICENSE_INSTALL_FAILED' ||
+              result.reason_code === 'LICENSE_PATH_NOT_CONFIGURED'
+            ? 503
+            : 400;
+      return reply.status(status).send({
+        status: 'error',
+        reason_code: result.reason_code,
+        message: result.message,
+        license: result.current
+          ? {
+              status: result.current.status,
+              license_id: result.current.license_id,
+              reason_code: result.current.reason_code,
+            }
+          : null,
+      });
+    }
+
+    return {
+      status: result.status,
+      license: result.license,
     };
   });
 

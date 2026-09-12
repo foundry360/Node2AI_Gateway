@@ -1,5 +1,8 @@
 # Air-gap appliance profile
 # Usage: docker compose -f docker-compose.yml -f docker-compose.airgap.yml up --build -d
+#
+# License delivery is identical to VPC: mount a signed file at ENIGMA_LICENSE_PATH.
+# No online activation is required.
 
 services:
   gateway:
@@ -8,6 +11,10 @@ services:
       GATEWAY_LOCAL_RUNTIME: ollama
       GATEWAY_EXTERNAL_PROVIDER_URL: ""
       GATEWAY_EXTERNAL_PROVIDER_API_KEY: ""
+      ENIGMA_LICENSE_MODE: ${ENIGMA_LICENSE_MODE:-production}
+      ENIGMA_LICENSE_PATH: ${ENIGMA_LICENSE_PATH:-/etc/enigma/license/enigma.license}
+    volumes:
+      - ${ENIGMA_LICENSE_HOST_DIR:-./licenses}:/etc/enigma/license
 
   admin:
     environment:

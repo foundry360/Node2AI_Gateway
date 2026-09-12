@@ -1,5 +1,36 @@
 import { EmptyState } from '@/components/EmptyState';
 import { StatusBadge } from '@/components/StatusBadge';
+import { LicenseInstallPanel } from '@/components/LicenseInstallPanel';
+import {
+  formatDaysRemainingLabel,
+  formatLicenseDate,
+  formatLicenseDeployment,
+} from '@/lib/license-display';
+
+export type SystemLicense = {
+  license_id: string | null;
+  customer_name: string | null;
+  license_type?: string;
+  deployment_type: string | null;
+  start_date?: string | null;
+  expiration_date?: string | null;
+  valid_from?: string | null;
+  valid_until?: string | null;
+  status: string;
+  reason?: string | null;
+  reason_code?: string | null;
+  deployment_bound?: boolean;
+  days_remaining: number;
+  grace_days_remaining?: number;
+  grace_ends?: string | null;
+  grace_ends_date?: string | null;
+  key_id?: string | null;
+  source?: string | null;
+  mode?: string | null;
+  operational?: boolean;
+  renewal_band?: string;
+  renewal_message?: string | null;
+};
 
 export type SystemResponse = {
   deployment_mode: string;
@@ -37,6 +68,10 @@ export type SystemResponse = {
   };
   cors_origins: string[];
   organizations: Array<{ organization_id: string; name: string; status: string }>;
+  /** Installation-scoped identity — separate from license_id. */
+  deployment?: { deployment_id: string } | null;
+  /** Present when license configuration is valid; null when missing/invalid. */
+  license?: SystemLicense | null;
 };
 
 export function SystemSettingsView({
@@ -51,6 +86,168 @@ export function SystemSettingsView({
       {error ? <div className="error">{error}</div> : null}
       {data ? (
         <div className="settings-sections">
+          <section className="settings-section">
+            <div className="settings-section-aside">
+              <h2 className="settings-section-title">Deployment</h2>
+              <p className="settings-section-explainer">
+                Stable identity for this Enigma installation. Generated once and persisted with
+                the installation. Distinct from the commercial License ID. Signed licenses must
+                bind to this Deployment ID.
+              </p>
+            </div>
+            <div className="settings-section-data">
+              <table>
+                <tbody>
+                  <tr>
+                    <th>Deployment ID</th>
+                    <td className="mono">
+                      {data.deployment?.deployment_id ?? '-'}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="settings-section">
+            <div className="settings-section-aside">
+              <h2 className="settings-section-title">License & Subscription</h2>
+              <p className="settings-section-explainer">
+                Commercial license for this installation. Foundry360 issues a signed
+                license bound to this Deployment ID. Administrators install the file here;
+                Enigma verifies the signature and binding before activation. After the
+                contractual end date, a signed grace period may keep AI available.
+                Cryptographic or binding failures never receive grace.
+              </p>
+            </div>
+            <div className="settings-section-data">
+              {data.license ? (
+                <table>
+                  <tbody>
+                    <tr>
+                      <th>Status</th>
+                      <td>
+                        <StatusBadge
+                          status={data.license.status}
+                          label={data.license.status.toUpperCase()}
+                          variant="badge"
+                          showLabel
+                        />
+                        {data.license.renewal_message || data.license.reason ? (
+                          <div
+                            className={
+                              ['disabled', 'grace', 'invalid'].includes(
+                                data.license.status.toLowerCase(),
+                              )
+                                ? 'license-renewal-note license-renewal-note-expired'
+                                : 'license-renewal-note'
+                            }
+                          >
+                            {data.license.renewal_message || data.license.reason}
+                          </div>
+                        ) : null}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th>License ID</th>
+                      <td className="mono">{data.license.license_id ?? '-'}</td>
+                    </tr>
+                    {data.license.customer_name ? (
+                      <tr>
+                        <th>Customer</th>
+                        <td>{data.license.customer_name}</td>
+                      </tr>
+                    ) : null}
+                    <tr>
+                      <th>Deployment ID</th>
+                      <td className="mono">
+                        {data.deployment?.deployment_id ?? '-'}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th>Source</th>
+                      <td className="mono">{data.license.source ?? '-'}</td>
+                    </tr>
+                    <tr>
+                      <th>Deployment Binding</th>
+                      <td>
+                        {data.license.deployment_bound === true
+                          ? 'Bound'
+                          : data.license.deployment_bound === false
+                            ? 'Not bound'
+                            : '-'}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th>Deployment Type</th>
+                      <td>{formatLicenseDeployment(data.license.deployment_type)}</td>
+                    </tr>
+                    <tr>
+                      <th>Valid From</th>
+                      <td>
+                        {formatLicenseDate(
+                          data.license.valid_from ?? data.license.start_date,
+                        )}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th>Valid Until</th>
+                      <td>
+                        {formatLicenseDate(
+                          data.license.valid_until ?? data.license.expiration_date,
+                        )}
+                      </td>
+                    </tr>
+                    {(data.license.grace_ends || data.license.grace_ends_date) ? (
+                      <tr>
+                        <th>Grace Ends</th>
+                        <td>
+                          {formatLicenseDate(
+                            data.license.grace_ends ?? data.license.grace_ends_date,
+                          )}
+                        </td>
+                      </tr>
+                    ) : null}
+                    <tr>
+                      <th>Signing Key ID</th>
+                      <td className="mono">{data.license.key_id ?? '-'}</td>
+                    </tr>
+                    {data.license.reason_code ? (
+                      <tr>
+                        <th>Reason</th>
+                        <td className="mono">{data.license.reason_code}</td>
+                      </tr>
+                    ) : null}
+                    <tr>
+                      <th>Days Remaining</th>
+                      <td
+                        className={
+                          ['disabled', 'grace', 'invalid'].includes(
+                            data.license.status.toLowerCase(),
+                          )
+                            ? 'license-days-expired'
+                            : undefined
+                        }
+                      >
+                        {formatDaysRemainingLabel(
+                          data.license.days_remaining,
+                          data.license.status,
+                          data.license.grace_days_remaining ?? 0,
+                        )}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              ) : (
+                <p className="muted">
+                  No license installed. Upload a Foundry360-signed{' '}
+                  <span className="mono">enigma.license</span> below.
+                </p>
+              )}
+              <LicenseInstallPanel />
+            </div>
+          </section>
+
           <section className="settings-section">
             <div className="settings-section-aside">
               <h2 className="settings-section-title">Database</h2>

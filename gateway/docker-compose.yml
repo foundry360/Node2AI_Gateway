@@ -73,8 +73,13 @@ services:
       GATEWAY_EXTERNAL_PROVIDER_URL: ${GATEWAY_EXTERNAL_PROVIDER_URL:-}
       GATEWAY_EXTERNAL_PROVIDER_API_KEY: ${GATEWAY_EXTERNAL_PROVIDER_API_KEY:-}
       DATABASE_URL: postgres://${POSTGRES_USER:-node2ai}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-node2ai_gateway}
+      # Phase 2 signed offline licensing (fail closed in production)
+      ENIGMA_LICENSE_MODE: ${ENIGMA_LICENSE_MODE:-production}
+      ENIGMA_LICENSE_PATH: ${ENIGMA_LICENSE_PATH:-/etc/enigma/license/enigma.license}
     ports:
       - "${GATEWAY_PORT:-8080}:8080"
+    volumes:
+      - ${ENIGMA_LICENSE_HOST_DIR:-./licenses}:/etc/enigma/license
     depends_on:
       postgres:
         condition: service_healthy

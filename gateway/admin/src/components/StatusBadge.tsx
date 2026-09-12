@@ -45,7 +45,9 @@ function badgeKind(status: string): string {
     s === 'unavailable' ||
     s === 'degraded' ||
     s === 'failed' ||
-    s === 'mismatch'
+    s === 'mismatch' ||
+    s === 'expired' ||
+    s === 'invalid'
   ) {
     return 'badge-bad';
   }
@@ -60,7 +62,8 @@ function badgeKind(status: string): string {
     s === 'controls_applied' ||
     s === 'tokenize' ||
     s === 'redact' ||
-    s === 'restrict'
+    s === 'restrict' ||
+    s === 'grace'
   ) {
     return 'badge-warn';
   }

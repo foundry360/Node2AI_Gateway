@@ -214,7 +214,10 @@ CREATE TABLE system_config (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Example keys: deployment_mode (connected|airgap), audit_policy, egress_allowlist
+-- Example keys:
+--   deployment_mode (connected|airgap)
+--   deployment_id   (installation UUID; generated once at first boot — not a license id)
+--   audit_policy, egress_allowlist
 
 -- ---------------------------------------------------------------------------
 -- Console admin users (V1 RBAC — separate from AI subject users)

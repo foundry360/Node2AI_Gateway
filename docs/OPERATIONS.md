@@ -13,6 +13,38 @@ Air-gap: if Ollama is down, `/health` returns **503** and completions fail close
 
 Admin overview: http://localhost:3080 (System page shows DB + local runtime).
 
+### Deployment identity
+
+Each installation has a persistent `deployment_id` (UUID) stored in `system_config`.
+Created automatically on first Gateway boot (Postgres appliance).
+
+**Foundry360 retrieval** (after Gateway healthy):
+
+```bash
+curl -s -H "Authorization: Bearer $GATEWAY_ADMIN_API_KEY" \
+  http://127.0.0.1:8080/v1/admin/system \
+  | jq -r .deployment.deployment_id
+```
+
+See [enigma/deployment-identity.md](./enigma/deployment-identity.md).
+
+### Foundry360 license provisioning
+
+Commercial installs are Foundry360-led (not customer self-service).
+
+Canonical flow: install → retrieve Deployment ID → vendor-sign license →
+install via Admin **System → License** (or `POST /v1/admin/license/install`) →
+verify `license.status=ACTIVE` → hand off Admin to customer.
+
+Full VPC / Air-Gapped / renewal runbooks:
+[enigma/signed-offline-licensing.md](./enigma/signed-offline-licensing.md).
+
+Compose defaults: `ENIGMA_LICENSE_MODE=production`, mount `./licenses` →
+`/etc/enigma/license` (writable for Admin install). Vendor private signing keys
+never enter the customer VPC.
+
+Backup/restore: restore DB + matching license file together.
+
 ### Port conflicts / wrong process
 
 If health or completions look wrong while Compose is “Up”, check that **Docker** owns `:8080` / `:3080` — not a local `pnpm dev`. See [INSTALL.md](./INSTALL.md#docker-only-runtime-important).

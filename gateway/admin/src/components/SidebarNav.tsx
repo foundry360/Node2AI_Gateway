@@ -8,9 +8,9 @@ import {
   Boxes,
   Eye,
   FileText,
-  Gavel,
+  Files,
   LayoutDashboard,
-  Shield,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAdminCapabilities } from '@/hooks/useAdminCapabilities';
 
@@ -22,7 +22,7 @@ const primary: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: '/', label: 'Console', icon: LayoutDashboard },
   { href: '/applications', label: 'Applications', icon: AppWindow },
   { href: '/policies', label: 'Policies', icon: FileText },
-  { href: '/decisions', label: 'Decisions', icon: Gavel },
+  { href: '/decisions', label: 'Decisions', icon: Files },
   { href: '/models', label: 'Models', icon: Boxes },
   { href: '/audit', label: 'Audit', icon: Eye },
 ];
@@ -171,7 +171,7 @@ export function SidebarNav() {
             title={visuallyCollapsed ? 'Administration' : undefined}
           >
             <span className="nav-icon" aria-hidden>
-              <Shield size={20} strokeWidth={1.75} />
+              <ShieldCheck size={20} strokeWidth={1.75} />
             </span>
             <span className="nav-label">Administration</span>
           </a>
