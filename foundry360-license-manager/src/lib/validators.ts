@@ -55,3 +55,9 @@ export const licenseRenewSchema = z.object({
 export const licenseRevokeSchema = z.object({
   reason: z.string().trim().min(3).max(2000),
 });
+
+export const releaseCreateSchema = z.object({
+  version: z.string().trim().min(1).max(64),
+  releaseType: z.enum(['PRODUCTION']).default('PRODUCTION'),
+  releaseNotes: z.string().trim().max(20000).optional().nullable(),
+});

@@ -8,6 +8,8 @@ const NAV = [
   { href: '/customers', label: 'Customers' },
   { href: '/deployments', label: 'Deployments' },
   { href: '/licenses', label: 'Licenses' },
+  { href: '/releases', label: 'Releases' },
+  { href: '/administration', label: 'Administration' },
 ];
 
 export function AppShell({
@@ -45,9 +47,9 @@ export function AppShell({
               <span className="badge badge-neutral ml-1">{user.role}</span>
             </span>
             <Link
-              href="/account"
+              href="/administration"
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                pathname === '/account' || pathname.startsWith('/account/')
+                pathname === '/administration' || pathname.startsWith('/administration/')
                   ? 'bg-action text-white'
                   : 'border border-line bg-white text-ink hover:bg-slate-50'
               }`}

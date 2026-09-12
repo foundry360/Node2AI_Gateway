@@ -49,6 +49,20 @@ enum UserRole {
   ADMINISTRATOR
 }
 
+enum ReleaseType {
+  PRODUCTION
+}
+
+enum ReleaseStatus {
+  DRAFT
+  APPROVED
+  DEPRECATED
+}
+
+enum ReleaseArtifactType {
+  DEPLOYMENT_PACKAGE
+}
+
 model User {
   id           String   @id @default(cuid())
   username     String   @unique
@@ -127,17 +141,50 @@ model License {
 }
 
 model LicenseEvent {
-  id        String           @id @default(cuid())
+  id          String           @id @default(cuid())
   licenseDbId String
-  license   License          @relation(fields: [licenseDbId], references: [id])
+  license     License          @relation(fields: [licenseDbId], references: [id])
   /// Commercial license_id string for readability
-  licenseId String
-  eventType LicenseEventType
-  actor     String
-  metadata  Json?
-  createdAt DateTime         @default(now())
+  licenseId   String
+  eventType   LicenseEventType
+  actor       String
+  metadata    Json?
+  createdAt   DateTime         @default(now())
 
   @@index([licenseDbId])
   @@index([licenseId])
   @@index([createdAt])
+}
+
+/// Immutable Enigma software release (generic — not customer-specific).
+model EnigmaRelease {
+  id           String         @id @default(cuid())
+  version      String         @unique
+  releaseType  ReleaseType    @default(PRODUCTION)
+  status       ReleaseStatus  @default(DRAFT)
+  releaseNotes String?
+  publishedAt  DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  artifacts    EnigmaReleaseArtifact[]
+
+  @@index([status])
+  @@index([publishedAt])
+}
+
+model EnigmaReleaseArtifact {
+  id             String              @id @default(cuid())
+  releaseId      String
+  release        EnigmaRelease       @relation(fields: [releaseId], references: [id])
+  deploymentType DeploymentType
+  artifactType   ReleaseArtifactType @default(DEPLOYMENT_PACKAGE)
+  fileName       String
+  filePath       String
+  sha256         String
+  sizeBytes      BigInt
+  createdAt      DateTime            @default(now())
+
+  @@unique([releaseId, deploymentType, artifactType])
+  @@index([releaseId])
+  @@index([deploymentType])
 }

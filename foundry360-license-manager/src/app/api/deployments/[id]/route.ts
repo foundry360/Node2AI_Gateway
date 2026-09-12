@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireSession } from '@/lib/auth';
 import { jsonError, jsonOk } from '@/lib/http';
+import { resolveAvailablePackage } from '@/lib/releases';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -17,7 +18,13 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       },
     });
     if (!deployment) return jsonError(new Error('Deployment not found'));
-    return jsonOk({ deployment });
+
+    const availableRelease = await resolveAvailablePackage(deployment.deploymentType);
+
+    return jsonOk({
+      deployment,
+      available_release: availableRelease,
+    });
   } catch (err) {
     return jsonError(err);
   }

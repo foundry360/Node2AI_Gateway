@@ -1,4 +1,5 @@
 import { prisma } from './prisma';
+import { resolveAvailablePackage } from './releases';
 
 export async function getDashboardStats() {
   const now = new Date();
@@ -13,6 +14,7 @@ export async function getDashboardStats() {
     issuedLicenses,
     expiringSoon,
     recentEvents,
+    currentRelease,
   ] = await Promise.all([
     prisma.customer.count({ where: { status: 'ACTIVE' } }),
     prisma.deployment.count({ where: { status: 'ACTIVE' } }),
@@ -27,6 +29,11 @@ export async function getDashboardStats() {
       orderBy: { createdAt: 'desc' },
       take: 15,
     }),
+    prisma.enigmaRelease.findFirst({
+      where: { status: 'APPROVED', releaseType: 'PRODUCTION' },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+      include: { artifacts: true },
+    }),
   ]);
 
   const graceOrExpired = await prisma.license.count({
@@ -36,6 +43,9 @@ export async function getDashboardStats() {
     },
   });
 
+  const vpcPkg = await resolveAvailablePackage('VPC');
+  const airPkg = await resolveAvailablePackage('AIR_GAPPED');
+
   return {
     activeCustomers,
     activeDeployments,
@@ -43,5 +53,14 @@ export async function getDashboardStats() {
     expiringSoon,
     graceOrExpired,
     recentEvents,
+    currentProductionRelease: currentRelease
+      ? {
+          id: currentRelease.id,
+          version: currentRelease.version,
+          status: currentRelease.status,
+          hasVpc: Boolean(vpcPkg),
+          hasAirgap: Boolean(airPkg),
+        }
+      : null,
   };
 }

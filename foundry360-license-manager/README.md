@@ -40,16 +40,17 @@ npm run dev
 
 ## Operational lifecycle
 
-1. Deploy Enigma
-2. Retrieve Deployment ID (Enigma Admin → System → Deployment)
-3. Register Deployment in Foundry360 License Manager
-4. Create License (DRAFT)
-5. Issue & Sign
-6. Download `enigma.license`
-7. Deliver license to customer
-8. Customer installs via Enigma System → License
-9. Enigma verifies signature + Deployment ID
-10. License becomes ACTIVE
+1. Approve an Enigma software release (VPC / Air-Gapped packages)
+2. Deploy Enigma from the downloaded package
+3. Retrieve Deployment ID (Enigma Admin → System → Deployment)
+4. Register Deployment in Foundry360 License Manager
+5. Create License (DRAFT)
+6. Issue & Sign
+7. Download `enigma.license`
+8. Deliver license to customer
+9. Customer installs via Enigma System → License
+10. Enigma verifies signature + Deployment ID
+11. License becomes ACTIVE
 
 ## Identifiers
 
@@ -63,6 +64,8 @@ They are distinct.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/OPERATIONS.md](docs/OPERATIONS.md)
 - [docs/LICENSING.md](docs/LICENSING.md)
+- [docs/RELEASES.md](docs/RELEASES.md)
+- [docs/DEPLOYMENT_PACKAGES.md](docs/DEPLOYMENT_PACKAGES.md)
 - [docs/SECURITY.md](docs/SECURITY.md)
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 

@@ -4,6 +4,9 @@ import { requirePageSession } from '@/lib/page-auth';
 import { prisma } from '@/lib/prisma';
 import { IdentityBlock } from '@/components/IdentityBlock';
 import { StatusBadge } from '@/components/StatusBadge';
+import { resolveAvailablePackage } from '@/lib/releases';
+import { PackageDownloadButton } from '@/components/PackageDownloadButton';
+import { formatBytes } from '@/lib/format';
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -19,6 +22,7 @@ export default async function DeploymentDetailPage({ params }: Props) {
   });
   if (!deployment) notFound();
   const current = deployment.licenses.find((l) => l.status === 'ISSUED') || null;
+  const available = await resolveAvailablePackage(deployment.deploymentType);
 
   return (
     <div className="space-y-6">
@@ -62,6 +66,69 @@ export default async function DeploymentDetailPage({ params }: Props) {
           <div className="text-muted">Last updated</div>
           <div>{new Date(deployment.lastUpdatedAt).toLocaleString()}</div>
         </div>
+      </section>
+
+      <section className="card space-y-4 p-5">
+        <h2 className="font-semibold">Enigma Software</h2>
+        {available ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <div className="text-muted text-sm">Current Release</div>
+              <div className="mono text-lg font-semibold">
+                <Link className="text-brand hover:underline" href={`/releases/${available.releaseId}`}>
+                  {available.version}
+                </Link>
+              </div>
+            </div>
+            <div>
+              <div className="text-muted text-sm">Deployment Type</div>
+              <div className="font-semibold">{deployment.deploymentType}</div>
+            </div>
+            <div className="sm:col-span-2">
+              <div className="text-muted text-sm">Available Package</div>
+              <div className="mono break-all">{available.artifact.fileName}</div>
+              <div className="mt-1 text-xs text-muted">
+                SHA-256 {available.artifact.sha256} · {formatBytes(available.artifact.sizeBytes)}
+              </div>
+            </div>
+            <PackageDownloadButton
+              releaseId={available.releaseId}
+              artifactId={available.artifact.id}
+              fileName={available.artifact.fileName}
+              label="Download Deployment Package"
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-muted">
+            No approved Enigma release package is available for{' '}
+            {deployment.deploymentType} deployments.
+          </p>
+        )}
+      </section>
+
+      <section className="card space-y-3 p-5">
+        <h2 className="font-semibold">Licensing</h2>
+        {current ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-muted text-sm">License</div>
+              <Link
+                className="mono font-semibold text-brand hover:underline"
+                href={`/licenses/${current.id}`}
+              >
+                {current.licenseId}
+              </Link>
+              <div className="mt-1">
+                <StatusBadge status={current.status} />
+              </div>
+            </div>
+            <Link href={`/licenses/${current.id}`} className="btn btn-secondary">
+              View License
+            </Link>
+          </div>
+        ) : (
+          <p className="text-sm text-muted">No issued license for this deployment.</p>
+        )}
       </section>
 
       <section className="card overflow-hidden">

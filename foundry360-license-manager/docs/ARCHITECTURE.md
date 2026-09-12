@@ -23,7 +23,12 @@ Customer
   └── Deployment  (deployment_id from Enigma — never generated here)
         └── License  (license_id commercial entitlement)
               └── LicenseEvent (immutable audit history)
+
+EnigmaRelease  (immutable software version)
+  └── EnigmaReleaseArtifact  (VPC / AIR_GAPPED deployment packages)
 ```
+
+Approved releases are resolved onto deployments by `deployment_type` — software packages remain generic and never include customer licenses.
 
 A license belongs to exactly one deployment. A deployment may have many historical licenses; normally one `ISSUED` license is current.
 

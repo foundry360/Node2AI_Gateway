@@ -37,6 +37,33 @@ export default async function DashboardPage() {
         ))}
       </div>
 
+      {stats.currentProductionRelease && (
+        <section className="card p-5">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+            Current Production Release
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <Link
+              href={`/releases/${stats.currentProductionRelease.id}`}
+              className="font-display text-2xl font-bold text-brand hover:underline"
+            >
+              Enigma {stats.currentProductionRelease.version}
+            </Link>
+            <StatusBadge status={stats.currentProductionRelease.status} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted">
+            <span>
+              VPC Package:{' '}
+              {stats.currentProductionRelease.hasVpc ? 'Available' : 'Missing'}
+            </span>
+            <span>
+              Air-Gapped Package:{' '}
+              {stats.currentProductionRelease.hasAirgap ? 'Available' : 'Missing'}
+            </span>
+          </div>
+        </section>
+      )}
+
       <section className="card overflow-hidden">
         <div className="border-b border-line px-5 py-3">
           <h2 className="font-semibold text-ink">Recent activity</h2>
