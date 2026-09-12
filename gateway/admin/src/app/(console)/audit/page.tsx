@@ -65,14 +65,14 @@ export default async function AuditPage({
     data = await adminFetch<AuditResponse>('/v1/admin/audit?limit=100');
     integrity = await adminFetch<IntegrityResponse>('/v1/admin/audit/integrity');
   } catch (err) {
-    error = err instanceof Error ? err.message : 'Failed to load observability';
+    error = err instanceof Error ? err.message : 'Failed to load audit';
   }
 
   return (
     <div>
       <PageHeader
-        title="Observability"
-        lede="See AI governance activity with tamper-evident evidence. Select a row to view decisions, enforcement, and integrity."
+        title="Audit"
+        lede="Tamper-evident governance evidence of what the Gateway enforced. Select a row to view decisions, enforcement, and integrity."
         ledeClassName="page-lede-nowrap"
       />
       {error ? <div className="error">{error}</div> : null}
@@ -81,7 +81,7 @@ export default async function AuditPage({
           <div className="settings-section-aside">
             <h2 className="settings-section-title">Integrity chain</h2>
             <p className="settings-section-explainer">
-              Tamper-evident hash chain status for the observability trail on this appliance.
+              Tamper-evident hash chain status for the audit trail on this appliance.
             </p>
           </div>
           <div className="settings-section-data">

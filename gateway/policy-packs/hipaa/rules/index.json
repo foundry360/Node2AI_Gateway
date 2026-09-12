@@ -125,15 +125,65 @@
       "derived_from": ["src_45cfr164"]
     },
     {
-      "rule_id": "HIPAA-R-INPUT-WRITE-REQUIRE-APPROVAL",
-      "name": "Require approval for PHI write without prior authorization path",
+      "rule_id": "HIPAA-R-INPUT-WRITE-CLINICAL-NOTE-REQUIRE-APPROVAL",
+      "name": "Require approval for PHI clinical-note writes",
       "phase": "input",
       "priority": 90,
       "requirement_type": "DERIVED_CONTROL",
       "conditions": {
         "regulatory_applicability": "HIPAA",
         "classification": "PHI",
-        "operation_in": ["write"]
+        "operation_in": ["write"],
+        "write_governance_class": "CLINICAL_NOTE"
+      },
+      "decision": "REVIEW",
+      "reason_codes": ["HIPAA_PHI_CLINICAL_WRITE_REQUIRES_APPROVAL"],
+      "obligation_ids": ["HIPAA-OBL-DISCLOSURE", "HIPAA-OBL-INTEGRITY", "HIPAA-OBL-AUTHORIZATION"],
+      "control_ids": ["ctrl_no_write_back", "ctrl_audit_logging", "ctrl_authorization"],
+      "enigma_obligations": [
+        "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION",
+        "NO_WRITE_BACK",
+        "LOG_GOVERNANCE_EVENT"
+      ],
+      "sources": ["src_45cfr164"],
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr164"],
+      "note": "Enigma safety policy: clinical-note writes remain human-gated by default. Not a claim that HIPAA requires interactive approval for every PHI write."
+    },
+    {
+      "rule_id": "HIPAA-R-INPUT-WRITE-ADMIN-ALLOW-WITH-AUDIT",
+      "name": "Allow authorized low-risk administrative PHI field writes with audit",
+      "phase": "input",
+      "priority": 88,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "HIPAA",
+        "classification": "PHI",
+        "operation_in": ["write"],
+        "write_governance_class": "ADMINISTRATIVE_LOW_RISK",
+        "evidence_sufficient": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": ["HIPAA_PHI_ADMINISTRATIVE_WRITE_ALLOWED"],
+      "obligation_ids": ["HIPAA-OBL-INTEGRITY", "HIPAA-OBL-AUDIT", "HIPAA-OBL-AUTHORIZATION"],
+      "control_ids": ["ctrl_audit_logging", "ctrl_authorization"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_45cfr164"],
+      "source_type": "DERIVED_CONTROL",
+      "derived_from": ["src_45cfr164"],
+      "note": "Enigma policy choice: server-classified administrative field writes may proceed with audit when purpose/actor/tool authorization already satisfied. Client-declared risk is never trusted."
+    },
+    {
+      "rule_id": "HIPAA-R-INPUT-WRITE-UNKNOWN-REQUIRE-APPROVAL",
+      "name": "Require approval for unrecognized PHI write subtypes",
+      "phase": "input",
+      "priority": 87,
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "HIPAA",
+        "classification": "PHI",
+        "operation_in": ["write"],
+        "write_governance_class": "UNKNOWN"
       },
       "decision": "REVIEW",
       "reason_codes": ["HIPAA_PHI_WRITE_REQUIRES_APPROVAL"],
@@ -147,7 +197,7 @@
       "sources": ["src_45cfr164"],
       "source_type": "DERIVED_CONTROL",
       "derived_from": ["src_45cfr164"],
-      "note": "WRITE is not an automatic DENY. High-risk PHI write requires human approval."
+      "note": "Fail-closed Enigma safety policy for PHI writes that are not an explicitly recognized low-risk administrative class. Replaces the prior blanket PHI+write→REVIEW rule for unspecified subtypes."
     },
     {
       "rule_id": "HIPAA-R-INPUT-EXTERNALIZE-DENY",

@@ -112,6 +112,9 @@ CREATE TABLE IF NOT EXISTS policy_evaluations (
   held_request      JSONB,
   -- Resume lifecycle after AUTHORIZE (not a workflow engine).
   execution         JSONB,
+  -- Decision restrictions snapshot (authorized eligible_models at evaluation time).
+  -- Also dual-written into evidence_in.restrictions for older schemas.
+  restrictions      JSONB,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

@@ -317,9 +317,9 @@ describe('ISO/IEC 42001 Pack #6', () => {
         reason_codes: ['HIPAA_DENY'],
       }),
     ]);
-    expect(resolved.resolution.category).toBe('UNRESOLVED');
-    expect(resolved.decision).toBe('REVIEW');
-    expect(resolved.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(resolved.resolution.category).toBe('RESTRICTIVE');
+    expect(resolved.decision).toBe('DENY');
+    expect(resolved.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
   });
 
   it('24–25. Historical evaluation_as_of + policy_evaluations snapshot', async () => {

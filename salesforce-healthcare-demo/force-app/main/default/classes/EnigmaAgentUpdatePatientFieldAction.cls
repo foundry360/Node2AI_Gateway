@@ -39,7 +39,7 @@ public with sharing class EnigmaAgentUpdatePatientFieldAction {
 
     @InvocableMethod(
         label='Enigma Update Patient Field'
-        description='Update an allowed Patient field after Enigma authorizes write capability. If held, tell the user to Authorize in Enigma, then retry — never ask them to enable write capability.'
+        description='Update an allowed Patient field after Enigma authorizes this specific write. Each write creates a Decision. If held, tell the user to Authorize in Enigma, then retry.'
         category='Enigma'
     )
     public static List<Response> run(List<Request> requests) {

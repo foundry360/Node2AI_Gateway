@@ -92,12 +92,7 @@ export function DecisionResolutionPanel({
           {operator?.resolution_category ?? resolution?.category ?? '-'}
         </AttrRow>
         <AttrRow label="Basis">
-          <span className="resolution-basis">
-            <span>{basisLabel}</span>
-            {operator?.basis_label && resolution?.basis ? (
-              <span className="muted mono">{resolution.basis}</span>
-            ) : null}
-          </span>
+          {basisLabel}
         </AttrRow>
         <AttrRow label="Contributing Packs">
           <CodeInline items={packIds} empty="None" />

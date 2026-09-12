@@ -9,7 +9,7 @@ public with sharing class EnigmaAgentCapabilityChangeAction {
 
         @InvocableVariable(
             label='User Request'
-            description='Exact text of what the end user asked the agent to do (add a note, update a case, send an email). This is the Prompt in Enigma — not write justification.'
+            description='Exact text of what the end user asked the agent to do (add a note, update a case, send an email). This is the Prompt in Enigma - not write justification.'
         )
         public String requesterPrompt;
 

@@ -24,7 +24,7 @@ const primary: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: '/policies', label: 'Policies', icon: FileText },
   { href: '/decisions', label: 'Decisions', icon: Gavel },
   { href: '/models', label: 'Models', icon: Boxes },
-  { href: '/audit', label: 'Observability', icon: Eye },
+  { href: '/audit', label: 'Audit', icon: Eye },
 ];
 
 const modeActions: Array<{ id: SidebarMode; label: string }> = [

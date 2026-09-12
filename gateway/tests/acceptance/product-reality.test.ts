@@ -429,7 +429,7 @@ describe('Product Reality Test — Enigma governance lifecycle', () => {
     }
   });
 
-  it('TEST 6 — Unresolved conflict → POLICY_CONFLICT_UNRESOLVED → REVIEW (no implicit precedence)', () => {
+  it('TEST 6 — ALLOW + DENY → DENY by consequence (no implicit regulatory precedence)', () => {
     const resolved = resolvePackContributions([
       contrib({
         pack_id: 'pack_nist_ai_rmf',
@@ -445,10 +445,10 @@ describe('Product Reality Test — Enigma governance lifecycle', () => {
       }),
     ]);
 
-    expect(resolved.resolution.category).toBe('UNRESOLVED');
-    expect(resolved.decision).toBe('REVIEW');
-    expect(resolved.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
-    expect(resolved.decision).not.toBe('DENY');
+    expect(resolved.resolution.category).toBe('RESTRICTIVE');
+    expect(resolved.resolution.basis).toBe('CONSEQUENCE_DENY');
+    expect(resolved.decision).toBe('DENY');
+    expect(resolved.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
     expect(getAuthorityForPack('pack_nist_ai_rmf')!.type).toBe('FRAMEWORK');
     expect(getAuthorityForPack('pack_hipaa')!.type).toBe('REGULATION');
     expect(resolved.resolution.contributing_pack_ids).toEqual(
@@ -1786,8 +1786,8 @@ describe('Product Reality Test — Enigma governance lifecycle', () => {
         applicable: true,
       },
     ]);
-    expect(conflict.decision).toBe('REVIEW');
-    expect(conflict.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(conflict.decision).toBe('DENY');
+    expect(conflict.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
     expect(conflict.resolution.contributing_pack_ids).toEqual(
       expect.arrayContaining(['pack_iso_42005', 'pack_hipaa']),
     );

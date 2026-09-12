@@ -587,6 +587,41 @@ export const completionRequestSchema = z
           })
           .strict()
           .optional(),
+        healthcare_interop: z
+          .object({
+            applicability: z.string().min(1).optional(),
+            organization_role: z.string().min(1).optional(),
+            program: z.string().min(1).optional(),
+            workflow: z.string().min(1).optional(),
+            member_identity_verified: z.boolean().optional(),
+            patient_authorized: z.boolean().optional(),
+            member_authorized: z.boolean().optional(),
+            provider_identity_verified: z.boolean().optional(),
+            provider_authorized: z.boolean().optional(),
+            member_relationship_established: z.boolean().optional(),
+            application_authorized: z.boolean().optional(),
+            purpose_permitted: z.boolean().optional(),
+            data_scope_permitted: z.boolean().optional(),
+            data_scope_excessive: z.boolean().optional(),
+            destination_authorized: z.boolean().optional(),
+            originating_payer_id: z.string().min(1).optional(),
+            receiving_payer_id: z.string().min(1).optional(),
+            payer_exchange_authorized: z.boolean().optional(),
+            api_client_authorized: z.boolean().optional(),
+            fhir_resource: z.string().min(1).optional(),
+            fhir_access_permitted: z.boolean().optional(),
+            endpoint: z.string().min(1).optional(),
+            prior_auth_stage: z.string().min(1).optional(),
+            prior_auth_authorized: z.boolean().optional(),
+            external_transmission: z.boolean().optional(),
+            cloud_model_restricted: z.boolean().optional(),
+            agent_authorized: z.boolean().optional(),
+            tool_authorized: z.boolean().optional(),
+            controls_satisfied: z.boolean().optional(),
+            authorized: z.boolean().optional(),
+          })
+          .strict()
+          .optional(),
         sensitive_data_processing: z
           .object({
             external_processing_authorized: z.boolean().optional(),
@@ -613,6 +648,61 @@ export const completionRequestSchema = z
   .strict();
 
 export type CompletionRequestBody = z.infer<typeof completionRequestSchema>;
+
+/**
+ * Governed agent/tool action (e.g. PHI write) — policy + Decision only.
+ * No model execution. Client commits side effects only after ALLOW / post-AUTHORIZE.
+ */
+export const actionRequestSchema = z
+  .object({
+    application_id: z.string().min(1),
+    user: z.object({ id: z.string().min(1) }),
+    operation: z.string().min(1).default('write'),
+    model: z.string().min(1).optional(),
+    messages: z
+      .array(
+        z.object({
+          role: z.enum(['system', 'user', 'assistant']),
+          content: z.string(),
+        }),
+      )
+      .min(1),
+    purpose: z.string().min(1).optional(),
+    authorization_context: z.string().min(1).optional(),
+    recipient: z.string().min(1).optional(),
+    agent_id: z.string().min(1).optional(),
+    tool_id: z.string().min(1).optional(),
+    permitted_entity_types: z.array(z.string().min(1)).optional(),
+    source_system: z.string().min(1).optional(),
+    processing_location: z.string().min(1).optional(),
+    governance_context: completionRequestSchema.shape.governance_context,
+    evaluation_as_of: z.string().min(1).optional(),
+    regulatory_applicability: z.array(z.string().min(1)).optional(),
+    metadata: z
+      .object({
+        correlation_id: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
+    /** Declared action intent for audit / hold payload (not a security override). */
+    action: z
+      .object({
+        kind: z.string().min(1),
+        target_id: z.string().min(1).optional(),
+        attributes: z.record(z.string(), z.unknown()).optional(),
+      })
+      .optional(),
+    /**
+     * Canonical continuation for a previously evaluated REVIEW write after
+     * human AUTHORIZE. Resumes that specific Decision — not standing write
+     * permission. Exact-content matching is only a fallback when this field
+     * is omitted.
+     */
+    resume_evaluation_id: z.string().min(1).optional(),
+  })
+  .strict();
+
+export type ActionRequestBody = z.infer<typeof actionRequestSchema>;
 
 export function findForbiddenOverrides(body: unknown): string[] {
   if (!body || typeof body !== 'object') return [];

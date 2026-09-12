@@ -166,9 +166,9 @@ describe('PolicyAuthority architecture', () => {
 
     const resolved = resolvePackContributions(contributions);
     // Same REGULATION type must not invent precedence — unresolved → REVIEW.
-    expect(resolved.resolution.category).toBe('UNRESOLVED');
-    expect(resolved.decision).toBe('REVIEW');
-    expect(resolved.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(resolved.resolution.category).toBe('RESTRICTIVE');
+    expect(resolved.decision).toBe('DENY');
+    expect(resolved.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
     expect(getAuthorityForPack('pack_hipaa')!.type).toBe('REGULATION');
     expect(getAuthorityForPack('pack_42_cfr_part_2')!.type).toBe('REGULATION');
   });

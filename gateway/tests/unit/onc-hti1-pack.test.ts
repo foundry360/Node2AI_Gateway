@@ -311,7 +311,7 @@ describe('ONC HTI-1 Thin Pack — end-to-end scenarios', () => {
     expect(decision.reason_codes).toContain('ONC_DSI_GOVERNANCE_CONTROLS_SATISFIED');
   });
 
-  it('Scenario 7: Non-applicable organization (payer) → NOT_APPLICABLE / ALLOW', async () => {
+  it('Scenario 7: Non-applicable organization (payer) → skip contribution / baseline ALLOW', async () => {
     const decision = await evaluateOnc({
       dsi: {
         applicability: 'not_applicable',
@@ -323,9 +323,13 @@ describe('ONC HTI-1 Thin Pack — end-to-end scenarios', () => {
       requestId: 'req_onc_s7',
     });
     expect(decision.decision).toBe('ALLOW');
-    expect(decision.reason_codes).toContain('ONC_DSI_NOT_APPLICABLE');
+    // Explicit not_applicable must not contribute ONC outcomes into EPA composition
+    expect(decision.applicable_policies.map((p) => p.pack_id)).not.toContain('pack_onc_hti1');
     expect(decision.reason_codes).not.toContain('ONC_DSI_IDENTITY_REQUIRED');
     expect(decision.reason_codes).not.toContain('ONC_DSI_FAVES_EVIDENCE_INSUFFICIENT');
+    expect(decision.explanation.resolution?.contributing_pack_ids ?? []).not.toContain(
+      'pack_onc_hti1',
+    );
   });
 
   it('Scenario 8: Unknown applicability + high-risk clinical → REVIEW', async () => {

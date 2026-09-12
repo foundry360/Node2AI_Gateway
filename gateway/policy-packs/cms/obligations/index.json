@@ -1,0 +1,61 @@
+{
+  "version": "1.0.0",
+  "obligations": [
+    {
+      "obligation_id": "CMS-OBL-APPLICABILITY",
+      "id": "CMS-OBL-APPLICABILITY",
+      "name": "CMS applicability context",
+      "citations": ["CMS Interoperability Final Rule — program applicability"],
+      "source_ids": ["src_cms_interop"],
+      "related_rules": ["CMS-R-CONTROLS-SATISFIED"]
+    },
+    {
+      "obligation_id": "CMS-OBL-PATIENT-ACCESS",
+      "id": "CMS-OBL-PATIENT-ACCESS",
+      "name": "Patient Access authorization",
+      "citations": ["CMS Interoperability Final Rule — Patient Access API"],
+      "source_ids": ["src_cms_interop"],
+      "related_rules": ["CMS-R-PATIENT-AUTHORIZED-ACCESS", "CMS-R-PATIENT-APPLICATION-AUTH", "CMS-R-PATIENT-PURPOSE", "CMS-R-PATIENT-DATA-SCOPE"]
+    },
+    {
+      "obligation_id": "CMS-OBL-PROVIDER-ACCESS",
+      "id": "CMS-OBL-PROVIDER-ACCESS",
+      "name": "Provider Access authorization",
+      "citations": ["CMS Interoperability Final Rule — Provider Access API"],
+      "source_ids": ["src_cms_interop"],
+      "related_rules": ["CMS-R-PROVIDER-IDENTITY", "CMS-R-PROVIDER-AUTHORIZATION", "CMS-R-PROVIDER-AGENT-AUTH", "CMS-R-PROVIDER-DATA-SCOPE"]
+    },
+    {
+      "obligation_id": "CMS-OBL-PAYER-TO-PAYER",
+      "id": "CMS-OBL-PAYER-TO-PAYER",
+      "name": "Payer-to-Payer exchange controls",
+      "citations": ["CMS Interoperability Final Rule — Payer-to-Payer API"],
+      "source_ids": ["src_cms_interop"],
+      "related_rules": ["CMS-R-PAYER-TO-PAYER-AUTH", "CMS-R-PAYER-TO-PAYER-DESTINATION", "CMS-R-PAYER-TO-PAYER-DATA-SCOPE", "CMS-R-PAYER-TO-PAYER-AI-CONTROL"]
+    },
+    {
+      "obligation_id": "CMS-OBL-PRIOR-AUTH",
+      "id": "CMS-OBL-PRIOR-AUTH",
+      "name": "Prior Authorization workflow controls",
+      "citations": ["CMS Interoperability and Prior Authorization Final Rule — Prior Authorization APIs"],
+      "source_ids": ["src_cms_interop"],
+      "related_rules": ["CMS-R-PRIOR-AUTH-RETRIEVE-AUTH", "CMS-R-PRIOR-AUTH-SUBMIT-UNAUTHORIZED"]
+    },
+    {
+      "obligation_id": "CMS-OBL-API-FHIR",
+      "id": "CMS-OBL-API-FHIR",
+      "name": "API / FHIR access controls",
+      "citations": ["CMS Interoperability Final Rule — FHIR APIs"],
+      "source_ids": ["src_cms_interop"],
+      "related_rules": ["CMS-R-API-AUTHORIZED-CLIENT", "CMS-R-FHIR-DATA-ACCESS"]
+    },
+    {
+      "obligation_id": "CMS-OBL-AI-AGENT",
+      "id": "CMS-OBL-AI-AGENT",
+      "name": "AI / agent governance in CMS workflows",
+      "citations": ["CMS Interoperability Final Rule — access via applications/agents (Enigma runtime mapping)"],
+      "source_ids": ["src_cms_interop"],
+      "related_rules": ["CMS-R-AI-AGENT-TOOL-AUTH"]
+    }
+  ]
+}

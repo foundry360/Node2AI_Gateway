@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <GenAiFunction xmlns="http://soap.sforce.com/2006/04/metadata">
-    <description>Append a clinical note after Enigma authorizes write capability. Returns HELD when human Authorize is required.</description>
+    <description>Append a clinical note after Enigma authorizes this specific write. Each write creates a Decision. Returns HELD when human Authorize is required.</description>
     <invocationTarget>EnigmaAgentUpdateNotesAction</invocationTarget>
     <invocationTargetType>apex</invocationTargetType>
     <isConfirmationRequired>true</isConfirmationRequired>

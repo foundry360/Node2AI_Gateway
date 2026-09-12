@@ -27,6 +27,7 @@
   --warn-soft: rgba(251, 191, 36, 0.12);
   --hover-fill: rgba(255, 255, 255, 0.05);
   --hover-fill-strong: rgba(255, 255, 255, 0.08);
+  --table-surface: transparent;
   --table-head: rgba(255, 255, 255, 0.035);
   --chart-track: rgba(255, 255, 255, 0.08);
   --scrollbar: #1a1f28;
@@ -34,7 +35,7 @@
 
 [data-theme='light'] {
   color-scheme: light;
-  --bg: #eef1f5;
+  --bg: #fcfcfc;
   --bg-elevated: #ffffff;
   --panel: #ffffff;
   --panel-hover: #f3f5f8;
@@ -60,7 +61,8 @@
   --warn-soft: rgba(184, 134, 11, 0.12);
   --hover-fill: rgba(20, 24, 32, 0.04);
   --hover-fill-strong: rgba(20, 24, 32, 0.07);
-  --table-head: rgba(20, 24, 32, 0.035);
+  --table-surface: #ffffff;
+  --table-head: #F7F8FB;
   --chart-track: rgba(20, 24, 32, 0.08);
   --scrollbar: #c5ccd8;
 }
@@ -2458,7 +2460,7 @@ table th,
 }
 
 .settings-section-data table {
-  background: transparent;
+  background: var(--table-surface);
   table-layout: fixed;
 }
 
@@ -2501,7 +2503,7 @@ table th,
 
 .section-card-header h3 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -3078,7 +3080,7 @@ table {
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
-  background: transparent;
+  background: var(--table-surface);
   border: 1px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
@@ -3090,7 +3092,7 @@ td {
   padding: 0.45rem 0.85rem;
   border-bottom: 1px solid var(--line);
   vertical-align: middle;
-  background: transparent;
+  background: var(--table-surface);
 }
 
 th {
@@ -3105,6 +3107,8 @@ th {
 thead th {
   background: var(--table-head);
   border-bottom: 1px solid var(--line);
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
 }
 
 tbody th {
@@ -3309,6 +3313,15 @@ button.table-link.audit-open-btn:disabled {
   table-layout: fixed;
 }
 
+.policies-table .table-link {
+  color: var(--accent);
+}
+
+.policies-table .table-link:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
 .policies-table th,
 .policies-table td {
   padding-left: 0.7rem;
@@ -3428,6 +3441,10 @@ button.table-link.audit-open-btn:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+}
+
+.decision-request-cell .mono {
+  font-weight: 400;
 }
 
 .decision-request-meta {
@@ -3643,7 +3660,7 @@ table .mono {
   color: var(--ink);
   padding: 0.6rem 0.85rem;
   font: inherit;
-  font-size: 0.95rem;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -3674,6 +3691,10 @@ table .mono {
   gap: 1rem;
   border-bottom: 1px solid var(--line);
   margin-bottom: 1.15rem;
+}
+
+.decisions-tabs-bar {
+  border-bottom: none;
 }
 
 .console-tabs > .console-tabs-bar {
@@ -3822,7 +3843,7 @@ table .mono {
   line-height: 1.35;
 }
 
-/* Every Scope/Overview value uses this — text and badges share one left edge. */
+/* Every Scope/Overview value uses this - text and badges share one left edge. */
 .definition-value {
   display: flex;
   flex-wrap: wrap;
@@ -4377,13 +4398,14 @@ table .mono {
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--bg);
+  background: var(--table-surface);
 }
 
 .change-review-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.82rem;
+  background: var(--table-surface);
 }
 
 .change-review-table th,
@@ -4392,12 +4414,13 @@ table .mono {
   padding: 0.55rem 0.7rem;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
+  background: var(--table-surface);
 }
 
 .change-review-table th {
   font-weight: 600;
   color: var(--muted);
-  background: color-mix(in srgb, var(--surface) 80%, var(--bg));
+  background: var(--table-head);
   white-space: nowrap;
 }
 
@@ -4474,6 +4497,7 @@ table .mono {
   margin: 0 0 1rem;
   line-height: 1.5;
   max-width: 52rem;
+  font-size: 14px;
 }
 
 .decision-panel-footer {
@@ -4632,6 +4656,18 @@ table .mono {
   flex-direction: column;
 }
 
+.decision-explanation-top > .decision-evidence-stack {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.decision-evidence-stack > .section-card,
+.decision-evidence-stack > .consequence-panel-root {
+  min-width: 0;
+}
+
 .decision-explanation-top > .consequence-panel-root > .section-card {
   flex: 1;
   display: flex;
@@ -4775,7 +4811,7 @@ table .mono {
   word-break: break-word;
   line-height: 1.35;
   font-size: 0.85rem;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .contribution-attrs .meridian-attr:last-child {
@@ -4833,9 +4869,8 @@ table .mono {
 .contribution-provenance {
   display: grid;
   gap: 0.5rem;
-  border-top: 1px solid var(--line);
-  padding-top: 0.65rem;
-  margin-top: 0.15rem;
+  /* Section break comes from the last AttrRow border-bottom above - no second line. */
+  padding-top: 0.55rem;
 }
 
 .contribution-provenance .decision-sublabel {

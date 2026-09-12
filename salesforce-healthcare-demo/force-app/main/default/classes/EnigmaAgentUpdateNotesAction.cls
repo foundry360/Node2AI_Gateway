@@ -38,7 +38,7 @@ public with sharing class EnigmaAgentUpdateNotesAction {
 
     @InvocableMethod(
         label='Enigma Update Clinical Notes'
-        description='Append a clinical note after Enigma authorizes write capability. If held for review, returns HELD — do not tell the user to enable write; tell them to Authorize in Enigma, then retry.'
+        description='Append a clinical note after Enigma authorizes this specific write. Each note creates a Decision. If held for review, returns HELD - tell them to Authorize in Enigma, then retry the same request.'
         category='Enigma'
     )
     public static List<Response> run(List<Request> requests) {

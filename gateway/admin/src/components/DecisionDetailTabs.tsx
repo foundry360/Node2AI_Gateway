@@ -14,7 +14,7 @@ type TabDef = {
 };
 
 /**
- * Tabs below Decision Identity — one panel per card section.
+ * Tabs below Decision Identity - one panel per card section.
  */
 export function DecisionDetailTabs({
   showPreview = true,

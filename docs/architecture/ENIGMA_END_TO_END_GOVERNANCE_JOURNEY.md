@@ -151,7 +151,7 @@ Documented in `map.ts` and enforced in `enforcement-projection.ts` + tests.
 | Tests | `decision-resolution`; `decision-resume` |
 | Provenance | Preserved after resolution and resume |
 
-**Status: PASS.** Resume uses held request snapshot; does not re-run input PDP as a new independent ALLOW.
+**Status: PASS.** Resume uses held request snapshot; does not re-run input PDP as a new independent ALLOW. For client-commit writes, `resume_evaluation_id` is the canonical continuation of that Decision (not standing write permission); exact-content match is transitional fallback only when the ID is omitted.
 
 ---
 

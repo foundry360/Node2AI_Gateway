@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { roleHasCapability, type AdminRole } from '@/lib/auth-session';
 
 /**
- * Client hint for UI gating only — backend remains authoritative.
+ * Client hint for UI gating only - backend remains authoritative.
  */
 export function useAdminCapabilities() {
   const [role, setRole] = useState<AdminRole | null>(null);

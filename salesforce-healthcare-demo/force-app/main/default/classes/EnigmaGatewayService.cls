@@ -18,7 +18,64 @@ public with sharing class EnigmaGatewayService {
     }
 
     public static CompletionResult summarizePatient(Id patientId) {
-        Patient__c patient = [
+        Patient__c patient = loadPatientChart(patientId);
+        String notes = patient.Clinical_Notes__c;
+        if (String.isBlank(notes)) {
+            throw new EnigmaException('Clinical Notes are required before summarizing.');
+        }
+
+        List<String> parts = new List<String>();
+        parts.add('Summarize the following patient chart for a clinician.');
+        parts.add('Include demographics, active conditions, medications, allergies, and key follow-ups.');
+        parts.add(
+            'Use plain text only. Do not use markdown, bold markers, headings with #, bullets with *, or em dashes.'
+        );
+        parts.add('');
+        parts.add(formatPatientChart(patient));
+        return complete(
+            String.join(parts, '\n'),
+            'sf-patient-' + String.valueOf(patient.Id)
+        );
+    }
+
+    /**
+     * Answer a clinician question using the patient chart via Enigma completions.
+     * Salesforce supplies chart context only. Enigma governs the model call.
+     */
+    public static CompletionResult answerPatientQuestion(Id patientId, String question) {
+        if (patientId == null || String.isBlank(question)) {
+            throw new EnigmaException('Patient and question are required.');
+        }
+        Patient__c patient = loadPatientChart(patientId);
+        List<String> parts = new List<String>();
+        parts.add(
+            'You are a clinical copilot assisting a clinician with one patient chart.'
+        );
+        parts.add(
+            'Answer the clinician question using only the chart facts below. Be concise and clinically useful.'
+        );
+        parts.add(
+            'Demographics in the chart (including DOB) are authoritative. Never say a listed field is missing.'
+        );
+        parts.add(
+            'You cannot update chart fields in this path. If the clinician asks to change a field, state the current chart value and tell them to use a clear update phrase such as "update date of birth to MM/DD/YYYY".'
+        );
+        parts.add(
+            'If the chart truly does not contain the answer, say what is missing. Do not invent facts.'
+        );
+        parts.add('');
+        parts.add('=== Clinician question ===');
+        parts.add(question.trim());
+        parts.add('');
+        parts.add(formatPatientChart(patient));
+        return complete(
+            String.join(parts, '\n'),
+            'sf-patient-qa-' + String.valueOf(patient.Id)
+        );
+    }
+
+    private static Patient__c loadPatientChart(Id patientId) {
+        return [
             SELECT
                 Id,
                 Name,
@@ -71,16 +128,10 @@ public with sharing class EnigmaGatewayService {
             WHERE Id = :patientId
             LIMIT 1
         ];
+    }
 
-        String notes = patient.Clinical_Notes__c;
-        if (String.isBlank(notes)) {
-            throw new EnigmaException('Clinical Notes are required before summarizing.');
-        }
-
+    private static String formatPatientChart(Patient__c patient) {
         List<String> parts = new List<String>();
-        parts.add('Summarize the following patient chart for a clinician.');
-        parts.add('Include demographics, active conditions, medications, allergies, and key follow-ups.');
-        parts.add('');
         parts.add('=== Demographics ===');
         parts.add('Name: ' + displayName(patient));
         parts.add('MRN: ' + nullToEmpty(patient.MRN__c));
@@ -133,7 +184,9 @@ public with sharing class EnigmaGatewayService {
         );
         parts.add('');
         parts.add('=== Primary diagnosis ===');
-        parts.add(nullToEmpty(patient.Primary_Diagnosis__c));
+        parts.add(
+            String.isBlank(patient.Primary_Diagnosis__c) ? 'None documented' : patient.Primary_Diagnosis__c
+        );
         parts.add(
             'Last visit: ' +
                 (patient.Last_Visit_Date__c == null
@@ -187,12 +240,12 @@ public with sharing class EnigmaGatewayService {
         }
         parts.add('');
         parts.add('=== Clinical notes ===');
-        parts.add(notes);
-
-        return complete(
-            String.join(parts, '\n'),
-            'sf-patient-' + String.valueOf(patient.Id)
+        parts.add(
+            String.isBlank(patient.Clinical_Notes__c)
+                ? 'None documented'
+                : patient.Clinical_Notes__c
         );
+        return String.join(parts, '\n');
     }
 
     public static CompletionResult complete(String userContent, String correlationId) {
@@ -207,7 +260,7 @@ public with sharing class EnigmaGatewayService {
 
     /**
      * Flexible completion for scenario lab / integrations.
-     * Salesforce supplies request fields only — Enigma decides policy.
+     * Salesforce supplies request fields only. Enigma decides policy.
      */
     public class CompleteRequest {
         public String content;
@@ -217,6 +270,11 @@ public with sharing class EnigmaGatewayService {
         public String apiKey; // null → Enigma Config
         public String operation; // null → summarize
         public String purpose; // null → omit purpose field
+        /**
+         * Authorization context for EPA (e.g. authorized / unauthorized).
+         * null → default "authorized" for clinical demo completions.
+         */
+        public String authorizationContext;
         /**
          * null = auto (true when model is non-local);
          * true/false = force governance_context.sensitive_data_processing.external_processing_authorized
@@ -282,6 +340,12 @@ public with sharing class EnigmaGatewayService {
             body.put('purpose', opts.purpose);
         }
 
+        // Clinical demo defaults to authorized; scenarios may override.
+        String authz = String.isNotBlank(opts.authorizationContext)
+            ? opts.authorizationContext
+            : 'authorized';
+        body.put('authorization_context', authz);
+
         Boolean attachExternalAuth = opts.includeExternalAuth;
         if (attachExternalAuth == null) {
             attachExternalAuth = modelName == null || !modelName.startsWith('local-');
@@ -332,7 +396,9 @@ public with sharing class EnigmaGatewayService {
             if (responseObj != null) {
                 Map<String, Object> messageObj = (Map<String, Object>) responseObj.get('message');
                 if (messageObj != null) {
-                    result.summary = (String) messageObj.get('content');
+                    result.summary = stripMarkdown(
+                        (String) messageObj.get('content')
+                    );
                 }
             }
             applyGovernance(result, parsed);
@@ -540,7 +606,7 @@ public with sharing class EnigmaGatewayService {
 
     /**
      * Result of a patient write that must pass Enigma change governance first.
-     * Callers never "enable write" as a user step — Enigma decides.
+     * Callers never "enable write" as a user step. Enigma decides.
      */
     public class GovernedWriteResult {
         @AuraEnabled public Boolean success;
@@ -559,9 +625,9 @@ public with sharing class EnigmaGatewayService {
     }
 
     /**
-     * Append a clinical note only when Enigma baseline allows writes.
-     * If write is not allowed, evaluate enabling it using the user's natural ask
-     * as the Prompt and return HELD until a human Authorizes in Enigma.
+     * Append a clinical note only when Enigma approves this write Decision.
+     * Each note creates its own Decision — prior write approvals are not a blank check.
+     * If held for REVIEW, Authorize in Enigma then retry the same note to commit.
      */
     public static GovernedWriteResult appendClinicalNoteGoverned(
         Id patientId,
@@ -580,36 +646,55 @@ public with sharing class EnigmaGatewayService {
             ? userAsk.trim()
             : 'Add a clinical note: ' + noteText.trim();
 
-        GovernedWriteResult gate = ensureWriteAuthorized(
-            prompt,
-            'The agent needs write access to update clinical notes on this patient record.',
-            'After Authorize, the clinical note can be saved on the patient chart.'
+        Patient__c patient = [
+            SELECT Id, Name, MRN__c, Date_of_Birth__c
+            FROM Patient__c
+            WHERE Id = :patientId
+            LIMIT 1
+        ];
+
+        String content =
+            'Agent write: append clinical note.\n' +
+            'Patient: ' +
+            patient.Name +
+            '\nMRN: ' +
+            (patient.MRN__c != null ? patient.MRN__c : '') +
+            '\nDOB: ' +
+            (patient.Date_of_Birth__c != null
+                ? String.valueOf(patient.Date_of_Birth__c)
+                : '') +
+            '\nPrompt: ' +
+            prompt +
+            '\nNote:\n' +
+            noteText.trim();
+
+        GovernedWriteResult gate = evaluateWriteAction(
+            content,
+            'update_clinical_notes',
+            'clinical_note',
+            String.valueOf(patientId),
+            new Map<String, Object>{ 'note' => noteText.trim() }
         );
         if (gate.status != 'AUTHORIZED') {
             return gate;
         }
 
         try {
-            Patient__c patient = [
-                SELECT Id, Clinical_Notes__c
-                FROM Patient__c
-                WHERE Id = :patientId
-                LIMIT 1
-            ];
-            String stamp =
-                '\n\n[Agent ' +
-                Datetime.now().formatGmt('yyyy-MM-dd HH:mm') +
-                ' UTC] ' +
-                noteText.trim();
-            patient.Clinical_Notes__c = String.isBlank(patient.Clinical_Notes__c)
-                ? noteText.trim()
-                : patient.Clinical_Notes__c + stamp;
-            update patient;
+            Clinical_Note__c note = new Clinical_Note__c(
+                Patient__c = patientId,
+                Body__c = noteText.trim(),
+                Source__c = 'Agent',
+                Noted_At__c = Datetime.now()
+            );
+            insert note;
+            String notesText = rebuildClinicalNotesBlob(patientId);
 
             out.success = true;
             out.status = 'COMPLETED';
+            out.evaluationId = gate.evaluationId;
+            out.requestId = gate.requestId;
             out.writeCapability = true;
-            out.clinicalNotes = patient.Clinical_Notes__c;
+            out.clinicalNotes = notesText;
             out.message = 'Clinical note saved.';
             return out;
         } catch (Exception e) {
@@ -621,7 +706,33 @@ public with sharing class EnigmaGatewayService {
     }
 
     /**
-     * Update a simple Patient field (Phone, Email, etc.) under the same write gate.
+     * Keep Patient.Clinical_Notes__c as a readable rollup for summarize/legacy paths.
+     */
+    public static String rebuildClinicalNotesBlob(Id patientId) {
+        List<String> parts = new List<String>();
+        for (Clinical_Note__c n : [
+            SELECT Body__c, Source__c, Noted_At__c, CreatedDate
+            FROM Clinical_Note__c
+            WHERE Patient__c = :patientId
+            ORDER BY Noted_At__c ASC NULLS LAST, CreatedDate ASC
+        ]) {
+            Datetime whenAt = n.Noted_At__c != null ? n.Noted_At__c : n.CreatedDate;
+            String stamp = whenAt == null
+                ? ''
+                : whenAt.formatGmt('yyyy-MM-dd HH:mm') + ' UTC';
+            String source = String.isBlank(n.Source__c) ? 'Note' : n.Source__c;
+            if (String.isBlank(n.Body__c)) {
+                continue;
+            }
+            parts.add('[' + source + ' ' + stamp + '] ' + n.Body__c.trim());
+        }
+        String notesText = String.join(parts, '\n\n');
+        update new Patient__c(Id = patientId, Clinical_Notes__c = notesText);
+        return notesText;
+    }
+
+    /**
+     * Update a simple Patient field under a per-write Enigma Decision.
      */
     public static GovernedWriteResult updatePatientFieldGoverned(
         Id patientId,
@@ -644,7 +755,19 @@ public with sharing class EnigmaGatewayService {
             'Preferred_Language__c',
             'Primary_Care_Provider__c',
             'Emergency_Contact_Name__c',
-            'Emergency_Contact_Phone__c'
+            'Emergency_Contact_Phone__c',
+            'Emergency_Contact_Relation__c',
+            'Allergies__c',
+            'Patient_Status__c',
+            'Street__c',
+            'City__c',
+            'State__c',
+            'Postal_Code__c',
+            'Primary_Diagnosis__c',
+            'Weight_lb__c',
+            'Height_in__c',
+            'Date_of_Birth__c',
+            'Gender__c'
         };
         if (!allowed.contains(field)) {
             out.success = false;
@@ -657,22 +780,76 @@ public with sharing class EnigmaGatewayService {
             ? userAsk.trim()
             : 'Update patient ' + field + ' to ' + String.valueOf(fieldValue);
 
-        GovernedWriteResult gate = ensureWriteAuthorized(
-            prompt,
-            'The agent needs write access to update patient demographics on this record.',
-            'After Authorize, the field update can be saved.'
+        Patient__c patient = [
+            SELECT Id, Name, MRN__c, Date_of_Birth__c
+            FROM Patient__c
+            WHERE Id = :patientId
+            LIMIT 1
+        ];
+
+        String content =
+            'Agent write: update patient field.\n' +
+            'Patient: ' +
+            patient.Name +
+            '\nMRN: ' +
+            (patient.MRN__c != null ? patient.MRN__c : '') +
+            '\nDOB: ' +
+            (patient.Date_of_Birth__c != null
+                ? String.valueOf(patient.Date_of_Birth__c)
+                : '') +
+            '\nField: ' +
+            field +
+            '\nValue: ' +
+            String.valueOf(fieldValue) +
+            '\nPrompt: ' +
+            prompt;
+
+        GovernedWriteResult gate = evaluateWriteAction(
+            content,
+            'update_patient_field',
+            'field_update',
+            String.valueOf(patientId),
+            new Map<String, Object>{
+                'field' => field,
+                'value' => fieldValue
+            }
         );
         if (gate.status != 'AUTHORIZED') {
             return gate;
         }
 
         try {
-            Patient__c patient = new Patient__c(Id = patientId);
-            patient.put(field, fieldValue);
-            update patient;
+            Patient__c toUpdate = new Patient__c(Id = patientId);
+            if (field == 'Weight_lb__c' || field == 'Height_in__c') {
+                String numeric = fieldValue == null
+                    ? null
+                    : fieldValue.replaceAll('[^0-9.\\-]', '').trim();
+                if (String.isBlank(numeric)) {
+                    out.success = false;
+                    out.status = 'ERROR';
+                    out.message = 'A numeric value is required for ' + field + '.';
+                    return out;
+                }
+                toUpdate.put(field, Decimal.valueOf(numeric));
+            } else if (field == 'Date_of_Birth__c') {
+                Date parsed = parseFlexibleDate(fieldValue);
+                if (parsed == null) {
+                    out.success = false;
+                    out.status = 'ERROR';
+                    out.message =
+                        'Could not parse date of birth. Use MM/DD/YYYY or YYYY-MM-DD.';
+                    return out;
+                }
+                toUpdate.Date_of_Birth__c = parsed;
+            } else {
+                toUpdate.put(field, fieldValue);
+            }
+            update toUpdate;
 
             out.success = true;
             out.status = 'COMPLETED';
+            out.evaluationId = gate.evaluationId;
+            out.requestId = gate.requestId;
             out.writeCapability = true;
             out.updatedField = field;
             out.updatedValue = fieldValue;
@@ -686,9 +863,165 @@ public with sharing class EnigmaGatewayService {
         }
     }
 
+    private static Date parseFlexibleDate(String raw) {
+        if (String.isBlank(raw)) {
+            return null;
+        }
+        String s = raw.trim().replaceAll('[.,;]+$', '').trim();
+        // MM/DD/YYYY or M/D/YYYY
+        if (s.contains('/')) {
+            List<String> parts = s.split('/');
+            if (parts.size() == 3) {
+                try {
+                    Integer month = Integer.valueOf(parts[0].trim());
+                    Integer day = Integer.valueOf(parts[1].trim());
+                    Integer year = Integer.valueOf(parts[2].trim());
+                    return Date.newInstance(year, month, day);
+                } catch (Exception ignore) {
+                    return null;
+                }
+            }
+        }
+        // YYYY-MM-DD
+        try {
+            return Date.valueOf(s);
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
     /**
-     * Returns status AUTHORIZED when writes may proceed, HELD when Enigma needs
-     * human Authorize, or ERROR on failure. Does not perform DML.
+     * Evaluate a single agent write through Enigma. Always creates a Decision.
+     * Returns AUTHORIZED when the client may commit DML, HELD when REVIEW, else ERROR.
+     * Same content after AUTHORIZE is claimed (resume) without a new Decision.
+     */
+    public static GovernedWriteResult evaluateWriteAction(
+        String content,
+        String toolId,
+        String actionKind,
+        String targetId,
+        Map<String, Object> actionAttributes
+    ) {
+        GovernedWriteResult out = new GovernedWriteResult();
+        Enigma_Config__c cfg = requireConfig();
+        String apiKey = cfg.Api_Key__c;
+        if (String.isBlank(apiKey)) {
+            out.success = false;
+            out.status = 'ERROR';
+            out.message = 'Enigma Config is missing API Key.';
+            return out;
+        }
+        String applicationId = cfg.Application_Id__c;
+        if (String.isBlank(applicationId)) {
+            out.success = false;
+            out.status = 'ERROR';
+            out.message = 'Enigma Config is missing Application Id.';
+            return out;
+        }
+
+        String base = cfg.Endpoint_URL__c.removeEnd('/');
+        String endpoint = base + '/v1/ai/actions';
+        String modelName = String.isBlank(cfg.Default_Model__c)
+            ? 'local-general-v1'
+            : cfg.Default_Model__c;
+        if (!modelName.startsWith('local-')) {
+            modelName = 'local-general-v1';
+        }
+
+        Map<String, Object> action = new Map<String, Object>{
+            'kind' => actionKind
+        };
+        if (String.isNotBlank(targetId)) {
+            action.put('target_id', targetId);
+        }
+        if (actionAttributes != null && !actionAttributes.isEmpty()) {
+            action.put('attributes', actionAttributes);
+        }
+
+        Map<String, Object> body = new Map<String, Object>{
+            'application_id' => applicationId,
+            'user' => new Map<String, Object>{ 'id' => 'user_clinician' },
+            'operation' => 'write',
+            'model' => modelName,
+            'messages' => new List<Object>{
+                new Map<String, Object>{ 'role' => 'user', 'content' => content }
+            },
+            'purpose' => 'treatment',
+            'authorization_context' => 'authorized',
+            'agent_id' => AGENT_TARGET_ID,
+            'tool_id' => toolId,
+            'governance_context' => new Map<String, Object>{
+                'tool_authorized' => true,
+                'agent_authorized' => true
+            },
+            'action' => action,
+            'regulatory_applicability' => new List<Object>{ 'HIPAA' },
+            'metadata' => new Map<String, Object>{
+                'correlation_id' =>
+                    'sf-write-' + String.valueOf(Datetime.now().getTime()),
+                'salesforce_user_id' => UserInfo.getUserId()
+            }
+        };
+
+        HttpRequest req = new HttpRequest();
+        req.setEndpoint(endpoint);
+        req.setMethod('POST');
+        req.setHeader('Content-Type', 'application/json');
+        req.setHeader('Authorization', 'Bearer ' + apiKey);
+        req.setTimeout(120000);
+        req.setBody(JSON.serialize(body));
+
+        HttpResponse res = new Http().send(req);
+        Map<String, Object> parsed = parseJsonMap(res.getBody());
+        out.evaluationId = (String) parsed.get('evaluation_id');
+        out.requestId = (String) parsed.get('request_id');
+        out.lifecycleDecision = (String) parsed.get('machine_decision');
+
+        if (
+            res.getStatusCode() >= 200 &&
+            res.getStatusCode() < 300 &&
+            (String) parsed.get('status') == 'approved' &&
+            (String) parsed.get('action') == 'commit_allowed'
+        ) {
+            out.success = true;
+            out.status = 'AUTHORIZED';
+            out.message = 'Enigma authorized this write.';
+            return out;
+        }
+
+        Boolean safetyHold = parsed.get('safety_hold') == true;
+        String machine = String.isBlank(out.lifecycleDecision)
+            ? ''
+            : out.lifecycleDecision.toUpperCase();
+        if (
+            safetyHold ||
+            machine == 'REVIEW' ||
+            machine == 'REQUIRE_APPROVAL' ||
+            res.getStatusCode() == 403
+        ) {
+            out.success = false;
+            out.status = 'HELD';
+            out.message =
+                'Enigma is holding this write for human authorization' +
+                (String.isNotBlank(out.evaluationId)
+                    ? ' (decision ' + out.evaluationId + ')'
+                    : '') +
+                '. Authorize it in Enigma Decisions, then ask me again with the same update to finish.';
+            return out;
+        }
+
+        out.success = false;
+        out.status = 'ERROR';
+        out.message =
+            (String) parsed.get('message') != null
+                ? (String) parsed.get('message')
+                : 'Enigma blocked this write (HTTP ' + res.getStatusCode() + ').';
+        return out;
+    }
+
+    /**
+     * @deprecated Prefer evaluateWriteAction — capability enablement is not a
+     * blank check for subsequent writes. Kept for baseline diagnostics only.
      */
     public static GovernedWriteResult ensureWriteAuthorized(
         String userAsk,
@@ -747,7 +1080,6 @@ public with sharing class EnigmaGatewayService {
             return out;
         }
 
-        // Re-check baseline in case evaluate auto-allowed (unusual).
         ChangeEvalResult again = getAgentBaseline();
         if (again.success && again.writeCapability == true) {
             out.success = true;
@@ -771,7 +1103,7 @@ public with sharing class EnigmaGatewayService {
         String policy = String.isBlank(eval.policyDecision)
             ? ''
             : eval.policyDecision.toUpperCase();
-        // Human review only when policy/lifecycle explicitly requires it —
+        // Human review only when policy/lifecycle explicitly requires it -
         // not merely because the action is a write.
         if (
             life == 'MANDATORY_REVIEW' ||
@@ -852,6 +1184,39 @@ public with sharing class EnigmaGatewayService {
             }
         }
         return String.join(parts, ', ');
+    }
+
+    /**
+     * Remove common markdown / typographic markers from model output for chart UI.
+     */
+    private static String stripMarkdown(String raw) {
+        if (String.isBlank(raw)) {
+            return raw;
+        }
+        String s = raw;
+        // Bold / italic markers
+        s = s.replace('**', '');
+        s = s.replace('__', '');
+        // Inline code
+        s = s.replace('`', '');
+        // Em / en dashes → hyphen or comma-friendly separator
+        s = s.replace('—', ', ');
+        s = s.replace('–', '-');
+        // ATX headings
+        s = s.replaceAll('(?m)^#{1,6}\\s*', '');
+        // Horizontal rules
+        s = s.replaceAll('(?m)^\\s*([-*_])\\1{2,}\\s*$', '');
+        // Unordered list markers at line start
+        s = s.replaceAll('(?m)^\\s*[-*•]\\s+', '');
+        // Ordered list markers "1. "
+        s = s.replaceAll('(?m)^\\s*\\d+\\.\\s+', '');
+        // Links [text](url) → text
+        s = s.replaceAll('\\[([^\\]]+)\\]\\([^)]+\\)', '$1');
+        // Leftover single * used for emphasis pairs (best-effort)
+        s = s.replaceAll('\\*([^*]+)\\*', '$1');
+        // Collapse excess blank lines
+        s = s.replaceAll('\\n{3,}', '\n\n');
+        return s.trim();
     }
 
     private static void applyGovernance(

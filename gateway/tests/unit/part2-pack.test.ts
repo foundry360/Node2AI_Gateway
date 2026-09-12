@@ -268,10 +268,9 @@ describe('42 CFR Part 2 — multi-pack with HIPAA', () => {
     expect(decision.reason_codes).toContain('PART2_CONSENT_EVIDENCE_INSUFFICIENT');
   });
 
-  it('D/E. CONFLICT fixture without declared precedence → POLICY_CONFLICT_UNRESOLVED / REVIEW', async () => {
+  it('D/E. HIPAA ALLOW + Part 2 DENY → DENY via consequence (not unresolved REVIEW)', async () => {
     // Architectural fixture: HIPAA permits local PHI processing; Part 2 denies use without
-    // consent evidence. This exercises the generic resolver — not a claim that the statutes
-    // are irreconcilable in all real-world contexts.
+    // consent evidence. Explicit denial wins by consequence composition — not pack hierarchy.
     const repo = new InMemoryPolicyRepository();
     const pdp = new PackBackedEnterprisePdp(repo);
     const decision = await pdp.evaluateLegacyRequest({
@@ -292,16 +291,16 @@ describe('42 CFR Part 2 — multi-pack with HIPAA', () => {
       // HIPAA-authorized basis; Part 2 treats non-consent tokens as absent → DENY
       authorization_context: 'authorized',
     });
-    expect(decision.decision).toBe('REVIEW');
-    expect(decision.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
-    expect(decision.explanation.resolution?.category).toBe('UNRESOLVED');
-    expect(decision.explanation.resolution?.basis).toBe('UNRESOLVED_NO_PRECEDENCE');
+    expect(decision.decision).toBe('DENY');
+    expect(decision.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
+    expect(decision.explanation.resolution?.category).toBe('RESTRICTIVE');
+    expect(decision.explanation.resolution?.basis).toBe('CONSEQUENCE_DENY');
     expect(decision.explanation.resolution?.contributing_pack_ids).toEqual(
       expect.arrayContaining(['pack_hipaa', 'pack_42_cfr_part_2']),
     );
   });
 
-  it('declared precedence resolves HIPAA vs Part 2 conflict without inventing universal override', () => {
+  it('declared precedence is unnecessary for DENY+ALLOW; DENY still wins by consequence', () => {
     const hipaaMeta: PackPolicyMeta = {
       policy_id: 'pol_hipaa_phi_local',
       version: 3,
@@ -343,9 +342,11 @@ describe('42 CFR Part 2 — multi-pack with HIPAA', () => {
     };
     const out = applyRegulatoryOverlays(baseAllow(), facts, [hipaaMeta, part2Meta]);
     expect(out.decision).toBe('DENY');
-    expect(out.resolution?.resolution.basis).toBe('DECLARED_POLICY_PRECEDENCE');
-    expect(out.resolution?.reason_codes).toContain('POLICY_CONFLICT_RESOLVED_BY_PRECEDENCE');
-    expect(out.pack_id).toBe('pack_42_cfr_part_2');
+    expect(out.resolution?.resolution.basis).toBe('CONSEQUENCE_DENY');
+    expect(out.resolution?.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
+    expect(out.resolution?.resolution.contributing_pack_ids).toEqual(
+      expect.arrayContaining(['pack_hipaa', 'pack_42_cfr_part_2']),
+    );
   });
 
   it('multi-pack provenance preserves both HIPAA and Part 2 chains', async () => {
@@ -425,8 +426,8 @@ describe('42 CFR Part 2 — Gateway remains generic', () => {
   });
 });
 
-describe('42 CFR Part 2 — resolver fixture for unresolved taxonomy', () => {
-  it('ALLOW vs DENY without precedence stays UNRESOLVED (no Part2>HIPAA invent)', () => {
+describe('42 CFR Part 2 — resolver fixture for consequence taxonomy', () => {
+  it('ALLOW vs DENY → DENY by consequence (no Part2>HIPAA invent)', () => {
     const resolved = resolvePackContributions([
       {
         pack_id: 'pack_hipaa',
@@ -459,8 +460,8 @@ describe('42 CFR Part 2 — resolver fixture for unresolved taxonomy', () => {
         applicable: true,
       },
     ]);
-    expect(resolved.decision).toBe('REVIEW');
-    expect(resolved.resolution.category).toBe('UNRESOLVED');
-    expect(resolved.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(resolved.decision).toBe('DENY');
+    expect(resolved.resolution.category).toBe('RESTRICTIVE');
+    expect(resolved.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
   });
 });

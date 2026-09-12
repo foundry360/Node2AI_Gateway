@@ -780,6 +780,129 @@ const ONC_HTI1_OUTPUT: PolicyDefinition = {
   ],
 };
 
+const CMS_INPUT: PolicyDefinition = {
+  description:
+    'Applies CMS-aligned interoperability, patient/provider/payer access, prior-authorization workflow, API/FHIR, data-exchange, and AI/agent governance when CMS applicability is asserted. Does not determine CMS compliance.',
+  owner: 'compliance',
+  priority: 200,
+  scope_tier: 'regulatory',
+  domain: 'healthcare',
+  subjects: [
+    {
+      type: 'application',
+      match: 'any (when CMS applicability is asserted)',
+      description:
+        'Applies only when REGULATORY_APPLICABILITY:CMS is present — Healthcare+AI alone is insufficient.',
+    },
+  ],
+  resources: [
+    {
+      type: 'prompt_content',
+      classification: 'CMS_INTEROP',
+      description: 'CMS interoperability / access / PA / API governance context.',
+    },
+  ],
+  actions: [
+    {
+      action: 'retrieve|generate|submit|transmit|summarize|*',
+      effect: 'allow_with_controls',
+      description: 'CMS workflow actions proceed when applicable controls are satisfied.',
+    },
+  ],
+  ai_context: [
+    {
+      key: 'governance_context.healthcare_interop',
+      constraint:
+        'Applicability, workflow family, authorization, data scope, PA stage, API/FHIR, agent/tool',
+    },
+  ],
+  conditions: [
+    {
+      id: 'CMS-R-PATIENT-AUTHORIZED-ACCESS',
+      statement: 'IF CMS patient_access AND NOT patient_authorized THEN DENY',
+    },
+    {
+      id: 'CMS-R-PRIOR-AUTH-SUBMIT-UNAUTHORIZED',
+      statement: 'IF CMS prior_auth submit AND NOT authorized THEN DENY',
+    },
+  ],
+  decisions: [
+    {
+      when: 'Unauthorized CMS access or exchange',
+      decision: 'DENY',
+      reason_codes: ['CMS_PATIENT_ACCESS_UNAUTHORIZED'],
+    },
+    {
+      when: 'CMS interoperability controls satisfied',
+      decision: 'ALLOW',
+      reason_codes: ['CMS_INTEROP_CONTROLS_SATISFIED'],
+    },
+  ],
+  obligations: [
+    {
+      code: 'LOG_GOVERNANCE_EVENT',
+      when: 'always',
+      description: 'Emit a governance audit event for CMS decisions.',
+    },
+  ],
+};
+
+const CMS_OUTPUT: PolicyDefinition = {
+  description:
+    'Output-phase CMS-aligned interoperability governance. Allows controlled release when input controls were satisfied. Does not assert CMS compliance.',
+  owner: 'compliance',
+  priority: 200,
+  scope_tier: 'regulatory',
+  domain: 'healthcare',
+  subjects: [
+    {
+      type: 'application',
+      match: 'any (when CMS applicability is asserted)',
+      description: 'Output path when CMS applicability is in scope.',
+    },
+  ],
+  resources: [
+    {
+      type: 'model_response',
+      classification: 'CMS_INTEROP',
+      description: 'Model output under CMS-aligned interoperability governance.',
+    },
+  ],
+  actions: [
+    {
+      action: 'release|*',
+      effect: 'allow_if_controls',
+      description: 'Release when CMS input controls were satisfied.',
+    },
+  ],
+  ai_context: [
+    {
+      key: 'governance_context.healthcare_interop',
+      constraint: 'Output release gated by cms_controls_satisfied',
+    },
+  ],
+  conditions: [
+    {
+      id: 'CMS-R-OUT-RELEASE',
+      statement: 'IF CMS applicable AND controls_satisfied THEN ALLOW_WITH_CONTROLS',
+    },
+  ],
+  decisions: [
+    {
+      when: 'CMS output governance satisfied',
+      decision: 'ALLOW',
+      reason_codes: ['CMS_OUTPUT_GOVERNANCE_SATISFIED'],
+    },
+  ],
+  obligations: [
+    {
+      code: 'LOG_GOVERNANCE_EVENT',
+      when: 'always',
+      description: 'Emit a governance audit event for CMS output decisions.',
+    },
+  ],
+};
+
 const FINANCIAL: PolicyDefinition = {
   description:
     'Protects financial data in AI requests: sensitive fields are safeguarded before processing, and write, export, and sharing actions stay controlled unless human approval allows them.',
@@ -1033,6 +1156,8 @@ const BY_POLICY_ID: Record<string, PolicyDefinition> = {
   pol_part2_redisclosure: PART2_OUTPUT,
   pol_onc_hti1_dsi_input: ONC_HTI1_INPUT,
   pol_onc_hti1_dsi_output: ONC_HTI1_OUTPUT,
+  pol_cms_interop_input: CMS_INPUT,
+  pol_cms_interop_output: CMS_OUTPUT,
   pol_financial_tokenize: FINANCIAL,
   pol_legal_no_external: LEGAL,
 };
@@ -1049,6 +1174,8 @@ const BY_INTERPRETER: Record<string, PolicyDefinition> = {
   part2_pack_v1_output: PART2_OUTPUT,
   onc_hti1_pack_v1: ONC_HTI1_INPUT,
   onc_hti1_pack_v1_output: ONC_HTI1_OUTPUT,
+  cms_pack_v1: CMS_INPUT,
+  cms_pack_v1_output: CMS_OUTPUT,
   financial_overlay_v1: FINANCIAL,
   legal_overlay_v1: LEGAL,
 };

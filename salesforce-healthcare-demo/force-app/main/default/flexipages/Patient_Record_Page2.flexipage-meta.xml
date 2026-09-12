@@ -3,8 +3,8 @@
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
-                <componentName>force:highlightsPanel</componentName>
-                <identifier>force_highlightsPanel</identifier>
+                <componentName>hideSalesforceHighlights</componentName>
+                <identifier>c_hideSalesforceHighlights</identifier>
             </componentInstance>
         </itemInstances>
         <name>header</name>
@@ -81,12 +81,6 @@
             <componentInstance>
                 <componentName>enigmaPatientCopilot</componentName>
                 <identifier>c_enigmaPatientCopilot</identifier>
-            </componentInstance>
-        </itemInstances>
-        <itemInstances>
-            <componentInstance>
-                <componentName>patientEnigmaSummary</componentName>
-                <identifier>c_patientEnigmaSummary</identifier>
             </componentInstance>
         </itemInstances>
         <name>sidebar</name>

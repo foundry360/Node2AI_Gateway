@@ -28,7 +28,7 @@ export {
   type BridgedEnterprisePdp,
 } from './pack-pdp.js';
 export { InMemoryPolicyRepository, mergeDefaultSnapshot } from './repository.js';
-export { applyRegulatoryOverlays, regulatoryPackExtras, ensureDefaultOverlayRegistry, part2PackContribution, oncHti1PackContribution, hipaaPackContribution, nistAiRmfPackContribution, owaspLlm2025PackContribution, euAiActPackContribution, iso42001PackContribution, iso23894PackContribution, iso42005PackContribution, soc2PackContribution, nistCsf2PackContribution, iso38507PackContribution, iso27001PackContribution, iso27701PackContribution, nistPrivacyFrameworkPackContribution } from './packs/regulatory.js';
+export { applyRegulatoryOverlays, regulatoryPackExtras, ensureDefaultOverlayRegistry, part2PackContribution, oncHti1PackContribution, cmsPackContribution, hipaaPackContribution, nistAiRmfPackContribution, owaspLlm2025PackContribution, euAiActPackContribution, iso42001PackContribution, iso23894PackContribution, iso42005PackContribution, soc2PackContribution, nistCsf2PackContribution, iso38507PackContribution, iso27001PackContribution, iso27701PackContribution, nistPrivacyFrameworkPackContribution } from './packs/regulatory.js';
 export {
   HEALTHCARE_DOMAIN,
   AI_RISK_DOMAIN,
@@ -54,6 +54,7 @@ export {
 export { compileHipaaPack } from './packs/hipaa/compile.js';
 export { compilePart2Pack } from './packs/part2/compile.js';
 export { compileOncHti1Pack } from './packs/onc-hti1/compile.js';
+export { compileCmsPack } from './packs/cms/compile.js';
 export { compileNistAiRmfPack } from './packs/nist-ai-rmf/compile.js';
 export { compileOwaspLlm2025Pack } from './packs/owasp-llm-2025/compile.js';
 export { compileEuAiActPack } from './packs/eu-ai-act/compile.js';
@@ -79,6 +80,11 @@ export {
   applyOncHti1PackV1Output,
   deriveOncHti1Gates,
 } from './packs/onc-hti1/pack.js';
+export {
+  applyCmsPackV1Input,
+  applyCmsPackV1Output,
+  deriveCmsGates,
+} from './packs/cms/pack.js';
 export {
   applyNistAiRmfPackV1Input,
   applyNistAiRmfPackV1Output,
@@ -145,6 +151,7 @@ export {
   ONC_HTI1_PROVENANCE_GRAPH,
   ONC_HTI1_PACK_META,
 } from './packs/onc-hti1/compiled-bundle.js';
+export { CMS_PROVENANCE_GRAPH, CMS_PACK_META } from './packs/cms/compiled-bundle.js';
 export {
   NIST_AI_RMF_PROVENANCE_GRAPH,
   NIST_AI_RMF_PACK_META,
@@ -234,19 +241,27 @@ export {
   type ResolvedPolicyOutcome,
   type ResolutionExplanation,
 } from './policy-resolution.js';
-export { toEvaluationRecord, type PolicyEvaluationRecord } from './evaluation-record.js';
+export {
+  toEvaluationRecord,
+  snapshotDecisionRestrictions,
+  restoreEvaluationRestrictions,
+  type PolicyEvaluationRecord,
+  type EvaluationRestrictions,
+} from './evaluation-record.js';
 export {
   evaluationRecordToDecisionPayload,
   deriveDecisionConsequence,
   projectChangeReview,
   projectHeldRequestPreview,
   projectRequestContext,
+  projectModelGovernance,
   recordMatchesPolicy,
   rowToEvaluationRecord,
   toEvaluationListItem,
   type DecisionConsequence,
   type ExecutionMode,
   type HeldRequestPreview,
+  type ModelGovernanceProjection,
   type PolicyEvaluationListItem,
   type ProjectedRequestContext,
 } from './evaluation-query.js';

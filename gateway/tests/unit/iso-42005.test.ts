@@ -342,9 +342,9 @@ describe('ISO/IEC 42005 Pack #8', () => {
         reason_codes: ['HIPAA_DENY'],
       }),
     ]);
-    expect(resolved.resolution.category).toBe('UNRESOLVED');
-    expect(resolved.decision).toBe('REVIEW');
-    expect(resolved.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(resolved.resolution.category).toBe('RESTRICTIVE');
+    expect(resolved.decision).toBe('DENY');
+    expect(resolved.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
   });
 
   it('29–33. Historical evaluation + live path + explanation', async () => {

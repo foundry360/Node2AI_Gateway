@@ -105,26 +105,18 @@ public with sharing class EnigmaAgentConsoleController {
             throw new AuraHandledException('Note text is required');
         }
 
-        Patient__c patient = [
-            SELECT Id, Clinical_Notes__c
-            FROM Patient__c
-            WHERE Id = :patientId
-            LIMIT 1
-        ];
-        String stamp =
-            '\n\n[Agent write ' +
-            Datetime.now().formatGmt('yyyy-MM-dd HH:mm') +
-            ' UTC] ' +
-            noteAppend.trim();
-        patient.Clinical_Notes__c = String.isBlank(patient.Clinical_Notes__c)
-            ? noteAppend.trim()
-            : patient.Clinical_Notes__c + stamp;
-        update patient;
+        insert new Clinical_Note__c(
+            Patient__c = patientId,
+            Body__c = noteAppend.trim(),
+            Source__c = 'Agent',
+            Noted_At__c = Datetime.now()
+        );
+        String notesText = EnigmaGatewayService.rebuildClinicalNotesBlob(patientId);
 
         NoteUpdateResult result = new NoteUpdateResult();
         result.success = true;
         result.message = 'Clinical notes updated (agent write path).';
-        result.clinicalNotes = patient.Clinical_Notes__c;
+        result.clinicalNotes = notesText;
         return result;
     }
 }

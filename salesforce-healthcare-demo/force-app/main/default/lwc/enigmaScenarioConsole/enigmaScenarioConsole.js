@@ -34,11 +34,11 @@ export default class EnigmaScenarioConsole extends LightningElement {
   }
 
   get reasonDisplay() {
-    return this.result?.reasonCode || '—';
+    return this.result?.reasonCode || '-';
   }
 
   get requestIdDisplay() {
-    return this.result?.requestId || '—';
+    return this.result?.requestId || '-';
   }
 
   get hasTokenizedInput() {
@@ -57,11 +57,11 @@ export default class EnigmaScenarioConsole extends LightningElement {
   }
 
   get policyDecisionDisplay() {
-    return this.result?.policyDecision || '—';
+    return this.result?.policyDecision || '-';
   }
 
   get inputXformDisplay() {
-    return this.result?.inputTransformation || '—';
+    return this.result?.inputTransformation || '-';
   }
 
   get resultMatchLabel() {
@@ -80,7 +80,7 @@ export default class EnigmaScenarioConsole extends LightningElement {
   }
 
   decorate(s) {
-    // Do not object-spread Apex wire/imperative results — LWC proxies omit fields.
+    // Do not object-spread Apex wire/imperative results. LWC proxies omit fields.
     const id = s.id;
     const active = id === this.activeId;
     return {
@@ -149,12 +149,12 @@ export default class EnigmaScenarioConsole extends LightningElement {
       const message = e?.body?.message || e?.message || 'Scenario callout failed';
       this.result = {
         title: 'Callout error',
-        expected: '—',
+        expected: '-',
         status: 'error',
         reasonCode: 'CALLOUT_ERROR',
         message,
         matchedExpectation: false,
-        modelUsed: '—'
+        modelUsed: '-'
       };
       this.dispatchEvent(
         new ShowToastEvent({

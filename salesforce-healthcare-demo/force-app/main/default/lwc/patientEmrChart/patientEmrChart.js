@@ -1,25 +1,43 @@
 import { LightningElement, api, wire } from 'lwc';
 import { refreshApex } from '@salesforce/apex';
-import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
+import { notifyRecordUpdateAvailable } from 'lightning/uiRecordApi';
 import getChart from '@salesforce/apex/PatientEmrChartController.getChart';
-import CLINICAL_NOTES from '@salesforce/schema/Patient__c.Clinical_Notes__c';
-
-const PATIENT_FIELDS = [CLINICAL_NOTES];
+import deleteClinicalNote from '@salesforce/apex/PatientEmrChartController.deleteClinicalNote';
+import ensureNotesMigrated from '@salesforce/apex/PatientEmrChartController.ensureNotesMigrated';
 
 export default class PatientEmrChart extends LightningElement {
   @api recordId;
 
   chartWireResult;
-  patientRecord;
+  notesRefreshing = false;
+  notesBusy = false;
+  /** Optimistic list after delete until wire refresh lands. */
+  notesOverride;
+
+  connectedCallback() {
+    this.migrateAndRefresh();
+  }
+
+  async migrateAndRefresh() {
+    if (!this.recordId) {
+      return;
+    }
+    try {
+      const created = await ensureNotesMigrated({ patientId: this.recordId });
+      if (created > 0 && this.chartWireResult) {
+        await refreshApex(this.chartWireResult);
+      }
+    } catch {
+      /* ignore migration errors; chart still loads */
+    }
+  }
 
   @wire(getChart, { patientId: '$recordId' })
   wiredChart(result) {
     this.chartWireResult = result;
-  }
-
-  @wire(getRecord, { recordId: '$recordId', fields: PATIENT_FIELDS })
-  wiredPatientRecord(result) {
-    this.patientRecord = result;
+    if (result?.data) {
+      this.notesOverride = undefined;
+    }
   }
 
   get loading() {
@@ -49,17 +67,15 @@ export default class PatientEmrChart extends LightningElement {
     return this.chartWireResult?.data?.prescriptions || [];
   }
 
-  /** Prefer LDS so Agentforce / console note writes show without a hard reload. */
-  get clinicalNotes() {
-    const fromLds = getFieldValue(this.patientRecord?.data, CLINICAL_NOTES);
-    if (fromLds != null && String(fromLds).trim() !== '') {
-      return fromLds;
+  get clinicalNoteItems() {
+    if (this.notesOverride) {
+      return this.notesOverride;
     }
-    return this.patient?.Clinical_Notes__c;
+    return this.chartWireResult?.data?.clinicalNotes || [];
   }
 
   get hasClinicalNotes() {
-    return !!(this.clinicalNotes && String(this.clinicalNotes).trim());
+    return this.clinicalNoteItems.length > 0;
   }
 
   get displayName() {
@@ -86,7 +102,7 @@ export default class PatientEmrChart extends LightningElement {
   get ageLabel() {
     const dob = this.patient?.Date_of_Birth__c;
     if (!dob) {
-      return '—';
+      return '-';
     }
     const birth = new Date(dob);
     const today = new Date();
@@ -101,7 +117,7 @@ export default class PatientEmrChart extends LightningElement {
   get dobLabel() {
     const dob = this.patient?.Date_of_Birth__c;
     if (!dob) {
-      return '—';
+      return '-';
     }
     return new Date(dob).toLocaleDateString(undefined, {
       year: 'numeric',
@@ -113,7 +129,7 @@ export default class PatientEmrChart extends LightningElement {
   get lastVisitLabel() {
     const d = this.patient?.Last_Visit_Date__c;
     if (!d) {
-      return '—';
+      return '-';
     }
     return new Date(d).toLocaleDateString(undefined, {
       year: 'numeric',
@@ -126,7 +142,7 @@ export default class PatientEmrChart extends LightningElement {
     const h = Number(this.patient?.Height_in__c);
     const w = Number(this.patient?.Weight_lb__c);
     if (!h || !w) {
-      return '—';
+      return '-';
     }
     return ((703 * w) / (h * h)).toFixed(1);
   }
@@ -134,13 +150,13 @@ export default class PatientEmrChart extends LightningElement {
   get addressLine() {
     const p = this.patient;
     if (!p) {
-      return '—';
+      return '-';
     }
     const cityState = [p.City__c, p.State__c].filter(Boolean).join(', ');
     const line = [p.Street__c, cityState, p.Postal_Code__c]
       .filter(Boolean)
       .join(' · ');
-    return line || '—';
+    return line || '-';
   }
 
   get activeConditions() {
@@ -180,14 +196,58 @@ export default class PatientEmrChart extends LightningElement {
     return status === 'active' ? 'status status-active' : 'status';
   }
 
+  get refreshDisabled() {
+    return this.notesRefreshing || this.notesBusy || !this.recordId;
+  }
+
   async handleRefreshNotes() {
-    const jobs = [];
-    if (this.chartWireResult) {
-      jobs.push(refreshApex(this.chartWireResult));
+    if (!this.recordId || this.notesRefreshing) {
+      return;
     }
-    if (this.patientRecord) {
-      jobs.push(refreshApex(this.patientRecord));
+    this.notesRefreshing = true;
+    try {
+      this.notesOverride = undefined;
+      try {
+        await ensureNotesMigrated({ patientId: this.recordId });
+      } catch {
+        /* ignore */
+      }
+      const jobs = [];
+      if (this.chartWireResult) {
+        jobs.push(refreshApex(this.chartWireResult));
+      }
+      jobs.push(notifyRecordUpdateAvailable([{ recordId: this.recordId }]));
+      await Promise.all(jobs);
+    } finally {
+      this.notesRefreshing = false;
     }
-    await Promise.all(jobs);
+  }
+
+  async handleDeleteNote(event) {
+    const noteId = event.currentTarget?.dataset?.id;
+    if (!noteId || !this.recordId || this.notesBusy) {
+      return;
+    }
+    // eslint-disable-next-line no-alert
+    if (!window.confirm('Delete this clinical note?')) {
+      return;
+    }
+    this.notesBusy = true;
+    try {
+      const remaining = await deleteClinicalNote({
+        noteId,
+        patientId: this.recordId
+      });
+      this.notesOverride = remaining || [];
+      if (this.chartWireResult) {
+        await refreshApex(this.chartWireResult);
+      }
+      await notifyRecordUpdateAvailable([{ recordId: this.recordId }]);
+    } catch (e) {
+      // eslint-disable-next-line no-alert
+      window.alert(e?.body?.message || e?.message || 'Unable to delete note.');
+    } finally {
+      this.notesBusy = false;
+    }
   }
 }

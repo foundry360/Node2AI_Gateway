@@ -100,15 +100,15 @@ describe('Multi-pack decision explanation — invariants', () => {
     );
   });
 
-  it('Invariant 4–5: unresolved conflict → REVIEW; no invented precedence', () => {
+  it('Invariant 4–5: ALLOW + DENY → DENY by consequence; no invented regulatory precedence', () => {
     const resolved = resolvePackContributions([
       contrib({ pack_id: 'pack_a', policy_id: 'pol_a', decision: 'ALLOW' }),
       contrib({ pack_id: 'pack_b', policy_id: 'pol_b', decision: 'DENY' }),
     ]);
-    expect(resolved.decision).toBe('REVIEW');
-    expect(resolved.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
-    expect(resolved.resolution.category).toBe('UNRESOLVED');
-    expect(resolved.resolution.basis).toBe('UNRESOLVED_NO_PRECEDENCE');
+    expect(resolved.decision).toBe('DENY');
+    expect(resolved.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
+    expect(resolved.resolution.category).toBe('RESTRICTIVE');
+    expect(resolved.resolution.basis).toBe('CONSEQUENCE_DENY');
   });
 
   it('Invariant 6: multi-pack provenance preserved in operator explanation', async () => {
@@ -241,7 +241,7 @@ describe('Multi-pack decision explanation — simulate scenarios A–E', () => {
     expect(decision.explanation.resolution?.category).toBe('RESTRICTIVE');
   });
 
-  it('D UNRESOLVED conflict via simulatePolicy fixture', async () => {
+  it('D DENY consequence via simulatePolicy fixture (HIPAA ALLOW + Part 2 DENY)', async () => {
     const repo = new InMemoryPolicyRepository();
     const pdp = new PackBackedEnterprisePdp(repo);
     const decision = await simulatePolicy(pdp, {
@@ -252,13 +252,15 @@ describe('Multi-pack decision explanation — simulate scenarios A–E', () => {
       purpose: 'treatment',
       authorization_context: 'authorized',
     });
-    expect(decision.decision).toBe('REVIEW');
-    expect(decision.explanation.resolution?.category).toBe('UNRESOLVED');
-    expect(decision.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
-    expect(decision.explanation.operator?.basis_label.toLowerCase()).toContain('precedence');
+    expect(decision.decision).toBe('DENY');
+    expect(decision.explanation.resolution?.category).toBe('RESTRICTIVE');
+    expect(decision.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
+    expect(decision.explanation.operator?.basis_label.toLowerCase()).toMatch(
+      /denial|restrictive|consequence/,
+    );
   });
 
-  it('E declared precedence surfaces CONFLICT + DECLARED_POLICY_PRECEDENCE in operator view', () => {
+  it('E DENY consequence retains contributions; declared precedence not required', () => {
     const resolved = resolvePackContributions([
       contrib({
         pack_id: 'pack_a',
@@ -279,8 +281,8 @@ describe('Multi-pack decision explanation — simulate scenarios A–E', () => {
       }),
     ]);
     expect(resolved.decision).toBe('DENY');
-    expect(resolved.resolution.category).toBe('CONFLICT');
-    expect(resolved.resolution.basis).toBe('DECLARED_POLICY_PRECEDENCE');
+    expect(resolved.resolution.category).toBe('RESTRICTIVE');
+    expect(resolved.resolution.basis).toBe('CONSEQUENCE_DENY');
 
     const decision: PolicyDecision = {
       decision: resolved.decision,
@@ -321,9 +323,9 @@ describe('Multi-pack decision explanation — simulate scenarios A–E', () => {
       evaluation_id: 'eval_test',
     };
     const op = buildOperatorDecisionExplanation(decision);
-    expect(op.resolution_category).toBe('CONFLICT');
-    expect(op.resolution_basis).toBe('DECLARED_POLICY_PRECEDENCE');
-    expect(op.narrative.toLowerCase()).toContain('declared policy precedence');
+    expect(op.resolution_category).toBe('RESTRICTIVE');
+    expect(op.resolution_basis).toBe('CONSEQUENCE_DENY');
+    expect(op.narrative.toLowerCase()).toMatch(/denial|restrictive|consequence/);
   });
 
   it('enriched contributions include pack_name and obligations for UI', async () => {

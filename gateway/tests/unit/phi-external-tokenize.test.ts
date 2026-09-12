@@ -280,7 +280,7 @@ describe('Controlled PHI external TOKENIZE', () => {
     expect(last.response_hash).toBeTruthy();
   });
 
-  it('TOKENIZE + DENY contribution → CONFLICT unresolved → REVIEW', () => {
+  it('TOKENIZE + DENY contribution → DENY via consequence', () => {
     const resolved = resolvePackContributions([
       contrib({
         pack_id: 'pack_enterprise_baseline',
@@ -297,9 +297,10 @@ describe('Controlled PHI external TOKENIZE', () => {
         reason_codes: ['OTHER_DENY'],
       }),
     ]);
-    expect(resolved.resolution.category).toMatch(/CONFLICT|UNRESOLVED/);
-    expect(resolved.decision).toBe('REVIEW');
-    expect(resolved.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(resolved.resolution.category).toBe('RESTRICTIVE');
+    expect(resolved.resolution.basis).toBe('CONSEQUENCE_DENY');
+    expect(resolved.decision).toBe('DENY');
+    expect(resolved.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
   });
 
   it('machine DENY remains not human-review eligible (PHI cloud no evidence)', async () => {

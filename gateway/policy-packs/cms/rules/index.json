@@ -1,0 +1,371 @@
+{
+  "version": "1.0.0",
+  "rules": [
+    {
+      "rule_id": "CMS-R-PATIENT-AUTHORIZED-ACCESS",
+      "name": "Patient Access requires authorized patient/member context",
+      "phase": "input",
+      "priority": 100,
+      "family": "Patient Access",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "patient_access",
+        "patient_authorized": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["CMS_PATIENT_ACCESS_UNAUTHORIZED"],
+      "obligation_ids": ["CMS-OBL-PATIENT-ACCESS"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"],
+      "note": "ENIGMA_POLICY mapped from Patient Access API authorization concepts."
+    },
+    {
+      "rule_id": "CMS-R-PATIENT-APPLICATION-AUTH",
+      "name": "Patient Access requires authorized application",
+      "phase": "input",
+      "priority": 99,
+      "family": "Patient Access",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "patient_access",
+        "application_authorized": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["CMS_PATIENT_APPLICATION_UNAUTHORIZED"],
+      "obligation_ids": ["CMS-OBL-PATIENT-ACCESS"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-PATIENT-PURPOSE",
+      "name": "Patient Access requires permitted purpose",
+      "phase": "input",
+      "priority": 98,
+      "family": "Patient Access",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "patient_access",
+        "purpose_permitted": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["CMS_PATIENT_PURPOSE_NOT_PERMITTED"],
+      "obligation_ids": ["CMS-OBL-PATIENT-ACCESS"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-PATIENT-DATA-SCOPE",
+      "name": "Excessive Patient Access data scope must be restricted",
+      "phase": "input",
+      "priority": 97,
+      "family": "Patient Access",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "patient_access",
+        "data_scope_excessive": true
+      },
+      "decision": "TOKENIZE",
+      "reason_codes": ["CMS_PATIENT_DATA_SCOPE_EXCESSIVE"],
+      "obligation_ids": ["CMS-OBL-PATIENT-ACCESS"],
+      "enigma_obligations": ["TOKENIZE_PII", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-PROVIDER-IDENTITY",
+      "name": "Provider Access requires verified provider identity",
+      "phase": "input",
+      "priority": 96,
+      "family": "Provider Access",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "provider_access",
+        "provider_identity_verified": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["CMS_PROVIDER_IDENTITY_REQUIRED"],
+      "obligation_ids": ["CMS-OBL-PROVIDER-ACCESS"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-PROVIDER-AUTHORIZATION",
+      "name": "Provider Access requires provider authorization",
+      "phase": "input",
+      "priority": 95,
+      "family": "Provider Access",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "provider_access",
+        "provider_authorized": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["CMS_PROVIDER_UNAUTHORIZED"],
+      "obligation_ids": ["CMS-OBL-PROVIDER-ACCESS"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-PROVIDER-AGENT-AUTH",
+      "name": "Provider Access via agent requires authorized agent",
+      "phase": "input",
+      "priority": 94,
+      "family": "Provider Access",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "provider_access",
+        "agent_present": true,
+        "agent_authorized": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["CMS_PROVIDER_AGENT_UNAUTHORIZED"],
+      "obligation_ids": ["CMS-OBL-PROVIDER-ACCESS", "CMS-OBL-AI-AGENT"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-PROVIDER-DATA-SCOPE",
+      "name": "Excessive Provider Access data scope must be restricted",
+      "phase": "input",
+      "priority": 93,
+      "family": "Provider Access",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "provider_access",
+        "data_scope_excessive": true
+      },
+      "decision": "TOKENIZE",
+      "reason_codes": ["CMS_PROVIDER_DATA_SCOPE_EXCESSIVE"],
+      "obligation_ids": ["CMS-OBL-PROVIDER-ACCESS"],
+      "enigma_obligations": ["TOKENIZE_PII", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-PAYER-TO-PAYER-AUTH",
+      "name": "Payer-to-Payer exchange requires authorized transfer",
+      "phase": "input",
+      "priority": 92,
+      "family": "Payer-to-Payer",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "payer_to_payer",
+        "payer_exchange_authorized": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["CMS_PAYER_TO_PAYER_UNAUTHORIZED"],
+      "obligation_ids": ["CMS-OBL-PAYER-TO-PAYER"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT", "NO_EXTERNAL_TRANSMISSION"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-PAYER-TO-PAYER-DESTINATION",
+      "name": "Payer-to-Payer destination must be authorized",
+      "phase": "input",
+      "priority": 91,
+      "family": "Payer-to-Payer",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "payer_to_payer",
+        "destination_authorized": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["CMS_PAYER_DESTINATION_UNAUTHORIZED"],
+      "obligation_ids": ["CMS-OBL-PAYER-TO-PAYER"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT", "NO_EXTERNAL_TRANSMISSION"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-PAYER-TO-PAYER-DATA-SCOPE",
+      "name": "Excessive Payer-to-Payer data scope must be restricted",
+      "phase": "input",
+      "priority": 90,
+      "family": "Payer-to-Payer",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "payer_to_payer",
+        "data_scope_excessive": true
+      },
+      "decision": "TOKENIZE",
+      "reason_codes": ["CMS_PAYER_DATA_SCOPE_EXCESSIVE"],
+      "obligation_ids": ["CMS-OBL-PAYER-TO-PAYER"],
+      "enigma_obligations": ["TOKENIZE_PII", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-PAYER-TO-PAYER-AI-CONTROL",
+      "name": "Payer-to-Payer exchange restricts unauthorized cloud AI",
+      "phase": "input",
+      "priority": 89,
+      "family": "Payer-to-Payer",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "payer_to_payer",
+        "cloud_model_restricted": true,
+        "uses_cloud_model": true
+      },
+      "decision": "DENY",
+      "reason_codes": ["CMS_PAYER_CLOUD_AI_RESTRICTED"],
+      "obligation_ids": ["CMS-OBL-PAYER-TO-PAYER", "CMS-OBL-AI-AGENT"],
+      "enigma_obligations": ["LOCAL_MODEL_ONLY", "NO_EXTERNAL_TRANSMISSION", "LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-PRIOR-AUTH-RETRIEVE-AUTH",
+      "name": "Prior Auth retrieve requires authorized context",
+      "phase": "input",
+      "priority": 88,
+      "family": "Prior Authorization",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "prior_auth",
+        "prior_auth_stage": "retrieve",
+        "prior_auth_authorized": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["CMS_PRIOR_AUTH_RETRIEVE_UNAUTHORIZED"],
+      "obligation_ids": ["CMS-OBL-PRIOR-AUTH"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-PRIOR-AUTH-SUBMIT-UNAUTHORIZED",
+      "name": "Unauthorized Prior Auth submit is denied",
+      "phase": "input",
+      "priority": 87,
+      "family": "Prior Authorization",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "prior_auth",
+        "prior_auth_stage": "submit",
+        "prior_auth_authorized": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["CMS_PRIOR_AUTH_SUBMIT_UNAUTHORIZED"],
+      "obligation_ids": ["CMS-OBL-PRIOR-AUTH"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"],
+      "note": "Submit is not automatically REQUIRE_APPROVAL — unauthorized submit is DENY; authorized submit proceeds via controls-satisfied."
+    },
+    {
+      "rule_id": "CMS-R-API-AUTHORIZED-CLIENT",
+      "name": "API access requires authorized client",
+      "phase": "input",
+      "priority": 86,
+      "family": "API / FHIR Governance",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "api_fhir",
+        "api_client_authorized": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["CMS_API_CLIENT_UNAUTHORIZED"],
+      "obligation_ids": ["CMS-OBL-API-FHIR"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-FHIR-DATA-ACCESS",
+      "name": "FHIR resource access must be permitted",
+      "phase": "input",
+      "priority": 85,
+      "family": "API / FHIR Governance",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "api_fhir",
+        "fhir_access_permitted": false
+      },
+      "decision": "DENY",
+      "reason_codes": ["CMS_FHIR_ACCESS_NOT_PERMITTED"],
+      "obligation_ids": ["CMS-OBL-API-FHIR"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-AI-AGENT-TOOL-AUTH",
+      "name": "CMS AI/agent workflows require authorized agent and tool",
+      "phase": "input",
+      "priority": 84,
+      "family": "AI / Agent Governance",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "workflow": "ai_agent",
+        "agent_or_tool_unauthorized": true
+      },
+      "decision": "DENY",
+      "reason_codes": ["CMS_AI_AGENT_TOOL_UNAUTHORIZED"],
+      "obligation_ids": ["CMS-OBL-AI-AGENT"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"]
+    },
+    {
+      "rule_id": "CMS-R-CONTROLS-SATISFIED",
+      "name": "Allow when applicable CMS interoperability controls are satisfied",
+      "phase": "input",
+      "priority": 50,
+      "family": "Applicability",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "cms_controls_satisfied": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": ["CMS_INTEROP_CONTROLS_SATISFIED"],
+      "obligation_ids": ["CMS-OBL-APPLICABILITY"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"],
+      "note": "Does NOT assert CMS compliance."
+    },
+    {
+      "rule_id": "CMS-R-OUT-RELEASE",
+      "name": "Allow output release when CMS input controls were satisfied",
+      "phase": "output",
+      "priority": 50,
+      "family": "Data Exchange",
+      "requirement_type": "DERIVED_CONTROL",
+      "conditions": {
+        "regulatory_applicability": "CMS",
+        "cms_applicability": "applicable",
+        "cms_controls_satisfied": true
+      },
+      "decision": "ALLOW_WITH_CONTROLS",
+      "reason_codes": ["CMS_OUTPUT_GOVERNANCE_SATISFIED"],
+      "obligation_ids": ["CMS-OBL-APPLICABILITY"],
+      "enigma_obligations": ["LOG_GOVERNANCE_EVENT"],
+      "sources": ["src_cms_interop"]
+    }
+  ]
+}

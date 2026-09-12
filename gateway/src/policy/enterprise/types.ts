@@ -91,6 +91,15 @@ export interface PolicyAIContext {
   agent_version?: string;
   tool_id?: string;
   tool_provider?: string;
+  /**
+   * Declared agent/tool action intent (request fact for evaluation/audit).
+   * Not an authorization grant — packs treat this as declared context only.
+   */
+  action?: {
+    kind: string;
+    target_id?: string;
+    attributes?: Record<string, unknown>;
+  };
   mcp_server_id?: string;
   requested_model?: string;
   available_models?: string[];

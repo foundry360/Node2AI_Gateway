@@ -213,6 +213,8 @@ export function validatePolicyVersion(meta: PackPolicyMeta | undefined): {
       'part2_pack_v1_output',
       'onc_hti1_pack_v1',
       'onc_hti1_pack_v1_output',
+      'cms_pack_v1',
+      'cms_pack_v1_output',
       'financial_overlay_v1',
       'legal_overlay_v1',
       'framework_stub',

@@ -73,7 +73,9 @@ describe('HIPAA v3.1 provenance & evidence hardening', () => {
     const prov = decision.explanation.provenance;
     expect(prov).toBeDefined();
     const rule = prov!.matched_rules.find(
-      (r) => r.rule_id === 'HIPAA-R-INPUT-WRITE-REQUIRE-APPROVAL',
+      (r) =>
+        r.rule_id === 'HIPAA-R-INPUT-WRITE-UNKNOWN-REQUIRE-APPROVAL' ||
+        r.rule_id === 'HIPAA-R-INPUT-WRITE-CLINICAL-NOTE-REQUIRE-APPROVAL',
     );
     expect(rule).toBeDefined();
     expect(rule!.obligation_ids).toEqual(

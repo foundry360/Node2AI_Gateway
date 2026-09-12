@@ -18,14 +18,14 @@ export interface PolicyDomain {
   pack_ids: string[];
 }
 
-/** Healthcare regulatory governance domain. HIPAA is Pack #1; Part 2 is Pack #2; ONC HTI-1 is Pack #3. */
+/** Healthcare regulatory governance domain. HIPAA #1; Part 2 #2; ONC HTI-1 #3; CMS #4. */
 export const HEALTHCARE_DOMAIN: PolicyDomain = {
   domain_id: 'healthcare',
   name: 'Healthcare',
   description:
-    'Healthcare regulatory governance domain. Contains versioned regulatory policy packs (HIPAA Pack #1, 42 CFR Part 2 Pack #2, ONC HTI-1 Pack #3). Not itself a policy pack or compliance checklist.',
+    'Healthcare regulatory governance domain. Contains versioned regulatory policy packs (HIPAA Pack #1, 42 CFR Part 2 Pack #2, ONC HTI-1 Pack #3, CMS Pack #4). Not itself a policy pack or compliance checklist.',
   status: 'active',
-  pack_ids: ['pack_hipaa', 'pack_42_cfr_part_2', 'pack_onc_hti1'],
+  pack_ids: ['pack_hipaa', 'pack_42_cfr_part_2', 'pack_onc_hti1', 'pack_cms'],
 };
 
 /** Cross-cutting AI risk / AI governance domain. Packs #3–#12 register here. */

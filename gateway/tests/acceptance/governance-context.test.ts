@@ -211,7 +211,7 @@ describe('Authorization vs governance context', () => {
     );
   });
 
-  it('Genuine policy conflicts still unresolved → REVIEW', () => {
+  it('Genuine ALLOW + DENY resolves to DENY by consequence', () => {
     const resolved = resolvePackContributions([
       contrib({
         pack_id: 'pack_nist_ai_rmf',
@@ -224,8 +224,8 @@ describe('Authorization vs governance context', () => {
         decision: 'DENY',
       }),
     ]);
-    expect(resolved.decision).toBe('REVIEW');
-    expect(resolved.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(resolved.decision).toBe('DENY');
+    expect(resolved.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
   });
 });
 

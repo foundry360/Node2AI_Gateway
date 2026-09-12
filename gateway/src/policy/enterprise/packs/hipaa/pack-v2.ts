@@ -12,6 +12,7 @@ import {
   type ClassificationProvenance,
   type PackProvenanceGraph,
 } from '../../provenance.js';
+import { deriveWriteGovernanceClass } from './write-field-class.js';
 
 const packRuntime = loadHipaaPackSources();
 const rulesBundle = packRuntime.rules.length > 0 ? packRuntime.rules : HIPAA_RULES;
@@ -496,6 +497,17 @@ function matchInputRule(
   if (Array.isArray(c.operation_in) && !c.operation_in.includes(facts.operation)) {
     return false;
   }
+  if (Array.isArray(c.tool_id_in)) {
+    if (!facts.tool_id || !c.tool_id_in.includes(facts.tool_id)) return false;
+  }
+  if (Array.isArray(c.action_kind_in)) {
+    if (!facts.action_kind || !c.action_kind_in.includes(facts.action_kind)) {
+      return false;
+    }
+  }
+  if (c.write_governance_class != null) {
+    if (facts.write_governance_class !== c.write_governance_class) return false;
+  }
   if (c.has_entity_spans && !facts.has_entity_spans && !(facts.entity_types?.length)) {
     return false;
   }
@@ -775,15 +787,20 @@ export function applyHipaaPackV3Input(
   const env = processingEnvironment(facts, current);
   const controlsOk = requiredControlsSatisfied(facts, env);
   const evidenceOk = evidenceSufficient(facts);
+  const writeClass = deriveWriteGovernanceClass(facts);
+  const enrichedFacts: HipaaPackFacts = {
+    ...facts,
+    ...(writeClass ? { write_governance_class: writeClass } : {}),
+  };
 
   const inputRules = rulesBundle
     .filter((r) => r.phase === 'input')
     .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
-  const authState = authorizationContextState(facts.authorization_context);
-  const agentState = agentAuthorizationState(facts);
-  const toolState = toolAuthorizationState(facts);
-  const excess = excessEntityTypes(facts);
+  const authState = authorizationContextState(enrichedFacts.authorization_context);
+  const agentState = agentAuthorizationState(enrichedFacts);
+  const toolState = toolAuthorizationState(enrichedFacts);
+  const excess = excessEntityTypes(enrichedFacts);
 
   let result: InterpretedResult = {
     ...current,
@@ -793,26 +810,35 @@ export function applyHipaaPackV3Input(
       `processing_environment:${env}`,
       `required_controls_satisfied:${controlsOk}`,
       `evidence_sufficient:${evidenceOk}`,
-      `purpose:${normalizePurpose(facts.purpose)}`,
+      `purpose:${normalizePurpose(enrichedFacts.purpose)}`,
       `authorization_context:${authState}`,
       `agent_authorization:${agentState}`,
       `tool_authorization:${toolState}`,
-      ...(facts.agent_id ? [`agent_id:${facts.agent_id}`] : []),
-      ...(facts.tool_id ? [`tool_id:${facts.tool_id}`] : []),
+      ...(enrichedFacts.agent_id ? [`agent_id:${enrichedFacts.agent_id}`] : []),
+      ...(enrichedFacts.tool_id ? [`tool_id:${enrichedFacts.tool_id}`] : []),
+      ...(enrichedFacts.action_kind
+        ? [`action_kind:${enrichedFacts.action_kind}`]
+        : []),
+      ...(typeof enrichedFacts.action_attributes?.field === 'string'
+        ? [`action_field:${enrichedFacts.action_attributes.field}`]
+        : []),
+      ...(enrichedFacts.write_governance_class
+        ? [`write_governance_class:${enrichedFacts.write_governance_class}`]
+        : []),
       ...(excess.length ? [`excess_entity_types:${excess.join(',')}`] : []),
     ],
     provenance: {
       matched_rules: current.provenance?.matched_rules ?? [],
       sources: current.provenance?.sources,
-      classification: classificationProvenanceFromFacts(facts),
+      classification: classificationProvenanceFromFacts(enrichedFacts),
       controls: current.provenance?.controls,
       enforcement: current.provenance?.enforcement,
     },
   };
 
   for (const rule of inputRules) {
-    if (!matchInputRule(rule, facts, env, controlsOk, evidenceOk)) continue;
-    result = applyRule(rule, meta, result, facts);
+    if (!matchInputRule(rule, enrichedFacts, env, controlsOk, evidenceOk)) continue;
+    result = applyRule(rule, meta, result, enrichedFacts);
     if (
       result.decision === 'DENY' ||
       result.decision === 'REVIEW' ||

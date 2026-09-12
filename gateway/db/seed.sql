@@ -11,7 +11,7 @@ INSERT INTO applications (
   'app_clinical', 'org_demo', 'Approved Clinical App', 'clinical', 'prod', 'active', 'trusted',
   '["local-general-v1"]'::jsonb,
   '["ds_clinical_notes"]'::jsonb,
-  '["summarize","classify","generate"]'::jsonb
+  '["summarize","classify","generate","write"]'::jsonb
 ),
 (
   'app_limited', 'org_demo', 'Limited App', 'custom', 'prod', 'active', 'standard',

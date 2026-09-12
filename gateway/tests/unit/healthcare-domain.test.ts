@@ -134,7 +134,7 @@ describe('Healthcare Policy Domain — architecture', () => {
     unregisterOverlayInterpreter(MOCK_INTERPRETER);
     const domain = getPolicyDomain('healthcare');
     if (domain) {
-      domain.pack_ids = ['pack_hipaa', 'pack_42_cfr_part_2', 'pack_onc_hti1'];
+      domain.pack_ids = ['pack_hipaa', 'pack_42_cfr_part_2', 'pack_onc_hti1', 'pack_cms'];
     }
   });
 

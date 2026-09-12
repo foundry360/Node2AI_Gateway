@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "sources": [
+    {
+      "source_id": "src_cms_interop",
+      "id": "src_cms_interop",
+      "authority": "CMS Interoperability and Prior Authorization Final Rule — API / data exchange / access concepts",
+      "authority_tier": 2,
+      "authority_type": "PRIMARY",
+      "legal_authority": true,
+      "authority_id": "auth_cms",
+      "title": "CMS Interoperability and Prior Authorization Final Rule (and related CMS interoperability API requirements)",
+      "publisher": "Centers for Medicare & Medicaid Services (CMS)",
+      "citation": "CMS Interoperability and Prior Authorization Final Rule — Patient Access, Provider Access, Payer-to-Payer, Prior Authorization APIs",
+      "canonical_url": "https://www.cms.gov/priorities/key-initiatives/burden-reduction/interoperability/policies-and-regulations/cms-interoperability-and-prior-authorization-final-rule-cms-0057-f",
+      "note": "Enigma maps selected interoperability / access / PA workflow / AI-agent governance concepts into runtime policy. Not a compliance determination."
+    }
+  ]
+}

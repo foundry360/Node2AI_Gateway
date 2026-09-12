@@ -84,6 +84,8 @@ const BASIS_LABELS: Record<string, string> = {
   AGREEMENT: 'Contributing policies reached the same decision.',
   COMPOSE_RESTRICTIVE:
     'Compatible outcomes were composed; the more restrictive result applies.',
+  CONSEQUENCE_DENY:
+    'An applicable policy required denial; permissive contributions cannot weaken that consequence.',
   DECLARED_POLICY_PRECEDENCE:
     'A declared policy precedence relationship resolved the conflict.',
   PACK_PRIORITY: 'Pack priority resolved the conflict.',
@@ -159,6 +161,14 @@ export function buildOperatorNarrative(
       `Contributing policies produced compatible allow/transform outcomes with distinct controls. ` +
       `${lines.join('; ')}. ` +
       `Compatible controls were combined. Machine decision: ${decision}.`
+    );
+  }
+
+  if (category === 'RESTRICTIVE' && resolution.basis === 'CONSEQUENCE_DENY') {
+    return (
+      `An applicable policy required denial. ` +
+      `${lines.join('; ')}. ` +
+      `Permissive contributions cannot weaken an explicit denial consequence. Machine decision: ${decision}.`
     );
   }
 

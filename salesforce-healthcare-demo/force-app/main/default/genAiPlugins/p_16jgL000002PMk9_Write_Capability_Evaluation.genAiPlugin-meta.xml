@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <GenAiPlugin xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <canEscalate>false</canEscalate>
-    <description>LEGACY — Do not select for normal clinician asks. Write governance runs inside Clinical Note Update and Patient Field Update. Kept only for diagnostics.</description>
+    <description>LEGACY. Do not select for normal clinician asks. Write governance runs inside Clinical Note Update and Patient Field Update. Kept only for diagnostics.</description>
     <developerName>p_16jgL000002PMk9_Write_Capability_Evaluation</developerName>
     <genAiFunctions>
         <functionName>Enigma_Evaluate_Write_Capability_Change</functionName>

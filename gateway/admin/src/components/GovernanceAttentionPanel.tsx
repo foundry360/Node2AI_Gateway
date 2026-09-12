@@ -255,7 +255,7 @@ export function GovernanceAttentionPanel({
                       <td className="mono">
                         {e.resolution_category
                           ? formatFieldLabel(e.resolution_category)
-                          : '—'}
+                          : '-'}
                       </td>
                       <td>
                         <StatusBadge

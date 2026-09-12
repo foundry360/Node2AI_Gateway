@@ -77,12 +77,18 @@ export async function buildServer(opts: BuildServerOptions): Promise<FastifyInst
       interrogator: 'ready',
     },
     deployment_mode: opts.admin?.config.deploymentMode ?? 'connected',
-    note: 'AI execution only via POST /v1/ai/completions',
+    note: 'AI execution via POST /v1/ai/completions; governed actions via POST /v1/ai/actions',
   }));
 
   app.post('/v1/ai/completions', async (request, reply) => {
     const rawKey = extractBearer(request.headers.authorization);
     const result = await opts.orchestrator.completions(rawKey, request.body);
+    return reply.status(result.httpStatus).send(result.body);
+  });
+
+  app.post('/v1/ai/actions', async (request, reply) => {
+    const rawKey = extractBearer(request.headers.authorization);
+    const result = await opts.orchestrator.actions(rawKey, request.body);
     return reply.status(result.httpStatus).send(result.body);
   });
 

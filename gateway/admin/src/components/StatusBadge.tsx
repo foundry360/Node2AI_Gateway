@@ -27,7 +27,9 @@ function badgeKind(status: string): string {
     s === 'allow_if_controls' ||
     s === 'allow_with_controls' ||
     s === 'connected' ||
-    s === 'ready'
+    s === 'ready' ||
+    s === 'matched' ||
+    s === 'verified'
   ) {
     return 'badge-ok';
   }
@@ -42,7 +44,8 @@ function badgeKind(status: string): string {
     s === 'block_output' ||
     s === 'unavailable' ||
     s === 'degraded' ||
-    s === 'failed'
+    s === 'failed' ||
+    s === 'mismatch'
   ) {
     return 'badge-bad';
   }
@@ -53,6 +56,7 @@ function badgeKind(status: string): string {
     s === 'memory' ||
     s === 'unknown' ||
     s === 'not_executed' ||
+    s === 'not_applicable' ||
     s === 'controls_applied' ||
     s === 'tokenize' ||
     s === 'redact' ||

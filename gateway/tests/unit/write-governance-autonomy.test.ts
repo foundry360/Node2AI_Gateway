@@ -127,7 +127,7 @@ describe('Write governance — governed autonomy', () => {
     expect(String(decision.decision).toUpperCase()).not.toBe('REVIEW');
   });
 
-  it('3. High-risk PHI WRITE with explicit approval policy → REVIEW/REQUIRE_APPROVAL', async () => {
+  it('3. High-risk / unspecified PHI WRITE → REVIEW/REQUIRE_APPROVAL', async () => {
     const repo = new InMemoryPolicyRepository();
     const pdp = new PackBackedEnterprisePdp(repo);
     const decision = await pdp.evaluateLegacyRequest({
@@ -151,6 +151,73 @@ describe('Write governance — governed autonomy', () => {
       String(decision.decision).toUpperCase(),
     );
     expect(decision.reason_codes).toContain('HIPAA_PHI_WRITE_REQUIRES_APPROVAL');
+  });
+
+  it('3b. Clinical-note PHI WRITE → REVIEW with clinical reason', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user,
+      application: clinicalApp,
+      operation: 'write',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'PHI',
+        confidence: 0.99,
+        risk: 'high',
+        reason_codes: ['REGULATORY_APPLICABILITY:HIPAA'],
+      },
+      deploymentMode: 'connected',
+      purpose: 'treatment',
+      authorization_context: 'authorized',
+      tool_id: 'update_clinical_notes',
+      governance_context: {
+        tool_authorized: true,
+        agent_authorized: true,
+      },
+      action: { kind: 'clinical_note' },
+    });
+    expect(decision.decision).toBe('REVIEW');
+    expect(decision.reason_codes).toContain(
+      'HIPAA_PHI_CLINICAL_WRITE_REQUIRES_APPROVAL',
+    );
+  });
+
+  it('3c. Administrative phone field PHI WRITE → ALLOW with audit', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user,
+      application: clinicalApp,
+      operation: 'write',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'PHI',
+        confidence: 0.99,
+        risk: 'medium',
+        reason_codes: ['REGULATORY_APPLICABILITY:HIPAA'],
+      },
+      deploymentMode: 'connected',
+      purpose: 'treatment',
+      authorization_context: 'authorized',
+      tool_id: 'update_patient_field',
+      governance_context: {
+        tool_authorized: true,
+        agent_authorized: true,
+      },
+      action: {
+        kind: 'field_update',
+        attributes: { field: 'phone', value: '555-0100' },
+      },
+    });
+    expect(decision.decision).toBe('ALLOW');
+    expect(decision.reason_codes).toContain(
+      'HIPAA_PHI_ADMINISTRATIVE_WRITE_ALLOWED',
+    );
   });
 
   it('4. Prohibited PHI externalize → DENY', async () => {

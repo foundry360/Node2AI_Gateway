@@ -248,6 +248,57 @@ Legacy interface `PolicyEngine` remains until cutover so existing orchestrator t
 
 ---
 
+## Model authorization evidence (durable)
+
+Model facts are distinct and must not be collapsed:
+
+```text
+Registered (Models registry)
+    ↓
+Available (active registry IDs offered to EPA as availableModels)
+    ↓
+Policy Eligible (EPA restrictions.eligible_models — per-request authorization)
+    ↓
+Selected (selectEligibleModel within eligible set)
+    ↓
+Executed (Model Gateway + audit model_selected / provider)
+```
+
+**Persistence:** Input-phase `policy_evaluations` stores `restrictions.eligible_models` as an immutable snapshot of what EPA authorized (including explicit `[]`). Historical hydration must restore that snapshot — never recalculate from the current registry, allowlists, or policy versions.
+
+**Correlation:** Gateway audit records `model_selected` and `provider` for the same `request_id`. Input evaluation is the authority for eligibility; audit may bind integrity to the output evaluation id while retaining `metadata.evaluation_id` for the input decision.
+
+---
+
+## Governed action continuation (`resume_evaluation_id`)
+
+For client-commit writes (`POST /v1/ai/actions`), human approval authorizes **continuation of a specific governed Decision**. It does **not** create standing write permission for the user, application, agent, or tool.
+
+```text
+evaluation_id              → identifies the original governance Decision
+resume_evaluation_id       → continue that Decision after human AUTHORIZE
+```
+
+Canonical flow:
+
+```text
+write request → REVIEW Decision → human AUTHORIZE → resume_evaluation_id → commit_allowed
+```
+
+Semantics:
+
+- A valid resume references the original `evaluation_id`; it does **not** create a second independent policy Decision.
+- Machine `decision` remains `REVIEW`; human resolution remains additive (`AUTHORIZE` → final ALLOW); execution becomes `RESUMED`.
+- Resume is bound to material action context (subject, application, agent, tool, operation, action kind/attributes, purpose, authorization context) — not to exact message payload text.
+- An authorized Decision is **single-use** for client commit: after successful resume, replay returns `ALREADY_RESUMED` (not a permanent authorization token).
+
+Precedence:
+
+1. **Explicit `resume_evaluation_id`** — validate that Decision; on failure, return a safe error. Do **not** fall through to content matching.
+2. **Exact-content AUTHORIZE match** — transitional fallback only when `resume_evaluation_id` is omitted.
+
+---
+
 ## Fail-closed contract
 
 If `evaluate` throws or returns indeterminate authorization:

@@ -330,9 +330,9 @@ describe('NIST Privacy Framework Pack #14', () => {
         decision: 'DENY',
       }),
     ]);
-    expect(unresolved.resolution.category).toBe('UNRESOLVED');
-    expect(unresolved.decision).toBe('REVIEW');
-    expect(unresolved.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(unresolved.resolution.category).toBe('RESTRICTIVE');
+    expect(unresolved.decision).toBe('DENY');
+    expect(unresolved.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
 
     const review = sampleReview();
     const authorized = withHumanResolution(

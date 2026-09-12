@@ -304,9 +304,9 @@ describe('ISO/IEC 23894 Pack #7', () => {
         reason_codes: ['HIPAA_DENY'],
       }),
     ]);
-    expect(resolved.resolution.category).toBe('UNRESOLVED');
-    expect(resolved.decision).toBe('REVIEW');
-    expect(resolved.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(resolved.resolution.category).toBe('RESTRICTIVE');
+    expect(resolved.decision).toBe('DENY');
+    expect(resolved.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
   });
 
   it('27–30. Historical evaluation + live path + explanation', async () => {

@@ -71,7 +71,7 @@ import type { AdminCapability } from '../admin/roles.js';
 import { parseAdminRole } from '../admin/roles.js';
 
 
-/** Demo clinical application target — seeded write_capability:false baseline. */
+/** Demo clinical application target - seeded write_capability:false baseline. */
 export const AGENT_ENIGMA_CLINICAL_TARGET_ID = 'agent_enigma_clinical';
 
 /** Insights: keep LLM responses short and abandon slow CPU inference. */
@@ -112,7 +112,7 @@ export interface AdminContext {
   policyRepository?: PolicyRepository;
   /** Pack-backed PDP for simulate/validate (M3+). */
   packPdp?: PackBackedEnterprisePdp;
-  /** Live Gateway orchestrator — post-AUTHORIZE resume only. */
+  /** Live Gateway orchestrator - post-AUTHORIZE resume only. */
   orchestrator?: import('./orchestrator.js').GatewayOrchestrator;
   db?: PgQueryable;
   checkDatabase?: () => Promise<DatabaseHealth>;
@@ -522,7 +522,7 @@ export function registerAdminRoutes(
     if (!credential) {
       return { configured: false, provider_credential: null };
     }
-    // Never return plaintext secrets after storage — metadata only.
+    // Never return plaintext secrets after storage - metadata only.
     return {
       configured: true,
       provider_credential: {
@@ -691,7 +691,7 @@ export function registerAdminRoutes(
         status: issued.record.status,
       },
       secret: issued.secret,
-      note: 'Store this secret now — it will not be shown again.',
+      note: 'Store this secret now. It will not be shown again.',
     });
   });
 
@@ -868,6 +868,7 @@ export function registerAdminRoutes(
       deriveDecisionConsequence,
       projectRequestContext,
       projectHeldRequestPreview,
+      projectModelGovernance,
     } = await import('../policy/enterprise/evaluation-query.js');
     const { projectEnforcementResult, findAuditForEvaluation } = await import(
       '../policy/enterprise/enforcement-projection.js'
@@ -892,10 +893,26 @@ export function registerAdminRoutes(
     if (review_state === 'resolved') {
       consequence.requires_review = false;
     }
-    const audit = findAuditForEvaluation(record, await ctx.audit.list());
+    const events = await ctx.audit.list();
+    const audit = findAuditForEvaluation(record, events);
     const enforcement = projectEnforcementResult(record, audit);
     const request_context = projectRequestContext(record);
     const held_request_preview = projectHeldRequestPreview(record);
+
+    // Model authorization authority is the input evaluation for a request.
+    // Output evaluations must not be treated as the eligibility record.
+    let authorizationRecord = record;
+    if (record.phase === 'output' && record.request_id && ctx.policyRepository.listEvaluations) {
+      const siblings = await Promise.resolve(
+        ctx.policyRepository.listEvaluations({ limit: 200 }),
+      );
+      const inputSibling = siblings.find(
+        (r) => r.request_id === record.request_id && r.phase === 'input',
+      );
+      if (inputSibling) authorizationRecord = inputSibling;
+    }
+    const model_governance = projectModelGovernance(authorizationRecord, audit);
+
     return {
       source: 'policy_evaluations',
       evaluation: record,
@@ -904,6 +921,7 @@ export function registerAdminRoutes(
       enforcement,
       request_context,
       held_request_preview,
+      model_governance,
       execution: {
         mode: request_context.execution_mode,
         phase: record.phase,
@@ -1894,7 +1912,7 @@ export function registerAdminRoutes(
           source = 'local_model';
         }
       } catch {
-        // Keep heuristic items — console must stay usable when inference fails/times out.
+        // Keep heuristic items - console must stay usable when inference fails/times out.
       }
     }
 

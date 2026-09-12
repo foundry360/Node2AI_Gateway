@@ -1,6 +1,6 @@
 /**
  * Scenario lab for Enigma governance demos.
- * Salesforce only supplies request fields — Enigma remains the decision authority.
+ * Salesforce only supplies request fields. Enigma remains the decision authority.
  */
 public with sharing class EnigmaScenarioController {
     public class ScenarioDef {
@@ -75,7 +75,7 @@ public with sharing class EnigmaScenarioController {
             def(
                 'phi_cloud_tokenize',
                 'PHI + cloud + evidence → TOKENIZE',
-                'Evidence allows TOKENIZE→cloud. Output is governed independently — residual plaintext PHI is blocked.',
+                'Evidence allows TOKENIZE→cloud. Output is governed independently - residual plaintext PHI is blocked.',
                 'TOKENIZE input; then APPROVE or BLOCK residual PHI',
                 'cloud-public-gpt',
                 'treatment',
@@ -161,9 +161,9 @@ public with sharing class EnigmaScenarioController {
         if (raw.reasonCode == 'INVALID_RESPONSE' || raw.status == 'error') {
             result.matchedExpectation = false;
             if (String.isBlank(result.message)) {
-                result.message = 'Callout failed (tunnel/network) — not a policy decision.';
+                result.message = 'Callout failed (tunnel/network) - not a policy decision.';
             } else if (!result.message.contains('Callout') && !result.message.contains('tunnel')) {
-                result.message = result.message + ' (callout/transport — not a policy miss)';
+                result.message = result.message + ' (callout/transport - not a policy miss)';
             }
         }
         return result;

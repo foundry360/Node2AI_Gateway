@@ -3,6 +3,7 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DecisionExplanationView } from '@/components/DecisionExplanationView';
 import { DecisionConsequencePanel } from '@/components/DecisionConsequencePanel';
+import { DecisionModelGovernancePanel } from '@/components/DecisionModelGovernancePanel';
 import { DecisionDetailTabs } from '@/components/DecisionDetailTabs';
 import {
   DecisionReviewPanel,
@@ -74,6 +75,20 @@ type RequestContext = {
   organization_id?: string;
   model?: string;
   intent?: string;
+  user_id?: string;
+  agent_id?: string;
+  tool_id?: string;
+};
+
+type ModelGovernance = {
+  authorization_evaluation_id?: string;
+  authorization_phase?: string;
+  requested_model?: string;
+  eligible_models: string[] | null;
+  eligibility: 'authorized' | 'none_authorized' | 'not_recorded';
+  selected_model?: string;
+  provider?: string;
+  authorization_match: 'matched' | 'mismatch' | 'unknown' | 'not_applicable';
 };
 
 type EvaluationDetailResponse = {
@@ -92,6 +107,7 @@ type EvaluationDetailResponse = {
   enforcement?: Enforcement;
   request_context?: RequestContext;
   held_request_preview?: HeldRequestPreview | null;
+  model_governance?: ModelGovernance;
   execution?: {
     mode?: 'simulation' | 'live';
     phase?: string;
@@ -137,6 +153,7 @@ export default async function EvaluationDetailPage({
   const review = data?.review;
   const requestContext = data?.request_context;
   const heldRequestPreview = data?.held_request_preview ?? null;
+  const modelGovernance = data?.model_governance;
   const execution = data?.execution;
   const showReview =
     review?.review_state === 'pending' ||
@@ -263,7 +280,7 @@ export default async function EvaluationDetailPage({
       <DecisionDetailTabs
         showPreview
         showContext={Boolean(requestContext)}
-        showPolicy={Boolean(decision || consequence)}
+        showPolicy={Boolean(decision || consequence || modelGovernance)}
         showReview={showReview}
         defaultTab={
           review?.review_state === 'pending'
@@ -284,33 +301,47 @@ export default async function EvaluationDetailPage({
             <DecisionExplanationView
               decision={decision}
               afterTop={
-                consequence ? (
-                  <DecisionConsequencePanel
-                    decision={decision?.decision ?? record?.decision}
-                    finalDecision={review?.final_decision ?? undefined}
-                    humanDisposition={
-                      review?.human_resolution?.human_disposition
-                    }
-                    consequence={consequence}
-                    enforcement={enforcement}
-                    requiredControls={requiredControls}
-                    executionMode={
-                      requestContext?.execution_mode ?? execution?.mode
-                    }
-                  />
+                modelGovernance || consequence ? (
+                  <div className="decision-evidence-stack">
+                    {modelGovernance ? (
+                      <DecisionModelGovernancePanel governance={modelGovernance} />
+                    ) : null}
+                    {consequence ? (
+                      <DecisionConsequencePanel
+                        decision={decision?.decision ?? record?.decision}
+                        finalDecision={review?.final_decision ?? undefined}
+                        humanDisposition={
+                          review?.human_resolution?.human_disposition
+                        }
+                        consequence={consequence}
+                        enforcement={enforcement}
+                        requiredControls={requiredControls}
+                        executionMode={
+                          requestContext?.execution_mode ?? execution?.mode
+                        }
+                      />
+                    ) : null}
+                  </div>
                 ) : undefined
               }
             />
-          ) : consequence ? (
-            <DecisionConsequencePanel
-              decision={record?.decision}
-              finalDecision={review?.final_decision ?? undefined}
-              humanDisposition={review?.human_resolution?.human_disposition}
-              consequence={consequence}
-              enforcement={enforcement}
-              requiredControls={requiredControls}
-              executionMode={requestContext?.execution_mode ?? execution?.mode}
-            />
+          ) : modelGovernance || consequence ? (
+            <div className="decision-evidence-stack">
+              {modelGovernance ? (
+                <DecisionModelGovernancePanel governance={modelGovernance} />
+              ) : null}
+              {consequence ? (
+                <DecisionConsequencePanel
+                  decision={record?.decision}
+                  finalDecision={review?.final_decision ?? undefined}
+                  humanDisposition={review?.human_resolution?.human_disposition}
+                  consequence={consequence}
+                  enforcement={enforcement}
+                  requiredControls={requiredControls}
+                  executionMode={requestContext?.execution_mode ?? execution?.mode}
+                />
+              ) : null}
+            </div>
           ) : null
         }
         review={

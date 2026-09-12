@@ -5,7 +5,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 export type ActionReviewPresentation = {
   kind: 'runtime' | 'lifecycle_change';
   headline: string;
-  /** End-user business ask retained for review — never capability justification. */
+  /** End-user business ask retained for review - never capability justification. */
   prompt?: string;
   why_reviewing: string;
   decision: {
@@ -73,7 +73,7 @@ function promptFromSystemBrief(content: string): string | undefined {
   return prompt && !looksLikeNotUserAsk(prompt) ? prompt : undefined;
 }
 
-/** Prompt = what the user asked the agent to do — not write justification. */
+/** Prompt = what the user asked the agent to do - not write justification. */
 function resolvePrompt(preview: HeldRequestPreview): string | undefined {
   const fromAction = preview.action_review?.prompt?.trim();
   if (fromAction && !looksLikeNotUserAsk(fromAction)) return fromAction;
@@ -100,7 +100,7 @@ function resolvePrompt(preview: HeldRequestPreview): string | undefined {
 }
 
 /**
- * Request Review — show the user’s ask to the agent (resolution is on Human Review).
+ * Request Review - show the user’s ask to the agent (resolution is on Human Review).
  */
 export function DecisionRequestPreviewPanel({
   preview,

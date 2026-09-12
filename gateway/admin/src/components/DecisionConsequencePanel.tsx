@@ -135,12 +135,12 @@ async function loadAuditEvent(opts: {
   const events = data.events ?? [];
   if (opts.auditId) {
     const match = events.find((e) => e.audit_id === opts.auditId);
-    if (!match) throw new Error('Observability event not found in recent trail');
+    if (!match) throw new Error('Audit event not found in recent trail');
     return match;
   }
   if (opts.requestId) {
     const match = events.find((e) => e.request_id === opts.requestId);
-    if (!match) throw new Error('No observability event found for this request');
+    if (!match) throw new Error('No audit event found for this request');
     return match;
   }
   throw new Error('No audit reference available');
@@ -188,7 +188,7 @@ export function DecisionConsequencePanel({
       });
       setAuditEvent(event);
     } catch (err) {
-      setAuditError(err instanceof Error ? err.message : 'Failed to open observability');
+      setAuditError(err instanceof Error ? err.message : 'Failed to open audit');
     } finally {
       setAuditBusy(false);
     }
@@ -242,7 +242,7 @@ export function DecisionConsequencePanel({
               {formatDisplayDateTime(enforcement.occurred_at)}
             </AttrRow>
           ) : null}
-          <AttrRow label="Observability">
+          <AttrRow label="Audit">
             {canOpenAudit ? (
               <span>
                 <button
@@ -251,7 +251,7 @@ export function DecisionConsequencePanel({
                   onClick={() => void openAudit()}
                   disabled={auditBusy}
                 >
-                  {auditBusy ? 'Opening…' : 'Open Observability'}
+                  {auditBusy ? 'Opening…' : 'Open Audit'}
                 </button>
                 <span className="mono muted">
                   {' '}

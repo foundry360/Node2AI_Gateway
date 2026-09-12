@@ -13,7 +13,7 @@ export default class EnigmaPatientCopilot extends LightningElement {
       role: 'assistant',
       cssClass: 'bubble bubble-assistant',
       text:
-        'I can help with this patient. Ask me to summarize the chart, add a clinical note, or update phone/email. Writes are governed by Enigma automatically.'
+        'I’m this patient’s clinical copilot. Ask chart questions, request a summary, add notes, or update fields. Enigma governs model calls and writes.'
     }
   ];
   draft = '';

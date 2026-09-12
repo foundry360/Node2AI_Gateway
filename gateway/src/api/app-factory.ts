@@ -168,7 +168,7 @@ export function createPhase1Seed(): {
     // policy still DENYs PHI+cloud without governance evidence + TOKENIZE.
     allowed_models: ['local-general-v1', 'cloud-public-gpt'],
     allowed_datasets: ['ds_clinical_notes'],
-    allowed_operations: ['summarize', 'classify', 'generate'],
+    allowed_operations: ['summarize', 'classify', 'generate', 'write'],
   };
 
   const restrictedModelApp: Application = {

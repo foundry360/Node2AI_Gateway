@@ -182,7 +182,7 @@ export function ComplianceScoreCard() {
         <div>
           <h3 className="action-items-title">Policy posture</h3>
           <p className="action-items-lede muted">
-            Priority framework coverage from loaded policy packs — not a certification score.
+            Priority framework coverage from loaded policy packs, not a certification score.
           </p>
         </div>
         <button

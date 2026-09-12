@@ -29,7 +29,7 @@ export default async function ModelsPage() {
     <div>
       <PageHeader
         title="Models"
-        lede="Register local and cloud models. Policy decides eligibility at request time."
+        lede="Register local and cloud models available to this appliance. Policy decides eligibility for each request. Authorization appears on Decisions, not here."
         actions={<ModelRegisterDrawer />}
       />
       {error ? <div className="error">{error}</div> : null}
@@ -38,7 +38,9 @@ export default async function ModelsPage() {
           <div className="settings-section-aside">
             <h2 className="settings-section-title">Registered models</h2>
             <p className="settings-section-explainer">
-              Models available for policy evaluation and routing at request time.
+              Available AI model substrate. Registration and active status do not
+              authorize a model for a request; that is decided by policy and
+              recorded on the Decision.
             </p>
           </div>
           <div className="settings-section-data">

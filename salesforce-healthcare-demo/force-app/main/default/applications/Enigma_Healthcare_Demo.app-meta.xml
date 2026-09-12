@@ -5,10 +5,12 @@
         <shouldOverrideOrgTheme>false</shouldOverrideOrgTheme>
     </brand>
     <description>Healthcare demo app that routes AI summaries through Enigma</description>
-    <formFactors>Large</formFactors>
     <formFactors>Small</formFactors>
+    <formFactors>Large</formFactors>
     <isNavAutoTempTabsDisabled>false</isNavAutoTempTabsDisabled>
     <isNavPersonalizationDisabled>false</isNavPersonalizationDisabled>
+    <isNavTabPersistenceDisabled>false</isNavTabPersistenceDisabled>
+    <isOmniPinnedViewEnabled>false</isOmniPinnedViewEnabled>
     <label>Enigma Healthcare Demo</label>
     <navType>Standard</navType>
     <profileActionOverrides>
@@ -26,6 +28,22 @@
         <pageOrSobjectType>Patient__c</pageOrSobjectType>
         <type>Flexipage</type>
         <profile>System Administrator</profile>
+    </profileActionOverrides>
+    <profileActionOverrides>
+        <actionName>View</actionName>
+        <content>Patient_Record_Page2</content>
+        <formFactor>Large</formFactor>
+        <pageOrSobjectType>Patient__c</pageOrSobjectType>
+        <type>Flexipage</type>
+        <profile>Admin</profile>
+    </profileActionOverrides>
+    <profileActionOverrides>
+        <actionName>View</actionName>
+        <content>Patient_Record_Page2</content>
+        <formFactor>Small</formFactor>
+        <pageOrSobjectType>Patient__c</pageOrSobjectType>
+        <type>Flexipage</type>
+        <profile>Admin</profile>
     </profileActionOverrides>
     <tabs>standard-home</tabs>
     <tabs>Scenario_Console</tabs>

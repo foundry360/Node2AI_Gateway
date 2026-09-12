@@ -1,8 +1,21 @@
 <template>
   <div class="copilot">
     <header class="copilot-header">
-      <h2 class="copilot-title">Clinical Copilot</h2>
-      <p class="copilot-sub">Conversational actions on this patient — Enigma governs writes.</p>
+      <div class="copilot-title-row">
+        <lightning-icon
+          icon-name="standard:bot"
+          size="small"
+          alternative-text="Clinical Copilot"
+          class="copilot-icon"
+        ></lightning-icon>
+        <div class="copilot-title-text">
+          <h2 class="copilot-title">Clinical Copilot</h2>
+          <p class="copilot-sub">
+            Summary agent for this chart. Ask questions, update fields, add notes.
+            Enigma governs every action.
+          </p>
+        </div>
+      </div>
     </header>
 
     <div class="copilot-messages" role="log" aria-live="polite">
@@ -32,6 +45,24 @@
       <button
         type="button"
         class="chip"
+        data-text="What allergies and active medications does this patient have?"
+        onclick={useSuggestion}
+        disabled={busy}
+      >
+        Allergies &amp; meds
+      </button>
+      <button
+        type="button"
+        class="chip"
+        data-text="What is the primary diagnosis and last visit?"
+        onclick={useSuggestion}
+        disabled={busy}
+      >
+        Diagnosis &amp; visit
+      </button>
+      <button
+        type="button"
+        class="chip"
         data-text="Add a note that diet compliance improved"
         onclick={useSuggestion}
         disabled={busy}
@@ -53,7 +84,7 @@
       <textarea
         class="copilot-input"
         rows="2"
-        placeholder="Ask about this patient…"
+        placeholder="Ask about this patient, or update a field…"
         value={draft}
         oninput={handleDraftChange}
         onkeydown={handleKeydown}

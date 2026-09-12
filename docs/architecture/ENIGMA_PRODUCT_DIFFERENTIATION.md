@@ -29,8 +29,9 @@ The Enigma product surface is the **Gateway admin console** (`gateway/admin`): a
 | Overview | `/` | Posture + insights + triage |
 | Applications | `/applications` | Governed callers of the gateway |
 | Policies | `/policies` | Policy packs / lifecycle |
-| Models | `/models` | Model registration / eligibility inputs |
-| Audit | `/audit` | Tamper-evident operational trail |
+| Decisions | `/decisions` | Authoritative governance decisions |
+| Models | `/models` | Model registration substrate (not authorization) |
+| Audit | `/audit` | Tamper-evident operational evidence trail |
 | System settings | `/system` | Appliance / DB / orgs |
 
 **Deep routes (not in sidebar)**
@@ -38,7 +39,7 @@ The Enigma product surface is the **Gateway admin console** (`gateway/admin`): a
 | Route | Role |
 | --- | --- |
 | `/policies/[policyId]` | Policy detail, Simulate, Evaluations list |
-| `/evaluations/[evaluationId]` | Historical decision intelligence |
+| `/evaluations/[evaluationId]` | Historical decision intelligence (opened from Decisions) |
 | `/applications/[applicationId]` | App posture, keys, allowlists |
 
 **Screens that do not exist (and should not be invented as GRC features)**
@@ -62,7 +63,7 @@ Assessments · Opportunities · Business Case · Outcomes hub · Intelligence hu
 | Evaluations list | Policy tab | What was decided historically? | PolicyEvaluationRecord | Decision index | DECIDE / PROVE | No | Yes | From `policy_evaluations` |
 | Evaluation detail | `/evaluations/:id` | Why this decision? | PolicyDecision projection | Decision intelligence | DECIDE / PROVE | No | Yes | Not first-class in nav |
 | DecisionExplanationView | Component | Why / who / what enforces? | explanation.operator/resolution/provenance | Explain multi-pack decisions | DECIDE / PROVE | No | Yes | Core differentiator |
-| Models | `/models` | What models can policy select? | Model, Provider | Registration | UNDERSTAND / ENFORCE | No | Yes | Eligibility substrate |
+| Models | `/models` | What models can policy select? | Model, Provider | Registration | UNDERSTAND / ENFORCE | No | Yes | Eligibility substrate; EPA authorizes per request; input `policy_evaluations.restrictions.eligible_models` is historical proof of authorization; Audit proves selection/execution |
 | Audit | `/audit` | What happened operationally? | AuditEvent | Integrity trail | PROVE (ops) | No | Yes | Not decision authority |
 | System | `/system` | How is the appliance configured? | System / DB | Ops | UNDERSTAND | No | Partial | Includes DB “connections” metric |
 | Compliance score card | Insights | How “compliant” are we? | Heuristic scores | Framework % | UNDERSTAND | **Yes** | Weak | Contradicts “not assessment” docs |
@@ -293,12 +294,33 @@ OUTCOME (end state)
 - Enforcement controls vs regulatory obligations  
 - Expandable evidence  
 
+### Decision evidence (current)
+
+Decision detail also surfaces:
+
+- **Model Governance** — requested / authorized (`policy_evaluations.restrictions.eligible_models`) / executed / provider / match verification  
+- **Enforcement Consequence** — Expected / Result / Verification + Audit link  
+- **Request Context** — subject → application → agent → tool → model → action when persisted  
+
+### Model authorization authority
+
+```text
+AVAILABLE (Models registry)
+        ≠
+ELIGIBLE  (policy_evaluations.restrictions.eligible_models)  ← historical authority
+        ≠
+SELECTED / EXECUTED (Gateway audit.model_selected + provider)
+```
+
+- `policy_evaluations.restrictions` is the authoritative historical authorization record.  
+- `evidence_in.restrictions` is compatibility / durability support only (not a separate UI concept).  
+- Historical eligibility is never recalculated from the current Models registry or active packs.  
+- Explicit `eligible_models = []` means no models authorized; missing / null means eligibility was not recorded (legacy).
+
 ### Still missing on the Decision surface
 
-- Explicit **Action** step (attempted transforms, block, detok)  
-- Explicit **Outcome** status  
-- First-class nav / Overview feed of Decisions  
-- Stronger link from Decision → Audit events for the same `request_id` / `evaluation_id`
+- Explicit **Action** transform inventory beyond enforcement summary  
+- List-level eligible/executed columns on `/decisions`
 
 Simulate and historical Evaluation should continue to share **one** explanation component (already true).
 

@@ -220,7 +220,7 @@ export function DecisionReviewPanel({
   contributingPacks?: string[];
   execution?: ResumeExecution | null;
   heldRequestPresent?: boolean;
-  /** lifecycle_change | runtime — from Request Review presentation */
+  /** lifecycle_change | runtime - from Request Review presentation */
   reviewKind?: 'runtime' | 'lifecycle_change';
 }) {
   const { busy, error, state, resume } = useDecisionReview();
@@ -255,7 +255,7 @@ export function DecisionReviewPanel({
             ? 'Authorize applies the proposed capability change. Deny leaves the current baseline in force. The machine decision stays on record.'
             : 'Authorize sets final ALLOW for this held request. Deny sets final DENY. The machine decision stays on record.'
           : isLifecycle
-            ? 'Authorization is complete. Retry the original action in the requesting application — no Gateway resume is required for capability changes.'
+            ? 'Authorization is complete. Retry the original action in the requesting application. No Gateway resume is required for capability changes.'
             : 'Machine decision stays immutable. After AUTHORIZE, resume only when a runtime request was retained for Gateway execution.'}
       </p>
 

@@ -10,7 +10,7 @@ import { ActivitySparklines } from '@/components/ApplicationSparklines';
 import { useConsoleTimeframe } from '@/components/ConsoleTabs';
 import { proxyJson } from '@/lib/client-api';
 
-/** Temporarily hide on Authority Console overview — keep components wired for later. */
+/** Temporarily hide on Authority Console overview - keep components wired for later. */
 const SHOW_RISK_AND_POSTURE_CARDS = false;
 const SHOW_GOVERNANCE_ATTENTION_CARD = false;
 const SHOW_TOP_ACTION_ITEMS_CARD = false;

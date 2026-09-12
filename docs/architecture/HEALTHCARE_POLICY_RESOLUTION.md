@@ -1,8 +1,10 @@
 # Healthcare Policy Resolution v0.1
 
-**Status:** Active  
+**Status:** Active (consequence model updated)  
 **Scope:** Generic multi-pack evaluation, conflict detection, precedence, combined provenance  
-**Packs in domain:** HIPAA v3.1 (Pack #1), 42 CFR Part 2 v1.0 (Pack #2)
+**Packs in domain:** HIPAA, 42 CFR Part 2, ONC/HTI-1, CMS
+
+**Authoritative consequence model:** [POLICY_CONSEQUENCE_RESOLUTION.md](./POLICY_CONSEQUENCE_RESOLUTION.md)
 
 Related:
 
@@ -17,17 +19,14 @@ Related:
 Packs contribute. The platform resolves. The gateway enforces.
 ```
 
-Regulatory intelligence stays in policy packs. Resolution is regulatory-agnostic:
+Regulatory intelligence stays in policy packs. Resolution is regulatory-agnostic and **consequence-based**:
 
 ```text
-pack · policy · rule · obligation · citation · source · authority
-precedence · conflict · control · decision
+Explicit DENY is never weakened by ALLOW / TOKENIZE / REVIEW from another pack.
 ```
 
 **Authority tier ≠ precedence.**  
-`authority_tier = 1` describes source authority. It does **not** automatically override another pack.
-
-**No universal Part 2 > HIPAA precedence.** Conflicts without declared precedence → `POLICY_CONFLICT_UNRESOLVED` → `REVIEW`.
+**No universal HIPAA > CMS / Part 2 > HIPAA ranking.**
 
 ---
 
@@ -38,16 +37,10 @@ Request
   → Context / Classification
   → Applicable Policy Packs (registry)
   → Independent Pack Contributions
-  → Generic Policy Resolver
+  → Generic Policy Resolver (consequence composition)
   → Final Decision + Controls
   → Gateway Enforcement
   → Audit / Provenance
-```
-
-```text
-HIPAA Pack ──┐
-Part 2 Pack ─┼──→ resolvePackContributions() ──→ Decision
-Pack N     ──┘
 ```
 
 Implementation:
@@ -57,81 +50,29 @@ Implementation:
 | Contribution + resolve | `gateway/src/policy/enterprise/policy-resolution.ts` |
 | Collect via registry | `overlay-registry.ts` → `applyRegisteredOverlays` |
 | Explanation / conflicts | `PolicyDecision.explanation.resolution`, `conflicts[]` |
+| Consequence model doc | `POLICY_CONSEQUENCE_RESOLUTION.md` |
 
 ---
 
-## Pack contribution
+## Conflict / consequence summary
 
-Each active overlay is applied to a **clone** of the baseline result. A contribution includes:
-
-```text
-pack_id, policy_id, policy_version
-decision, reason_codes
-rule_ids, obligation_ids, obligations
-controls, transforms
-provenance, precedence?, applicable
-```
-
-Skipped packs (not applicable) leave skip markers only.
-
----
-
-## Conflict model
-
-| Category | Meaning |
+| Pair | Result |
 | --- | --- |
-| `NONE` | No multi-pack interaction |
-| `AGREEMENT` | Same decision (e.g. DENY + DENY). Deny agreements stay AGREEMENT even when obligation sets differ. |
-| `COMPLEMENTARY` | Compatible allow/transform decisions with distinct obligations/controls |
-| `RESTRICTIVE` | Compatible stronger restriction (e.g. ALLOW + TOKENIZE → TOKENIZE) |
-| `CONFLICT` | Decisions cannot both be satisfied (e.g. ALLOW vs DENY) |
-| `UNRESOLVED` | CONFLICT without valid declared precedence |
+| DENY + DENY | AGREEMENT → DENY |
+| ALLOW + DENY | RESTRICTIVE → **DENY** (`CONSEQUENCE_DENY`) |
+| ALLOW + TOKENIZE | RESTRICTIVE → TOKENIZE |
+| ALLOW + REVIEW | RESTRICTIVE → REVIEW |
+| Distinct ALLOW obligations | COMPLEMENTARY → ALLOW (union) |
 
-**DENY + DENY is agreement, not conflict.**
+Non-applicable packs contribute nothing.
+
+All contributions remain in `resolution.contributions` for explainability.
 
 ---
 
 ## Precedence
 
-Declared on `PackPolicyMeta.precedence`:
-
-```json
-{
-  "priority": 100,
-  "basis": "DECLARED_POLICY_PRECEDENCE",
-  "overrides_pack_ids": ["pack_other"]
-}
-```
-
-Resolution of CONFLICT:
-
-1. Explicit `overrides_pack_ids` wins  
-2. Else both have priorities → higher `priority` wins  
-3. Else → `REVIEW` (`POLICY_CONFLICT_UNRESOLVED`)
-
-Authority tier on citations is **never** used as an automatic override.
-
----
-
-## Resolution outcomes
-
-Uses existing decision vocabulary: `ALLOW` | `TOKENIZE` | `DENY` | `REVIEW` | …
-
-Complementary example:
-
-```text
-Pack A: ALLOW + control X
-Pack B: ALLOW + control Y
-→ ALLOW, controls X+Y, category COMPLEMENTARY
-```
-
-Conflict without precedence:
-
-```text
-Pack A: ALLOW
-Pack B: DENY
-→ REVIEW + conflicts[]
-```
+`PackPolicyMeta.precedence` remains for rare declared policy-level conflicts that are not covered by consequence composition. It is **not** a regulatory hierarchy and **cannot** make ALLOW defeat DENY.
 
 ---
 
@@ -139,22 +80,4 @@ Pack B: DENY
 
 `explanation.provenance.matched_rules[]` retains **all** contributing packs’ rule → obligation → citation chains.
 
-`explanation.resolution` records category, basis, contributing pack ids, and per-contribution summaries.
-
----
-
-## Persistence
-
-Stored on existing `policy_evaluations.explanation` (includes `resolution` + provenance).  
-`conflicts` array maps to `PolicyConflictRecord` (aligns with `policy_conflicts` schema concepts). No new tables in v0.1.
-
----
-
-## Future pack onboarding
-
-1. Author pack + register interpreter  
-2. Optionally set `precedence` metadata  
-3. Contributions merge via registry + resolver  
-4. No PDP forks  
-
-Do not select the next real healthcare pack in this document.
+`explanation.resolution` records category, basis (`CONSEQUENCE_DENY` | `COMPOSE_RESTRICTIVE` | …), contributing pack ids, and per-contribution summaries.

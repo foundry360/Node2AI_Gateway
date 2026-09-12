@@ -49,6 +49,7 @@ const OPERATION_OPTIONS = [
   { value: 'summarize', label: 'Summarize' },
   { value: 'generate', label: 'Generate' },
   { value: 'classify', label: 'Classify' },
+  { value: 'write', label: 'Write' },
 ];
 
 export function ApplicationEditDrawer({
@@ -146,7 +147,6 @@ export function ApplicationEditDrawer({
                 <h2 id={`edit-app-${app.application_id}`} className="drawer-title">
                   Edit application
                 </h2>
-                <p className="drawer-sub mono">{app.application_id}</p>
               </div>
               <button
                 type="button"
@@ -322,7 +322,11 @@ export function ApplicationEditDrawer({
                   Provider API key
                   <SecretInput
                     name="provider_api_key"
-                    placeholder={providerCredential ? undefined : 'sk-…'}
+                    placeholder={
+                      providerCredential
+                        ? 'Enter a new key to replace the existing one'
+                        : 'sk-…'
+                    }
                     defaultValue={providerCredential?.api_key ?? ''}
                     defaultVisible={!providerCredential?.api_key}
                   />

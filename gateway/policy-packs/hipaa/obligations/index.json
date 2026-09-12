@@ -104,7 +104,12 @@
       "source_ids": ["src_45cfr164"],
       "related_ontology": ["action.update", "action.delete"],
       "related_controls": ["ctrl_no_write_back"],
-      "related_rules": ["HIPAA-R-INPUT-WRITE-REQUIRE-APPROVAL", "HIPAA-R-INPUT-EXTERNALIZE-DENY"],
+      "related_rules": [
+        "HIPAA-R-INPUT-WRITE-CLINICAL-NOTE-REQUIRE-APPROVAL",
+        "HIPAA-R-INPUT-WRITE-UNKNOWN-REQUIRE-APPROVAL",
+        "HIPAA-R-INPUT-WRITE-ADMIN-ALLOW-WITH-AUDIT",
+        "HIPAA-R-INPUT-EXTERNALIZE-DENY"
+      ],
       "enforcement_options": ["NO_WRITE_BACK", "REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION", "DENY"],
       "requirement_type": "REGULATORY_REQUIREMENT",
       "interpretation_status": "scoped_ai_governance"

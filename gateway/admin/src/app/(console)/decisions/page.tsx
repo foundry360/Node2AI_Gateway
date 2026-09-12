@@ -75,7 +75,7 @@ function machineDecisionLabel(decision: string | undefined): string {
   if (d === 'TRANSFORM' || d === 'TOKENIZE' || d === 'REDACT' || d === 'MASK') {
     return 'Transform required';
   }
-  return formatFieldLabel(decision) || '—';
+  return formatFieldLabel(decision) || '-';
 }
 
 function groupByRequest(rows: EvaluationRow[]): GroupedDecision[] {
@@ -107,7 +107,7 @@ function groupByRequest(rows: EvaluationRow[]): GroupedDecision[] {
 }
 
 function DecisionsListView() {
-  const [filter, setFilter] = useState<FilterId>('review');
+  const [filter, setFilter] = useState<FilterId>('all');
   const [rows, setRows] = useState<EvaluationRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -171,12 +171,12 @@ function DecisionsListView() {
     <div>
       <PageHeader
         title="Decisions"
-        lede="Exception queue and decision history. Human review appears only when policy requires approval — not for every Agent write."
+        lede="Exception queue and decision history."
       />
 
       {error ? <div className="error">{error}</div> : null}
 
-      <div className="console-tabs-bar">
+      <div className="console-tabs-bar decisions-tabs-bar">
         <div className="tabs" role="tablist" aria-label="Decision filters">
           {FILTERS.map((f) => (
             <button

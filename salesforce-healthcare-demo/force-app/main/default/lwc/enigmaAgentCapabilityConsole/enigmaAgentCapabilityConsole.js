@@ -128,13 +128,13 @@ export default class EnigmaAgentCapabilityConsole extends LightningElement {
         title: 'Enable write capability',
         matched,
         status: r.status || (r.success ? 'evaluated' : 'error'),
-        materiality: r.materiality || '—',
-        lifecycleDecision: r.lifecycleDecision || '—',
-        policyDecision: r.policyDecision || '—',
-        evaluationId: r.evaluationId || '—',
-        changeId: r.changeId || '—',
-        requestId: r.requestId || '—',
-        changeTypes: r.changeTypes || '—',
+        materiality: r.materiality || '-',
+        lifecycleDecision: r.lifecycleDecision || '-',
+        policyDecision: r.policyDecision || '-',
+        evaluationId: r.evaluationId || '-',
+        changeId: r.changeId || '-',
+        requestId: r.requestId || '-',
+        changeTypes: r.changeTypes || '-',
         message: r.message || ''
       };
       this.dispatchEvent(
@@ -151,13 +151,13 @@ export default class EnigmaAgentCapabilityConsole extends LightningElement {
         title: 'Enable write capability',
         matched: false,
         status: 'error',
-        materiality: '—',
-        lifecycleDecision: '—',
-        policyDecision: '—',
-        evaluationId: '—',
-        changeId: '—',
-        requestId: '—',
-        changeTypes: '—',
+        materiality: '-',
+        lifecycleDecision: '-',
+        policyDecision: '-',
+        evaluationId: '-',
+        changeId: '-',
+        requestId: '-',
+        changeTypes: '-',
         message
       };
       this.dispatchEvent(
@@ -182,14 +182,14 @@ export default class EnigmaAgentCapabilityConsole extends LightningElement {
       this.result = {
         title: 'Summarize via Enigma',
         matched: r.success === true && r.status === 'approved',
-        status: r.status || '—',
-        materiality: '—',
-        lifecycleDecision: '—',
-        policyDecision: r.policyDecision || '—',
-        evaluationId: '—',
-        changeId: '—',
-        requestId: r.requestId || '—',
-        changeTypes: '—',
+        status: r.status || '-',
+        materiality: '-',
+        lifecycleDecision: '-',
+        policyDecision: r.policyDecision || '-',
+        evaluationId: '-',
+        changeId: '-',
+        requestId: r.requestId || '-',
+        changeTypes: '-',
         message: r.summary || r.message || ''
       };
     } catch (e) {
@@ -197,13 +197,13 @@ export default class EnigmaAgentCapabilityConsole extends LightningElement {
         title: 'Summarize via Enigma',
         matched: false,
         status: 'error',
-        materiality: '—',
-        lifecycleDecision: '—',
-        policyDecision: '—',
-        evaluationId: '—',
-        changeId: '—',
-        requestId: '—',
-        changeTypes: '—',
+        materiality: '-',
+        lifecycleDecision: '-',
+        policyDecision: '-',
+        evaluationId: '-',
+        changeId: '-',
+        requestId: '-',
+        changeTypes: '-',
         message: e?.body?.message || e?.message || 'Summarize failed'
       };
     } finally {
@@ -232,13 +232,13 @@ export default class EnigmaAgentCapabilityConsole extends LightningElement {
         title: 'Update clinical notes',
         matched: r.success === true,
         status: r.success ? 'updated' : 'error',
-        materiality: '—',
-        lifecycleDecision: '—',
-        policyDecision: '—',
-        evaluationId: '—',
-        changeId: '—',
-        requestId: '—',
-        changeTypes: '—',
+        materiality: '-',
+        lifecycleDecision: '-',
+        policyDecision: '-',
+        evaluationId: '-',
+        changeId: '-',
+        requestId: '-',
+        changeTypes: '-',
         message: r.message || ''
       };
       this.dispatchEvent(
@@ -253,13 +253,13 @@ export default class EnigmaAgentCapabilityConsole extends LightningElement {
         title: 'Update clinical notes',
         matched: false,
         status: 'error',
-        materiality: '—',
-        lifecycleDecision: '—',
-        policyDecision: '—',
-        evaluationId: '—',
-        changeId: '—',
-        requestId: '—',
-        changeTypes: '—',
+        materiality: '-',
+        lifecycleDecision: '-',
+        policyDecision: '-',
+        evaluationId: '-',
+        changeId: '-',
+        requestId: '-',
+        changeTypes: '-',
         message: e?.body?.message || e?.message || 'Update failed'
       };
     } finally {

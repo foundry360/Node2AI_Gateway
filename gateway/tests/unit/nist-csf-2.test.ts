@@ -379,9 +379,9 @@ describe('NIST CSF 2.0 Pack #10', () => {
         reason_codes: ['HIPAA_DENY'],
       }),
     ]);
-    expect(conflict.resolution.category).toBe('UNRESOLVED');
-    expect(conflict.decision).toBe('REVIEW');
-    expect(conflict.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(conflict.resolution.category).toBe('RESTRICTIVE');
+    expect(conflict.decision).toBe('DENY');
+    expect(conflict.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
   });
 
   it('CSF ALLOW + other REVIEW → REVIEW; DENY contribution wins via unresolved/restrictive path', () => {

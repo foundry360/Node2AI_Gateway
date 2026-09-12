@@ -35,6 +35,9 @@ type RequestContext = {
   organization_id?: string;
   model?: string;
   intent?: string;
+  user_id?: string;
+  agent_id?: string;
+  tool_id?: string;
 };
 
 type Row = { label: string; value: string; mono?: boolean };
@@ -59,8 +62,23 @@ function rowsFromContext(
   if (ctx.request_id) {
     rows.push({ label: 'Request ID', value: ctx.request_id, mono: true });
   }
+  if (ctx.user_id) {
+    rows.push({ label: 'Subject', value: ctx.user_id, mono: true });
+  }
+  if (ctx.application_id) {
+    rows.push({ label: 'Application', value: ctx.application_id, mono: true });
+  }
+  if (ctx.agent_id) {
+    rows.push({ label: 'Agent', value: ctx.agent_id, mono: true });
+  }
+  if (ctx.tool_id) {
+    rows.push({ label: 'Tool', value: ctx.tool_id, mono: true });
+  }
   if (ctx.action) {
     rows.push({ label: 'Action', value: ctx.action, mono: true });
+  }
+  if (ctx.model) {
+    rows.push({ label: 'Requested Model', value: ctx.model, mono: true });
   }
   if (ctx.resource_type) {
     rows.push({
@@ -126,11 +144,7 @@ function rowsFromContext(
       value: formatFieldLabel(ctx.risk_level),
     });
   }
-  if (ctx.model) rows.push({ label: 'Model', value: ctx.model, mono: true });
   if (ctx.intent) rows.push({ label: 'Intent', value: ctx.intent });
-  if (ctx.application_id) {
-    rows.push({ label: 'Application', value: ctx.application_id, mono: true });
-  }
   if (ctx.organization_id) {
     rows.push({
       label: 'Organization',
@@ -166,7 +180,7 @@ export function DecisionRequestContextPanel({
         />
       </div>
       <p className="muted decision-panel-lede">
-        Context around this request - the operation and surrounding facts, such as summarizing or analysis. Missing fields are omitted.
+        Actor chain and request facts persisted with this evaluation.
       </p>
       <div className="request-context-grid">
         {rows.map((row) => (

@@ -5,8 +5,18 @@ if (cfg.Id == null || String.isBlank(cfg.Endpoint_URL__c)) {
   cfg.Endpoint_URL__c = 'https://efficiently-boxes-vacuum-shadows.trycloudflare.com';
   cfg.Application_Id__c = 'app_clinical';
   cfg.Api_Key__c = 'n2ai_test_key_approved_app';
-  cfg.Default_Model__c = 'local-general-v1';
+  cfg.Default_Model__c = 'cloud-public-gpt';
   upsert cfg;
+}
+
+// Prefer cloud public GPT for Clinical Copilot when config already exists.
+Enigma_Config__c liveCfg = Enigma_Config__c.getOrgDefaults();
+if (liveCfg.Id != null) {
+  liveCfg.Default_Model__c = 'cloud-public-gpt';
+  if (String.isBlank(liveCfg.Endpoint_URL__c)) {
+    liveCfg.Endpoint_URL__c = 'https://efficiently-boxes-vacuum-shadows.trycloudflare.com';
+  }
+  upsert liveCfg;
 }
 
 List<Patient__c> existing = [
@@ -51,6 +61,13 @@ Patient__c p = new Patient__c(
     'and low-sodium diet. Continue current regimen. Return in 3 months or sooner if symptoms.'
 );
 insert p;
+
+insert new Clinical_Note__c(
+  Patient__c = p.Id,
+  Body__c = p.Clinical_Notes__c,
+  Source__c = 'Seed',
+  Noted_At__c = Datetime.now().addDays(-14)
+);
 
 insert new List<Condition__c>{
   new Condition__c(

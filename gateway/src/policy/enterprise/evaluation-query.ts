@@ -4,7 +4,10 @@
  */
 
 import type { AuditEvent } from '../../audit/service.js';
-import type { PolicyEvaluationRecord } from './evaluation-record.js';
+import type {
+  PolicyEvaluationRecord,
+} from './evaluation-record.js';
+import { restoreEvaluationRestrictions } from './evaluation-record.js';
 import type { PolicyExplanation } from './types.js';
 import { withOperatorExplanation } from './decision-explanation.js';
 import type { PolicyDecision } from './types.js';
@@ -201,8 +204,114 @@ export interface ProjectedRequestContext {
   risk_level?: string;
   application_id?: string;
   organization_id?: string;
+  /** Human / subject user when persisted. */
+  user_id?: string;
+  /** AI agent identity when persisted on the evaluation. */
+  agent_id?: string;
+  /** Tool identity when persisted on the evaluation. */
+  tool_id?: string;
+  /**
+   * Declared action kind when persisted on ai_context.action (request fact).
+   */
+  action_kind?: string;
+  /**
+   * Declared action field attribute when persisted (e.g. Salesforce field API name).
+   */
+  action_field?: string;
   model?: string;
   intent?: string;
+}
+
+/**
+ * Historical model authorization vs Gateway execution for Decision UI.
+ * Authorization comes only from the persisted evaluation snapshot —
+ * never from the current Models registry.
+ */
+export type ModelEligibilityStatus =
+  | 'authorized'
+  | 'none_authorized'
+  | 'not_recorded';
+
+export type ModelAuthorizationMatch =
+  | 'matched'
+  | 'mismatch'
+  | 'unknown'
+  | 'not_applicable';
+
+export interface ModelGovernanceProjection {
+  /** Evaluation used as the authorization authority (prefer input). */
+  authorization_evaluation_id: string;
+  authorization_phase: string;
+  requested_model?: string;
+  /**
+   * Historical eligible set. `null` means eligibility was not recorded
+   * (legacy) — never invent [] from missing data.
+   */
+  eligible_models: string[] | null;
+  eligibility: ModelEligibilityStatus;
+  selected_model?: string;
+  provider?: string;
+  authorization_match: ModelAuthorizationMatch;
+}
+
+/**
+ * Project historical model authorization + correlated execution evidence.
+ * Pass the authorization evaluation (input) separately from audit execution.
+ */
+export function projectModelGovernance(
+  authorizationRecord: PolicyEvaluationRecord,
+  audit?: AuditEvent | null,
+): ModelGovernanceProjection {
+  const ai = (authorizationRecord.ai_context ?? {}) as Record<string, unknown>;
+  const requested =
+    optionalString(ai.requested_model) ??
+    optionalString(ai.model_id) ??
+    optionalString(ai.model);
+
+  const restored = restoreEvaluationRestrictions(authorizationRecord);
+  let eligibility: ModelEligibilityStatus;
+  let eligible_models: string[] | null;
+  if (!restored || !Array.isArray(restored.eligible_models)) {
+    eligibility = 'not_recorded';
+    eligible_models = null;
+  } else if (restored.eligible_models.length === 0) {
+    eligibility = 'none_authorized';
+    eligible_models = [];
+  } else {
+    eligibility = 'authorized';
+    eligible_models = [...restored.eligible_models];
+  }
+
+  const selected = optionalString(audit?.model_selected);
+  const provider = optionalString(audit?.provider);
+
+  let authorization_match: ModelAuthorizationMatch = 'unknown';
+  if (eligibility === 'not_recorded') {
+    authorization_match = 'unknown';
+  } else if (!audit) {
+    authorization_match =
+      authorizationRecord.phase === 'simulate' ? 'not_applicable' : 'unknown';
+  } else if (eligibility === 'none_authorized') {
+    authorization_match = selected ? 'mismatch' : 'matched';
+  } else if (!selected) {
+    // Blocked / held paths may have no model execution.
+    authorization_match = 'not_applicable';
+  } else if (eligible_models!.includes(selected)) {
+    authorization_match = 'matched';
+  } else {
+    authorization_match = 'mismatch';
+  }
+
+  return {
+    authorization_evaluation_id: authorizationRecord.evaluation_id,
+    authorization_phase: authorizationRecord.phase,
+    ...(requested ? { requested_model: requested } : {}),
+    eligible_models,
+    eligibility,
+    ...(selected ? { selected_model: selected } : {}),
+    ...(provider ? { provider } : {}),
+    authorization_match,
+  };
 }
 
 /** Review-safe request payload for Decision → Request Review tab. */
@@ -613,6 +722,11 @@ export function projectRequestContext(
         GovernanceContext['predictive_dsi']
       >;
     }
+    if (g.healthcare_interop && typeof g.healthcare_interop === 'object') {
+      governance.healthcare_interop = g.healthcare_interop as NonNullable<
+        GovernanceContext['healthcare_interop']
+      >;
+    }
     if (g.management_system && typeof g.management_system === 'object') {
       governance.management_system = g.management_system as NonNullable<
         GovernanceContext['management_system']
@@ -686,6 +800,30 @@ export function projectRequestContext(
     optionalString(record.organization_id) ??
     optionalString(subject.organization_id);
   if (organizationId) projected.organization_id = organizationId;
+
+  const userId =
+    optionalString(subject.user_id) ?? optionalString(subject.id);
+  if (userId) projected.user_id = userId;
+
+  const agentId =
+    optionalString(ai.agent_id) ?? optionalString(subject.agent_id);
+  if (agentId) projected.agent_id = agentId;
+
+  const toolId = optionalString(ai.tool_id);
+  if (toolId) projected.tool_id = toolId;
+
+  const actionObj =
+    ai.action && typeof ai.action === 'object'
+      ? (ai.action as Record<string, unknown>)
+      : undefined;
+  const actionKind = optionalString(actionObj?.kind);
+  if (actionKind) projected.action_kind = actionKind;
+  const actionAttrs =
+    actionObj?.attributes && typeof actionObj.attributes === 'object'
+      ? (actionObj.attributes as Record<string, unknown>)
+      : undefined;
+  const actionField = optionalString(actionAttrs?.field);
+  if (actionField) projected.action_field = actionField;
 
   const model =
     optionalString(ai.requested_model) ?? optionalString(ai.model_id);
@@ -812,7 +950,11 @@ export function evaluationRecordToDecisionPayload(
     applicable_policies,
     obligations: obligations as PolicyDecision['obligations'],
     transformations: [],
-    restrictions: {},
+    restrictions: (() => {
+      const restored = restoreEvaluationRestrictions(record);
+      // Prefer exact historical snapshot. Legacy incomplete records stay {}.
+      return restored ?? {};
+    })(),
     approval_requirements: [],
     conflicts: [],
     explanation,
@@ -894,6 +1036,19 @@ export function rowToEvaluationRecord(row: Record<string, unknown>): PolicyEvalu
       ? row.applicable_policies
       : [],
     obligations: Array.isArray(row.obligations) ? row.obligations : [],
+    restrictions: (() => {
+      const fromCol = row.restrictions;
+      if (fromCol && typeof fromCol === 'object') {
+        const restored = restoreEvaluationRestrictions({
+          restrictions: fromCol as PolicyEvaluationRecord['restrictions'],
+          evidence_in: {},
+        });
+        if (restored) return restored;
+      }
+      return restoreEvaluationRestrictions({
+        evidence_in: (row.evidence_in as Record<string, unknown>) ?? {},
+      });
+    })(),
     explanation,
     created_at: created,
     human_resolution,

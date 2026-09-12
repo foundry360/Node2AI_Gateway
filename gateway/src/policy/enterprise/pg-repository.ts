@@ -218,20 +218,35 @@ export class PostgresPolicyRepository implements PolicyRepository {
   async getEvaluation(evaluationId: string) {
     const cached = this.memory.getEvaluation(evaluationId);
     if (cached) return cached;
-    try {
+    const load = async (withRestrictions: boolean) => {
       const res = await this.db.query(
-        `SELECT evaluation_id, request_id, phase, organization_id,
-                subject, resource, action, context, ai_context, evidence_in,
-                decision, reason, applicable_policies, obligations, explanation,
-                human_resolution, held_request, execution, created_at
-         FROM policy_evaluations
-         WHERE evaluation_id = $1`,
+        withRestrictions
+          ? `SELECT evaluation_id, request_id, phase, organization_id,
+                    subject, resource, action, context, ai_context, evidence_in,
+                    decision, reason, applicable_policies, obligations, explanation,
+                    human_resolution, held_request, execution, restrictions, created_at
+             FROM policy_evaluations
+             WHERE evaluation_id = $1`
+          : `SELECT evaluation_id, request_id, phase, organization_id,
+                    subject, resource, action, context, ai_context, evidence_in,
+                    decision, reason, applicable_policies, obligations, explanation,
+                    human_resolution, held_request, execution, created_at
+             FROM policy_evaluations
+             WHERE evaluation_id = $1`,
         [evaluationId],
       );
-      const row = res.rows[0];
+      return res.rows[0];
+    };
+    try {
+      let row: Record<string, unknown> | undefined;
+      try {
+        row = (await load(true)) as Record<string, unknown> | undefined;
+      } catch {
+        row = (await load(false)) as Record<string, unknown> | undefined;
+      }
       if (!row) return undefined;
       const { rowToEvaluationRecord } = await import('./evaluation-query.js');
-      const record = rowToEvaluationRecord(row as Record<string, unknown>);
+      const record = rowToEvaluationRecord(row);
       this.memory.recordEvaluation(record);
       return record;
     } catch {
@@ -248,7 +263,7 @@ export class PostgresPolicyRepository implements PolicyRepository {
             `SELECT evaluation_id, request_id, phase, organization_id,
                     subject, resource, action, context, ai_context, evidence_in,
                     decision, reason, applicable_policies, obligations, explanation,
-                    human_resolution, held_request, execution, created_at
+                    human_resolution, held_request, execution, restrictions, created_at
              FROM policy_evaluations
              WHERE EXISTS (
                SELECT 1
@@ -263,7 +278,7 @@ export class PostgresPolicyRepository implements PolicyRepository {
             `SELECT evaluation_id, request_id, phase, organization_id,
                     subject, resource, action, context, ai_context, evidence_in,
                     decision, reason, applicable_policies, obligations, explanation,
-                    human_resolution, held_request, execution, created_at
+                    human_resolution, held_request, execution, restrictions, created_at
              FROM policy_evaluations
              ORDER BY created_at DESC
              LIMIT $1`,
@@ -302,12 +317,12 @@ export class PostgresPolicyRepository implements PolicyRepository {
            evaluation_id, request_id, phase, organization_id,
            subject, resource, action, context, ai_context, evidence_in,
            decision, reason, applicable_policies, obligations, explanation,
-           human_resolution, held_request, execution, created_at
+           human_resolution, held_request, execution, restrictions, created_at
          ) VALUES (
            $1, $2, $3, $4,
            $5::jsonb, $6::jsonb, $7, $8::jsonb, $9::jsonb, $10::jsonb,
            $11, $12, $13::jsonb, $14::jsonb, $15::jsonb,
-           $16::jsonb, $17::jsonb, $18::jsonb, $19::timestamptz
+           $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20::timestamptz
          )
          ON CONFLICT (evaluation_id) DO UPDATE SET
            explanation = EXCLUDED.explanation,
@@ -316,6 +331,7 @@ export class PostgresPolicyRepository implements PolicyRepository {
            applicable_policies = EXCLUDED.applicable_policies,
            obligations = EXCLUDED.obligations,
            evidence_in = EXCLUDED.evidence_in,
+           restrictions = COALESCE(EXCLUDED.restrictions, policy_evaluations.restrictions),
            human_resolution = COALESCE(EXCLUDED.human_resolution, policy_evaluations.human_resolution),
            held_request = COALESCE(EXCLUDED.held_request, policy_evaluations.held_request),
            execution = COALESCE(EXCLUDED.execution, policy_evaluations.execution)`,
@@ -340,6 +356,9 @@ export class PostgresPolicyRepository implements PolicyRepository {
             : null,
           record.held_request ? JSON.stringify(record.held_request) : null,
           record.execution ? JSON.stringify(record.execution) : null,
+          record.restrictions
+            ? JSON.stringify(record.restrictions)
+            : null,
           record.created_at,
         ],
       );

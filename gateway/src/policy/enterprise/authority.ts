@@ -56,6 +56,7 @@ export const POLICY_AUTHORITY_IDS = {
   hipaa: 'auth_hipaa',
   part2: 'auth_42_cfr_part_2',
   oncHti1: 'auth_onc_hti1',
+  cms: 'auth_cms',
   nistAiRmf: 'auth_nist_ai_rmf',
   owaspLlm2025: 'auth_owasp_llm_2025',
   iso42001: 'auth_iso_42001',
@@ -75,6 +76,7 @@ const PACK_AUTHORITY_BY_PACK_ID: Record<string, string> = {
   pack_hipaa: POLICY_AUTHORITY_IDS.hipaa,
   pack_42_cfr_part_2: POLICY_AUTHORITY_IDS.part2,
   pack_onc_hti1: POLICY_AUTHORITY_IDS.oncHti1,
+  pack_cms: POLICY_AUTHORITY_IDS.cms,
   pack_nist_ai_rmf: POLICY_AUTHORITY_IDS.nistAiRmf,
   pack_owasp_llm_2025: POLICY_AUTHORITY_IDS.owaspLlm2025,
   pack_eu_ai_act: POLICY_AUTHORITY_IDS.euAiAct,
@@ -195,6 +197,24 @@ function defineBuiltIns(): void {
       legal_authority: true,
       notes:
         'ONC Health IT Certification Program updates including predictive decision support / algorithm transparency (FAVES). Enigma operationalizes selected concepts at runtime; not a certification determination.',
+    },
+  });
+
+  registerPolicyAuthority({
+    id: POLICY_AUTHORITY_IDS.cms,
+    name: 'CMS Interoperability',
+    type: 'REGULATION',
+    publisher: 'Centers for Medicare & Medicaid Services',
+    jurisdiction: 'US',
+    authority_tier: 2,
+    version: null,
+    effective_date: null,
+    source_reference:
+      'CMS Interoperability and Prior Authorization Final Rule — Patient Access, Provider Access, Payer-to-Payer, Prior Authorization APIs',
+    provenance: {
+      legal_authority: true,
+      notes:
+        'CMS interoperability / access / prior-authorization API framework. Enigma operationalizes selected concepts at runtime; not a compliance determination.',
     },
   });
 

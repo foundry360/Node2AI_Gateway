@@ -520,6 +520,52 @@ export interface PredictiveDsiEvidence {
   version_changed?: boolean;
 }
 
+/**
+ * Generic healthcare interoperability / access / exchange governance facts.
+ * Pack-agnostic — CMS and similar packs map these into control inputs.
+ * Not a FHIR engine, PA product, or compliance attestation.
+ */
+export interface HealthcareInteropEvidence {
+  /** applicable | not_applicable | unknown */
+  applicability?: string;
+  /** payer | provider | patient | clearinghouse | non_cms | other */
+  organization_role?: string;
+  /** medicare_advantage | medicaid | chip | qhp | ffe | none | other */
+  program?: string;
+  /**
+   * patient_access | provider_access | payer_to_payer | prior_auth |
+   * api_fhir | data_exchange | ai_agent
+   */
+  workflow?: string;
+  member_identity_verified?: boolean;
+  patient_authorized?: boolean;
+  member_authorized?: boolean;
+  provider_identity_verified?: boolean;
+  provider_authorized?: boolean;
+  member_relationship_established?: boolean;
+  application_authorized?: boolean;
+  purpose_permitted?: boolean;
+  data_scope_permitted?: boolean;
+  data_scope_excessive?: boolean;
+  destination_authorized?: boolean;
+  originating_payer_id?: string;
+  receiving_payer_id?: string;
+  payer_exchange_authorized?: boolean;
+  api_client_authorized?: boolean;
+  fhir_resource?: string;
+  fhir_access_permitted?: boolean;
+  endpoint?: string;
+  /** prepare | retrieve | generate | submit | receive | additional_info */
+  prior_auth_stage?: string;
+  prior_auth_authorized?: boolean;
+  external_transmission?: boolean;
+  cloud_model_restricted?: boolean;
+  agent_authorized?: boolean;
+  tool_authorized?: boolean;
+  controls_satisfied?: boolean;
+  authorized?: boolean;
+}
+
 export interface GovernanceContext {
   accountability_documented?: boolean;
   system_context_documented?: boolean;
@@ -561,6 +607,8 @@ export interface GovernanceContext {
   regulatory?: RegulatoryGovernanceEvidence;
   /** Generic predictive DSI / algorithm transparency governance facts. */
   predictive_dsi?: PredictiveDsiEvidence;
+  /** Generic healthcare interoperability / access / exchange governance facts. */
+  healthcare_interop?: HealthcareInteropEvidence;
 }
 
 export interface PolicyRequestContext {
@@ -583,6 +631,15 @@ export interface PolicyRequestContext {
   agent_id?: string;
   /** Tool identity when a tool invocation is in scope for this request. */
   tool_id?: string;
+  /**
+   * Declared agent/tool action intent from the caller (e.g. /v1/ai/actions).
+   * Request fact for policy evaluation — not an authorization grant.
+   */
+  action?: {
+    kind: string;
+    target_id?: string;
+    attributes?: Record<string, unknown>;
+  };
   /**
    * Entity types permitted under minimum-necessary scope (e.g. MRN, DOB).
    * When set, excess detected entity types are restricted via transform obligations.

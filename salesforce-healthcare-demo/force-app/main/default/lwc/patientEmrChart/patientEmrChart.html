@@ -52,14 +52,14 @@
           <div class="vital-label">Height</div>
           <div class="vital-value">
             <template lwc:if={patient.Height_in__c}>{patient.Height_in__c} in</template>
-            <template lwc:else>—</template>
+            <template lwc:else>-</template>
           </div>
         </div>
         <div class="vital">
           <div class="vital-label">Weight</div>
           <div class="vital-value">
             <template lwc:if={patient.Weight_lb__c}>{patient.Weight_lb__c} lb</template>
-            <template lwc:else>—</template>
+            <template lwc:else>-</template>
           </div>
         </div>
         <div class="vital">
@@ -199,11 +199,33 @@
             label="Refresh"
             title="Reload notes from Salesforce"
             onclick={handleRefreshNotes}
+            disabled={refreshDisabled}
             class="notes-refresh"
           ></lightning-button>
         </header>
         <template lwc:if={hasClinicalNotes}>
-          <pre class="notes-body">{clinicalNotes}</pre>
+          <ul class="notes-list">
+            <template for:each={clinicalNoteItems} for:item="note">
+              <li key={note.id} class="note-item">
+                <div class="note-meta">
+                  <span class="note-when">{note.notedAtLabel}</span>
+                  <span class="note-source">{note.source}</span>
+                  <span class="note-id">{note.name}</span>
+                  <button
+                    type="button"
+                    class="note-delete"
+                    title="Delete this note"
+                    data-id={note.id}
+                    onclick={handleDeleteNote}
+                    disabled={notesBusy}
+                  >
+                    Delete
+                  </button>
+                </div>
+                <pre class="notes-body">{note.body}</pre>
+              </li>
+            </template>
+          </ul>
         </template>
         <template lwc:else>
           <p class="empty">No clinical notes documented.</p>

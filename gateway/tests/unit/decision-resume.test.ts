@@ -381,9 +381,9 @@ describe('Post-AUTHORIZE request resume', () => {
         trust_level: 'trusted',
         allowed_models: ['local-general-v1'],
         allowed_datasets: [],
-        allowed_operations: ['summarize'],
+        allowed_operations: ['summarize', 'write'],
       },
-      operation: 'summarize',
+      operation: 'write',
       requestedModel: 'local-general-v1',
       availableModels: ['local-general-v1'],
       environment: 'prod',
@@ -393,7 +393,6 @@ describe('Post-AUTHORIZE request resume', () => {
         risk: 'high',
         reason_codes: [
           'REGULATORY_APPLICABILITY:HIPAA',
-          'REGULATORY_APPLICABILITY:PART2',
         ],
       },
       deploymentMode: 'connected',
@@ -438,9 +437,9 @@ describe('Post-AUTHORIZE request resume', () => {
         trust_level: 'trusted',
         allowed_models: ['local-general-v1'],
         allowed_datasets: [],
-        allowed_operations: ['summarize'],
+        allowed_operations: ['summarize', 'write'],
       },
-      operation: 'summarize',
+      operation: 'write',
       requestedModel: 'local-general-v1',
       availableModels: ['local-general-v1'],
       environment: 'prod',
@@ -448,10 +447,7 @@ describe('Post-AUTHORIZE request resume', () => {
         sensitivity: 'PHI',
         confidence: 0.99,
         risk: 'high',
-        reason_codes: [
-          'REGULATORY_APPLICABILITY:HIPAA',
-          'REGULATORY_APPLICABILITY:PART2',
-        ],
+        reason_codes: ['REGULATORY_APPLICABILITY:HIPAA'],
       },
       deploymentMode: 'connected',
       purpose: 'treatment',
@@ -463,7 +459,7 @@ describe('Post-AUTHORIZE request resume', () => {
     await Promise.resolve(
       gw.packRepo.attachHeldRequest!(decision.evaluation_id, {
         ...held,
-        messages: [{ role: 'user', content: 'Patient SUD treatment summary request' }],
+        messages: [{ role: 'user', content: 'Patient treatment summary request' }],
       }),
     );
 
@@ -489,7 +485,7 @@ describe('Post-AUTHORIZE request resume', () => {
       headers: auth,
       payload: {
         disposition: 'AUTHORIZE',
-        reason: 'Resume after conflict review.',
+        reason: 'Resume after write approval review.',
         actor: 'alice',
       },
     });

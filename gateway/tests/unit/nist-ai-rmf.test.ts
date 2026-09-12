@@ -272,9 +272,9 @@ describe('NIST AI RMF — Pack #3', () => {
         reason_codes: ['HIPAA_DENY'],
       }),
     ]);
-    expect(resolved.resolution.category).toBe('UNRESOLVED');
-    expect(resolved.decision).toBe('REVIEW');
-    expect(resolved.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(resolved.resolution.category).toBe('RESTRICTIVE');
+    expect(resolved.decision).toBe('DENY');
+    expect(resolved.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
     expect(getAuthorityForPack('pack_nist_ai_rmf')!.type).toBe('FRAMEWORK');
     expect(getAuthorityForPack('pack_hipaa')!.type).toBe('REGULATION');
   });

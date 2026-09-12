@@ -35,7 +35,7 @@ function formatHourRange(startIso: string, endIso: string): string {
   const start = new Date(startIso);
   const end = new Date(endIso);
   const opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
-  return `${start.toLocaleTimeString([], opts)} – ${end.toLocaleTimeString([], opts)}`;
+  return `${start.toLocaleTimeString([], opts)} to ${end.toLocaleTimeString([], opts)}`;
 }
 
 function Sparkline({

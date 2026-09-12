@@ -641,9 +641,9 @@ describe('Ten-Pack Cross-Control-Plane Validation', () => {
           decision: 'DENY',
         }),
       ]);
-      expect(unresolvedHard.resolution.category).toBe('UNRESOLVED');
-      expect(unresolvedHard.decision).toBe('REVIEW');
-      expect(unresolvedHard.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+      expect(unresolvedHard.resolution.category).toBe('RESTRICTIVE');
+      expect(unresolvedHard.decision).toBe('DENY');
+      expect(unresolvedHard.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
       void unresolved;
     });
 

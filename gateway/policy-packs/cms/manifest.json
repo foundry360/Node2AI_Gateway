@@ -1,0 +1,52 @@
+{
+  "pack_id": "pack_cms",
+  "name": "CMS Interoperability & AI Governance (Thin)",
+  "domain": "healthcare",
+  "pack_version": "1.0.0",
+  "status": "active",
+  "authority_id": "auth_cms",
+  "scope": "CMS_INTEROPERABILITY_AI_GOVERNANCE",
+  "not": "CMS_LEGAL_COMPLIANCE_CERTIFICATION",
+  "description": "Thin CMS-aligned policy pack for runtime governance of interoperability, patient/provider/payer access, prior authorization workflow stages, API/FHIR access, data exchange, and AI/agent use. Healthcare Pack #4. Does not determine CMS compliance.",
+  "interpreters": {
+    "input": "cms_pack_v1",
+    "output": "cms_pack_v1_output"
+  },
+  "policies": [
+    {
+      "policy_id": "pol_cms_interop_input",
+      "version": 1,
+      "phase": "input",
+      "name": "CMS interoperability & AI governance input"
+    },
+    {
+      "policy_id": "pol_cms_interop_output",
+      "version": 1,
+      "phase": "output",
+      "name": "CMS interoperability & AI governance output"
+    }
+  ],
+  "policy_families": [
+    "Applicability",
+    "Patient Access",
+    "Provider Access",
+    "Payer-to-Payer",
+    "Prior Authorization",
+    "API / FHIR Governance",
+    "Data Exchange",
+    "AI / Agent Governance"
+  ],
+  "semantic_notes": [
+    "Applicability is explicit (CMS tag + healthcare_interop.applicability) — Healthcare+AI alone does not imply CMS",
+    "Prior Authorization is one family among several — not the organizing principle of the pack",
+    "Unknown applicability does not auto-REVIEW; restrictive rules require applicability=applicable",
+    "Human review is exception-based via explicit REVIEW rules only where policy requires it"
+  ],
+  "deliberately_not_implemented": [
+    "Complete CMS regulatory universe",
+    "Full Prior Authorization product / FHIR PA CRD/DTR/PAS implementation",
+    "Complete FHIR specification enforcement",
+    "CMS certification or legal compliance determination",
+    "Separate CMS PDP / audit store / UI"
+  ]
+}

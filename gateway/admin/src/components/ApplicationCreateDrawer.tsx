@@ -35,6 +35,7 @@ const OPERATION_OPTIONS = [
   { value: 'summarize', label: 'Summarize' },
   { value: 'generate', label: 'Generate' },
   { value: 'classify', label: 'Classify' },
+  { value: 'write', label: 'Write' },
 ];
 
 export function ApplicationCreateDrawer({

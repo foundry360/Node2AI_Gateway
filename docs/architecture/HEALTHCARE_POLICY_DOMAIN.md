@@ -2,9 +2,9 @@
 
 **Status:** Active  
 **Invariant:** Agent reasons · Policy decides · Gateway enforces  
-**Reference packs:** HIPAA Policy Pack **v3.1.0** (`pack_hipaa`); 42 CFR Part 2 **v1.0.0** (`pack_42_cfr_part_2`); ONC HTI-1 Thin Pack **v1.0.0** (`pack_onc_hti1`)
+**Reference packs:** HIPAA Policy Pack **v3.1.0** (`pack_hipaa`); 42 CFR Part 2 **v1.0.0** (`pack_42_cfr_part_2`); ONC HTI-1 Thin Pack **v1.0.0** (`pack_onc_hti1`); CMS Interoperability Thin Pack **v1.0.0** (`pack_cms`)
 
-Enigma is a **runtime governance and policy enforcement platform**. It is not a HIPAA, Part 2, or ONC assessment app, compliance checklist, regulatory document repository, or healthcare use-case library.
+Enigma is a **runtime governance and policy enforcement platform**. It is not a HIPAA, Part 2, ONC, or CMS assessment app, compliance checklist, regulatory document repository, or healthcare use-case library.
 
 ```text
 Regulation → Policy → Decision → Enforcement → Evidence
@@ -21,7 +21,7 @@ A **domain** is a business/regulatory governance area.
 | `domain_id` | `healthcare` |
 | `name` | Healthcare |
 | `status` | `active` |
-| `pack_ids` | `["pack_hipaa", "pack_42_cfr_part_2", "pack_onc_hti1", …]` |
+| `pack_ids` | `["pack_hipaa", "pack_42_cfr_part_2", "pack_onc_hti1", "pack_cms", …]` |
 
 The Healthcare Domain is **not** a policy pack. It holds membership, shared governance concepts, and cross-pack resolution contracts. It does not contain CFR text or executable HIPAA rules.
 
@@ -39,9 +39,9 @@ A **policy pack** is a versioned regulatory authority/framework authored as docs
 | Domain identity, pack membership, cross-pack resolution concepts | **Domain** |
 | Provenance graph, overlay registry, PDP, gateway | **Platform (generic)** |
 
-HIPAA v3.1 is Pack #1 under Healthcare. 42 CFR Part 2 v1.0 is Pack #2. ONC HTI-1 Thin Pack v1.0 is Pack #3 (predictive DSI / algorithm transparency). Future packs (HITECH, CMS, …) are **not** implemented here. See [HEALTHCARE_POLICY_PACKS.md](./HEALTHCARE_POLICY_PACKS.md).
+HIPAA v3.1 is Pack #1 under Healthcare. 42 CFR Part 2 v1.0 is Pack #2. ONC HTI-1 Thin Pack v1.0 is Pack #3. CMS Interoperability Thin Pack v1.0 is Pack #4. Future packs (HITECH, …) are **not** implemented here. See [HEALTHCARE_POLICY_PACKS.md](./HEALTHCARE_POLICY_PACKS.md).
 
-Enigma provides executable governance controls aligned to applicable ONC/HTI-1 concepts. It does not represent itself as a legal compliance determination or substitute for ONC certification or legal/regulatory analysis.
+Enigma provides executable governance controls aligned to applicable CMS and ONC/HTI-1 concepts. It does not represent itself as a legal compliance determination or substitute for CMS/ONC certification or legal/regulatory analysis.
 
 ---
 
@@ -161,13 +161,13 @@ Live completions forward purpose, authorization, agent/tool identity, and govern
 
 ### Not yet implemented (Healthcare Domain)
 
-- CMS interoperability / Patient Access / Provider Access / Payer-to-Payer packs
-- CMS prior-authorization prepare-vs-submit pack rules (beyond HIPAA purpose enum)
+- CMS complete regulatory universe / full Prior Authorization product (CRD/DTR/PAS)
+- Complete FHIR specification enforcement
 - Full safe-harbor 18-identifier field ACL / FHIR resource ontology
 - Broader healthcare regulatory packs (HITECH, Information Blocking as packs)
-- Complete ONC HTI-1 / certification program (thin predictive-DSI pack only — see Pack #3)
+- Complete ONC HTI-1 / certification program (thin predictive-DSI pack only)
 
-Do **not** claim ONC or CMS compliance. The ONC thin pack operationalizes selected HTI-1-aligned governance concepts at runtime; it is not a certification determination.
+Do **not** claim ONC or CMS compliance. Thin packs operationalize selected aligned governance concepts at runtime; they are not certification determinations.
 
 ### Must remain generic
 

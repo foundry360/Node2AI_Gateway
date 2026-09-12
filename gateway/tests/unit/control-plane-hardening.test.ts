@@ -312,7 +312,7 @@ describe('Control Plane Hardening — Pre-Pack #9', () => {
       expect(r.reason_codes).toContain('RESOLUTION_RESTRICTIVE');
     });
 
-    it('CONFLICT with declared precedence resolves without UNRESOLVED', () => {
+    it('DENY + ALLOW with declared precedence still resolves to DENY by consequence', () => {
       const r = resolvePackContributions([
         contrib({
           pack_id: 'pack_eu_ai_act',
@@ -329,12 +329,13 @@ describe('Control Plane Hardening — Pre-Pack #9', () => {
           precedence: { priority: 10, basis: 'DECLARED_POLICY_PRECEDENCE' },
         }),
       ]);
-      expect(r.resolution.category).toBe('CONFLICT');
+      expect(r.resolution.category).toBe('RESTRICTIVE');
       expect(r.decision).toBe('DENY');
-      expect(r.reason_codes).toContain('POLICY_CONFLICT_RESOLVED_BY_PRECEDENCE');
+      expect(r.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
+      expect(r.resolution.basis).toBe('CONSEQUENCE_DENY');
     });
 
-    it('UNRESOLVED conflict → POLICY_CONFLICT_UNRESOLVED → REVIEW (no invented precedence)', () => {
+    it('ALLOW + DENY → DENY by consequence (no invented regulatory precedence)', () => {
       const r = resolvePackContributions([
         contrib({
           pack_id: 'pack_iso_42005',
@@ -349,10 +350,10 @@ describe('Control Plane Hardening — Pre-Pack #9', () => {
           reason_codes: ['HIPAA_DENY'],
         }),
       ]);
-      expect(r.resolution.category).toBe('UNRESOLVED');
-      expect(r.decision).toBe('REVIEW');
-      expect(r.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
-      expect(r.resolution.basis).toBe('UNRESOLVED_NO_PRECEDENCE');
+      expect(r.resolution.category).toBe('RESTRICTIVE');
+      expect(r.decision).toBe('DENY');
+      expect(r.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
+      expect(r.resolution.basis).toBe('CONSEQUENCE_DENY');
     });
   });
 
@@ -460,8 +461,8 @@ describe('Control Plane Hardening — Pre-Pack #9', () => {
           decision: 'DENY',
         }),
       ]);
-      expect(unresolved.decision).toBe('REVIEW');
-      expect(unresolved.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+      expect(unresolved.decision).toBe('DENY');
+      expect(unresolved.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
     });
 
     it('genuine DENY stays DENY and cannot resume', () => {

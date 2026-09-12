@@ -2,9 +2,17 @@
  * Generic multi-pack policy resolution.
  * Packs contribute; the platform resolves. No regulatory-specific branches.
  *
- * Authority tier ≠ precedence.
- * DENY + DENY = agreement (not conflict).
- * ALLOW + DENY = conflict (unless declared precedence resolves it).
+ * Authority tier ≠ precedence. Regulatory packs do not outrank each other.
+ *
+ * Consequence model (domain-neutral):
+ * - DENY + DENY = agreement
+ * - DENY + {ALLOW|TOKENIZE|REDACT|REVIEW} = RESTRICTIVE → DENY
+ *   (explicit denial is never weakened by a more permissive contribution)
+ * - ALLOW + TOKENIZE/REDACT/REVIEW = RESTRICTIVE (compose stronger control)
+ * - True CONFLICT (non-deny mutually exclusive outcomes) without declared
+ *   precedence → REVIEW (human exception path)
+ *
+ * See docs/architecture/POLICY_CONSEQUENCE_RESOLUTION.md
  */
 
 import type { Obligation, PolicyConflictRecord } from './types.js';
@@ -32,6 +40,7 @@ export type PrecedenceBasis =
   | 'DECLARED_POLICY_PRECEDENCE'
   | 'PACK_PRIORITY'
   | 'COMPOSE_RESTRICTIVE'
+  | 'CONSEQUENCE_DENY'
   | 'AGREEMENT'
   | 'SINGLE_CONTRIBUTION'
   | 'UNRESOLVED_NO_PRECEDENCE'
@@ -173,8 +182,10 @@ export function classifyDecisionPair(
   ) {
     return 'RESTRICTIVE';
   }
-  // DENY + ALLOW / DENY + TOKENIZE → conflict
-  if (fa === 'deny' || fb === 'deny') return 'CONFLICT';
+  // DENY + ALLOW / DENY + TOKENIZE / DENY + REDACT → RESTRICTIVE toward DENY.
+  // Explicit prohibition is never weakened by a permissive or transform contribution.
+  // This is consequence composition, not regulatory pack precedence.
+  if (fa === 'deny' || fb === 'deny') return 'RESTRICTIVE';
   return 'CONFLICT';
 }
 
@@ -518,11 +529,15 @@ export function resolvePackContributions(
 
   // --- AGREEMENT / COMPLEMENTARY / RESTRICTIVE ---
   const decision = pickMostRestrictiveCompatible(applicable.map((c) => c.decision));
+  const denySelected =
+    overall === 'RESTRICTIVE' &&
+    DENYING.has(decision) &&
+    applicable.some((c) => !DENYING.has(c.decision));
   const basis: PrecedenceBasis =
     overall === 'AGREEMENT'
       ? 'AGREEMENT'
-      : overall === 'RESTRICTIVE'
-        ? 'COMPOSE_RESTRICTIVE'
+      : denySelected
+        ? 'CONSEQUENCE_DENY'
         : 'COMPOSE_RESTRICTIVE';
 
   const primary =
@@ -537,24 +552,48 @@ export function resolvePackContributions(
       eligible_models = primary.eligible_models;
     }
   }
+  if (DENYING.has(decision) || decision === 'REVIEW') {
+    eligible_models = [];
+  }
+
+  // DENY / BLOCK_OUTPUT: do not carry transform execution intents — action is prohibited.
+  const transforms = DENYING.has(decision)
+    ? []
+    : mergeTransforms(applicable.map((c) => c.transforms));
+
+  // When denial wins, drop approval-hold obligations so DENY cannot be mistaken for REVIEW.
+  const rawObligations = mergeObligations(applicable.map((c) => c.obligations));
+  const obligations = DENYING.has(decision)
+    ? rawObligations.filter(
+        (o) =>
+          o.code !== 'REQUIRE_HUMAN_APPROVAL_FOR_EXECUTION' &&
+          o.code !== 'REQUIRE_APPROVAL',
+      )
+    : rawObligations;
+
+  const reason_codes = [
+    ...new Set([
+      `RESOLUTION_${overall}`,
+      ...(denySelected ? (['RESOLUTION_CONSEQUENCE_DENY'] as const) : []),
+      ...applicable.flatMap((c) => c.reason_codes),
+    ]),
+  ];
 
   return {
     decision,
-    reason_codes: [
-      ...new Set([
-        `RESOLUTION_${overall}`,
-        ...applicable.flatMap((c) => c.reason_codes),
-      ]),
-    ],
-    obligations: mergeObligations(applicable.map((c) => c.obligations)),
-    transforms: mergeTransforms(applicable.map((c) => c.transforms)),
+    reason_codes,
+    obligations,
+    transforms,
     eligible_models,
     matched: [
       ...applicable.flatMap((c) => c.matched),
       `resolution:${overall}`,
+      ...(denySelected ? [`resolution:CONSEQUENCE_DENY`] : []),
     ],
     provenance: mergeProvenance(applicable),
-    authorize_detokenization: applicable.some((c) => c.authorize_detokenization),
+    authorize_detokenization: DENYING.has(decision)
+      ? false
+      : applicable.some((c) => c.authorize_detokenization),
     policy_id: primary.policy_id,
     policy_version: primary.policy_version,
     pack_id: primary.pack_id,
@@ -578,7 +617,9 @@ export function resolvePackContributions(
       contributing_pack_ids: applicable.map((c) => c.pack_id),
       contributions: applicable,
       conflict_pairs: conflictPairs,
-      detail: `Resolved ${overall} → ${decision}`,
+      detail: denySelected
+        ? `Resolved RESTRICTIVE → ${decision} (explicit denial consequence; permissive contributions retained as evidence, not as override)`
+        : `Resolved ${overall} → ${decision}`,
     },
   };
 }
@@ -589,25 +630,21 @@ export function contributionFromInterpretedResult(
   after: InterpretedResult,
 ): PackEvaluationContribution {
   const newMatched = after.matched.slice(before.matched.length);
+  /** Skip / non-applicability markers — must not count as pack contributions. */
+  const isSkipMarker = (m: string): boolean =>
+    m.includes('_skip') ||
+    m.includes('skip_') ||
+    m.endsWith('_not_applicable') ||
+    m.includes('applicability:not_applicable') ||
+    /:not_applicable$/.test(m);
   const skipOnly =
-    newMatched.length > 0 &&
-    newMatched.every(
-      (m) =>
-        m.includes('_skip') ||
-        m.includes('skip_') ||
-        m.endsWith('_not_applicable'),
-    );
+    newMatched.length > 0 && newMatched.every((m) => isSkipMarker(m));
   const provenanceGrew =
     (after.provenance?.matched_rules?.length ?? 0) >
     (before.provenance?.matched_rules?.length ?? 0);
   const decisionChanged = after.decision !== before.decision;
   const obligationsGrew = after.obligations.length > before.obligations.length;
-  const meaningfulMatched = newMatched.some(
-    (m) =>
-      !m.includes('_skip') &&
-      !m.includes('skip_') &&
-      !m.endsWith('_not_applicable'),
-  );
+  const meaningfulMatched = newMatched.some((m) => !isSkipMarker(m));
 
   const applicable =
     !skipOnly &&

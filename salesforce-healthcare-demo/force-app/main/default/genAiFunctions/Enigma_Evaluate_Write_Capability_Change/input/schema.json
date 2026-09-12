@@ -10,7 +10,7 @@
     },
     "requesterPrompt": {
       "title": "User Request",
-      "description": "Exact text of what the end user asked the agent to do (e.g. add a note to a patient record, update a case, send an email). This is the Prompt shown in Enigma Request Review — not a justification for enabling write.",
+      "description": "Exact text of what the end user asked the agent to do (e.g. add a note to a patient record, update a case, send an email). This is the Prompt shown in Enigma Request Review - not a justification for enabling write.",
       "lightning:type": "lightning__multilineTextType",
       "lightning:isPII": false,
       "copilotAction:isUserInput": true

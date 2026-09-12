@@ -44,6 +44,24 @@ export interface BaselineFacts {
   agent_id?: string;
   /** Tool identity when present on the live request. */
   tool_id?: string;
+  /**
+   * Declared action kind from the caller (request fact, not authorization).
+   * Examples: clinical_note, field_update.
+   */
+  action_kind?: string;
+  /**
+   * Declared action attributes from the caller (request fact, not authorization).
+   * For field updates may include field / value.
+   */
+  action_attributes?: Record<string, unknown>;
+  /**
+   * Server-derived write governance class (HIPAA pack).
+   * Never client-supplied — computed from declared action facts + allowlists.
+   */
+  write_governance_class?:
+    | 'CLINICAL_NOTE'
+    | 'ADMINISTRATIVE_LOW_RISK'
+    | 'UNKNOWN';
   /** Minimum-necessary permitted entity types when scoped by the caller. */
   permitted_entity_types?: string[];
   /**

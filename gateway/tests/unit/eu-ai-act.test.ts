@@ -570,9 +570,9 @@ describe('EU AI Act Pack #5', () => {
         reason_codes: ['HIPAA_DENY'],
       }),
     ]);
-    expect(resolved.resolution.category).toBe('UNRESOLVED');
-    expect(resolved.decision).toBe('REVIEW');
-    expect(resolved.reason_codes).toContain('POLICY_CONFLICT_UNRESOLVED');
+    expect(resolved.resolution.category).toBe('RESTRICTIVE');
+    expect(resolved.decision).toBe('DENY');
+    expect(resolved.reason_codes).toContain('RESOLUTION_CONSEQUENCE_DENY');
   });
 
   it('V. Five-authority PDP: HIPAA + Part2 + NIST + OWASP + EU', async () => {

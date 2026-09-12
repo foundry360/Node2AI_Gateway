@@ -15,6 +15,22 @@
   padding-bottom: 0.65rem;
 }
 
+.copilot-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.copilot-icon {
+  flex: 0 0 auto;
+  margin-top: 0.05rem;
+}
+
+.copilot-title-text {
+  min-width: 0;
+  flex: 1;
+}
+
 .copilot-title {
   margin: 0;
   font-size: 1rem;

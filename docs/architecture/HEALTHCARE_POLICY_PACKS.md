@@ -17,7 +17,8 @@ Related:
 Healthcare Domain
     ├── HIPAA v3.1          (Pack #1 — reference)
     ├── 42 CFR Part 2 v1.0  (Pack #2 — architecture validation)
-    └── ONC HTI-1 Thin v1.0 (Pack #3 — predictive DSI / algorithm transparency)
+    ├── ONC HTI-1 Thin v1.0 (Pack #3 — predictive DSI / algorithm transparency)
+    └── CMS Thin v1.0       (Pack #4 — interoperability & AI governance)
 ```
 
 The Healthcare Domain is a governance area (`domain_id: healthcare`). It is **not** a policy pack. It holds pack membership and cross-pack contracts. Regulatory text and executable rules live only inside packs.
@@ -96,7 +97,41 @@ Pack README: `gateway/policy-packs/onc-hti1/README.md`
 
 ---
 
-## 5. Pack independence
+## 5. CMS Interoperability Thin Pack as Pack #4
+
+| Field | Value |
+| --- | --- |
+| Pack ID | `pack_cms` |
+| Name | CMS Interoperability & AI Governance (Thin) |
+| Domain | `healthcare` |
+| Version | `1.0.0` |
+| Interpreters | `cms_pack_v1` / `cms_pack_v1_output` |
+| Authority | `auth_cms` |
+
+**CMS is implemented as a policy pack, not as a compliance or Prior Authorization product.**
+
+Enigma provides executable governance controls aligned to applicable CMS interoperability concepts. It does not represent itself as a legal compliance determination or substitute for CMS certification or legal/regulatory analysis.
+
+Policy families (Prior Authorization is one family among several):
+
+1. Applicability
+2. Patient Access
+3. Provider Access
+4. Payer-to-Payer
+5. Prior Authorization
+6. API / FHIR Governance
+7. Data Exchange
+8. AI / Agent Governance
+
+Applicability is explicit — Healthcare + AI does **not** auto-apply CMS. Unknown applicability does **not** auto-REVIEW.
+
+Docs-as-code root: `gateway/policy-packs/cms/`  
+Runtime: `gateway/src/policy/enterprise/packs/cms/`  
+Pack README: `gateway/policy-packs/cms/README.md`
+
+---
+
+## 6. Pack independence
 
 Each pack:
 
@@ -105,25 +140,26 @@ Each pack:
 - Evaluates against request facts independently
 - Emits its own decision, obligations, controls, and provenance
 
-Part 2 evaluates without HIPAA (suspend HIPAA overlays in tests). HIPAA evaluates without Part 2 when Part 2 is not applicable (`part2_pack_v1_skip_not_applicable`). ONC evaluates only when `REGULATORY_APPLICABILITY:ONC_HTI1` is present (`onc_hti1_pack_v1_skip_not_applicable` otherwise).
+Part 2 evaluates without HIPAA (suspend HIPAA overlays in tests). HIPAA evaluates without Part 2 when Part 2 is not applicable (`part2_pack_v1_skip_not_applicable`). ONC evaluates only when `REGULATORY_APPLICABILITY:ONC_HTI1` is present. CMS evaluates only when `REGULATORY_APPLICABILITY:CMS` is present (`cms_pack_v1_skip_not_applicable` otherwise).
 
 ---
 
-## 6. Generic resolution
+## 7. Generic resolution
 
 ```text
 HIPAA Pack ──┐
 Part 2 Pack ─┼──→ resolvePackContributions() ──→ Decision + Resolution + Provenance
 ONC Pack ────┤
+CMS Pack ────┤
              │
 Gateway ←────┘  (enforces decision only)
 ```
 
-There is no `Part2PolicyResolver`, `OncPolicyResolver`, `HipaaPart2Resolver`, pack-specific PDP, or authority-specific Gateway branch.
+There is no `Part2PolicyResolver`, `OncPolicyResolver`, `CmsPolicyResolver`, pack-specific PDP, or authority-specific Gateway branch.
 
 ---
 
-## 7. Conflict taxonomy
+## 8. Conflict taxonomy
 
 | Category | Meaning |
 | --- | --- |
@@ -137,7 +173,7 @@ DENY + DENY remains **AGREEMENT** even when deny-side obligations differ.
 
 ---
 
-## 8. Precedence model
+## 9. Precedence model
 
 - **Authority tier ≠ precedence.** CFR tier 1 describes source class; it does not auto-win.
 - No universal `Part 2 > HIPAA` relationship.
@@ -155,25 +191,26 @@ Use only when the regulatory relationship and Enigma policy model justify it. De
 
 ---
 
-## 9. Multi-pack provenance
+## 10. Multi-pack provenance
 
-Combined decisions preserve both chains:
+Combined decisions preserve contributing chains:
 
 ```text
 Decision
 ├── HIPAA → Rule → Obligation → Citation → Source → Authority tier
 ├── 42 CFR Part 2 → Rule → Obligation → Citation → Source → Authority tier
 ├── ONC HTI-1 → Rule → Obligation → Citation → Source → Authority tier
+├── CMS → Rule → Obligation → Citation → Source → Authority tier
 └── Resolution → category · basis · contributingPackIds
 ```
 
-Exact citations attach when pack rules fire. Vague pack-level citations are not used as sole provenance for executable rules. ONC citations reference HTI-1 concepts; runtime gates remain Enigma interpretations (not the regulatory text).
+Exact citations attach when pack rules fire. Vague pack-level citations are not used as sole provenance for executable rules. CMS/ONC citations reference interoperability / HTI-1 concepts; runtime gates remain Enigma interpretations (not the regulatory text).
 
 ---
 
-## 10. Gateway separation
+## 11. Gateway separation
 
-The Gateway receives a generic decision payload (decision, controls/obligations, reason codes, provenance, resolution). It does **not** interpret HIPAA, Part 2, ONC, SUD, or CFR.
+The Gateway receives a generic decision payload (decision, controls/obligations, reason codes, provenance, resolution). It does **not** interpret HIPAA, Part 2, ONC, CMS, SUD, or CFR.
 
 ```text
 REGULATORY OBLIGATION → ENIGMA POLICY DECISION → ENIGMA CONTROL → GATEWAY ENFORCEMENT
@@ -183,21 +220,23 @@ REGULATORY OBLIGATION → ENIGMA POLICY DECISION → ENIGMA CONTROL → GATEWAY 
 
 ---
 
-## 11. Deliberately NOT implemented
+## 12. Deliberately NOT implemented
 
-- Part 2 / ONC assessment questionnaires / scorecards / dashboards / certification workflows
+- Part 2 / ONC / CMS assessment questionnaires / scorecards / dashboards / certification workflows
 - Full SUD clinical ontology or healthcare data ontology
 - Regulatory document browser or authority-specific UI
 - Authority-specific PDP / Gateway / conflict resolver forks
 - Every Part 2 provision (court-order pathways §2.64/§2.65 left out of executable MVP)
 - Full ONC Health IT Certification Program / complete HTI-1 source-attribute catalog
-- HITECH, CMS, Information Blocking, USCDI, FHIR interoperability as packs
+- Complete CMS regulatory universe / full Prior Authorization product (CRD/DTR/PAS)
+- Complete FHIR specification as an engine
+- HITECH, Information Blocking, USCDI as packs
 - Legal compliance determinations
 
 ---
 
-## Architecture proof (Pack #2 / #3 Definition of Done)
+## Architecture proof (Pack #2 / #3 / #4 Definition of Done)
 
-> **Part 2 and ONC can be added without creating authority-specific logic inside the core evaluator, resolver, PDP, or Gateway.**
+> **Part 2, ONC, and CMS can be added without creating authority-specific logic inside the core evaluator, resolver, PDP, or Gateway.**
 
 If a future authority requires new capability, improve the **generic** abstraction once and demonstrate it with multiple packs — do not add regulatory-specific runtime forks.

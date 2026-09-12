@@ -105,6 +105,7 @@ export function toInputEvaluationRequest(
           : undefined,
       ...(context.agent_id != null ? { agent_id: context.agent_id } : {}),
       ...(context.tool_id != null ? { tool_id: context.tool_id } : {}),
+      ...(context.action != null ? { action: context.action } : {}),
     },
     evidence: {
       classification: classification as PolicyEvidence['classification'],
