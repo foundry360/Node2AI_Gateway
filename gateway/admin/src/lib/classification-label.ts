@@ -7,6 +7,7 @@ const CLASSIFICATION_LABELS: Record<string, string> = {
   credential: 'Credential',
   part2: '42 CFR Part 2',
   tool_or_action: 'Tool or action',
+  eu_ai_act: 'EU AI ACT',
 };
 
 export function formatClassificationLabel(

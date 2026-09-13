@@ -1,22 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import {
-  ChevronDown,
-  ChevronUp,
-  FileText,
-  Gavel,
-  HeartPulse,
-  Scale,
-  Shield,
-} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { SelectDropdown } from '@/components/SelectDropdown';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatDomainLabel } from '@/lib/domain-label';
-
-const PAGE_SIZE = 25;
 
 type Pack = {
   pack_id: string;
@@ -39,64 +29,74 @@ type PolicyRow = {
   domain?: string;
 };
 
-type SortKey =
-  | 'name'
-  | 'domain'
-  | 'pack'
-  | 'status'
-  | 'version'
-  | 'phase'
-  | 'interpreter';
-
+type SortKey = 'name' | 'pack' | 'status' | 'version' | 'phase' | 'interpreter';
 type SortDir = 'asc' | 'desc';
 
-const SORT_COLUMNS: Array<{ key: SortKey; label: string; className?: string }> = [
+type DomainSection = {
+  key: string;
+  label: string;
+  domain: string | undefined;
+  policies: PolicyRow[];
+};
+
+const SORT_COLUMNS: Array<{ key: SortKey; label: string }> = [
   { key: 'name', label: 'Name' },
-  { key: 'domain', label: 'Domain' },
   { key: 'pack', label: 'Pack' },
   { key: 'status', label: 'Status' },
-  { key: 'version', label: 'Version' },
+  { key: 'version', label: 'Policy Version' },
   { key: 'phase', label: 'Phase' },
   { key: 'interpreter', label: 'Interpreter' },
 ];
-
-function policyDomainIcon(domain: string | undefined): ReactNode {
-  const props = { size: 16, strokeWidth: 1.75, 'aria-hidden': true as const };
-  const d = (domain ?? '').toLowerCase();
-  if (
-    d === 'hipaa' ||
-    d === 'healthcare' ||
-    d === 'part2' ||
-    d === '42_cfr_part_2' ||
-    d.includes('part_2') ||
-    d.includes('part2')
-  ) {
-    return <HeartPulse {...props} />;
-  }
-  if (d === 'enterprise') {
-    return <Shield {...props} />;
-  }
-  if (d === 'financial' || d === 'pci' || d === 'sox') {
-    return <Scale {...props} />;
-  }
-  if (d === 'legal') {
-    return <Gavel {...props} />;
-  }
-  if (d === 'soc2' || d === 'hitrust' || d === 'gdpr') {
-    return <Shield {...props} />;
-  }
-  return <FileText {...props} />;
-}
 
 function compareValues(a: string | number, b: string | number, dir: SortDir): number {
   const mul = dir === 'asc' ? 1 : -1;
   if (typeof a === 'number' && typeof b === 'number') {
     return (a - b) * mul;
   }
-  return String(a).localeCompare(String(b), undefined, {
-    sensitivity: 'base',
-    numeric: true,
-  }) * mul;
+  return (
+    String(a).localeCompare(String(b), undefined, {
+      sensitivity: 'base',
+      numeric: true,
+    }) * mul
+  );
+}
+
+function resolveDomain(
+  policy: PolicyRow,
+  packById: Map<string, Pack>,
+): string | undefined {
+  return policy.domain ?? packById.get(policy.pack_id)?.domain;
+}
+
+function groupByDomain(
+  policies: PolicyRow[],
+  packById: Map<string, Pack>,
+): DomainSection[] {
+  const order: string[] = [];
+  const map = new Map<string, DomainSection>();
+
+  for (const policy of policies) {
+    const domain = resolveDomain(policy, packById);
+    const key = (domain ?? '').trim().toLowerCase() || 'uncategorized';
+    const existing = map.get(key);
+    if (existing) {
+      existing.policies.push(policy);
+      continue;
+    }
+    order.push(key);
+    map.set(key, {
+      key,
+      domain,
+      label: domain ? formatDomainLabel(domain) : 'Uncategorized',
+      policies: [policy],
+    });
+  }
+
+  return order
+    .map((key) => map.get(key)!)
+    .sort((a, b) =>
+      a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }),
+    );
 }
 
 export function PoliciesTable({
@@ -109,9 +109,9 @@ export function PoliciesTable({
   const [packFilter, setPackFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [q, setQ] = useState('');
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
   const packById = useMemo(
     () => new Map(packs.map((p) => [p.pack_id, p])),
@@ -124,28 +124,26 @@ export function PoliciesTable({
       if (statusFilter !== 'all' && p.status !== statusFilter) return false;
       if (q.trim()) {
         const needle = q.trim().toLowerCase();
-        const hay = `${p.name} ${p.policy_id} ${p.interpreter} ${p.domain ?? ''}`.toLowerCase();
+        const domain = resolveDomain(p, packById);
+        const hay =
+          `${p.name} ${p.policy_id} ${p.interpreter} ${domain ?? ''}`.toLowerCase();
         if (!hay.includes(needle)) return false;
       }
       return true;
     });
-  }, [policies, packFilter, statusFilter, q]);
+  }, [policies, packFilter, statusFilter, q, packById]);
 
   const sorted = useMemo(() => {
     const rows = [...filtered];
     rows.sort((a, b) => {
       const packA = packById.get(a.pack_id);
       const packB = packById.get(b.pack_id);
-      const domainA = formatDomainLabel(a.domain ?? packA?.domain);
-      const domainB = formatDomainLabel(b.domain ?? packB?.domain);
       const packNameA = packA?.name ?? a.pack_id;
       const packNameB = packB?.name ?? b.pack_id;
 
       switch (sortKey) {
         case 'name':
           return compareValues(a.name, b.name, sortDir);
-        case 'domain':
-          return compareValues(domainA, domainB, sortDir);
         case 'pack':
           return compareValues(packNameA, packNameB, sortDir);
         case 'status':
@@ -163,12 +161,24 @@ export function PoliciesTable({
     return rows;
   }, [filtered, packById, sortKey, sortDir]);
 
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [packFilter, statusFilter, q, sortKey, sortDir]);
+  const sections = useMemo(
+    () => groupByDomain(sorted, packById),
+    [sorted, packById],
+  );
 
-  const visible = sorted.slice(0, visibleCount);
-  const hasMore = visibleCount < sorted.length;
+  const sectionSignature = useMemo(
+    () => sections.map((s) => s.key).join('|'),
+    [sections],
+  );
+
+  useEffect(() => {
+    const next: Record<string, boolean> = {};
+    for (const section of sections) {
+      next[section.key] = true;
+    }
+    setOpenSections(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- defaults when filter/section set changes
+  }, [packFilter, statusFilter, q, sectionSignature]);
 
   function onSort(key: SortKey) {
     if (sortKey === key) {
@@ -177,6 +187,10 @@ export function PoliciesTable({
     }
     setSortKey(key);
     setSortDir(key === 'version' ? 'desc' : 'asc');
+  }
+
+  function toggleSection(key: string) {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
   return (
@@ -218,11 +232,10 @@ export function PoliciesTable({
           description="Adjust pack, status, or search filters."
         />
       ) : (
-        <>
-          <table className="policies-table">
+        <div className="policies-table-scroll">
+          <table className="policies-table policies-inbox-table">
             <colgroup>
               <col className="policies-col-name" />
-              <col className="policies-col-domain" />
               <col className="policies-col-pack" />
               <col className="policies-col-status" />
               <col className="policies-col-version" />
@@ -234,7 +247,7 @@ export function PoliciesTable({
                 {SORT_COLUMNS.map((col) => {
                   const active = sortKey === col.key;
                   return (
-                    <th key={col.key} className={col.className}>
+                    <th key={col.key}>
                       <button
                         type="button"
                         className={`table-sort-btn${active ? ' is-active' : ''}`}
@@ -259,50 +272,66 @@ export function PoliciesTable({
                 })}
               </tr>
             </thead>
-            <tbody>
-              {visible.map((p) => {
-                const pack = packById.get(p.pack_id);
-                const domain = p.domain ?? pack?.domain;
-                return (
-                  <tr key={p.policy_id}>
-                    <td>
-                      <div className="table-name-primary">
-                        <span className="table-name-icon" aria-hidden>
-                          {policyDomainIcon(domain)}
+            {sections.map((section) => {
+              const open = openSections[section.key] !== false;
+              const count = section.policies.length;
+              return (
+                <tbody key={section.key}>
+                  <tr className="decision-inbox-heading-row">
+                    <td colSpan={6}>
+                      <button
+                        type="button"
+                        className="decision-inbox-heading policies-domain-heading"
+                        aria-expanded={open}
+                        onClick={() => toggleSection(section.key)}
+                      >
+                        <ChevronDown
+                          className={`decision-inbox-chevron${open ? ' is-open' : ''}`}
+                          size={16}
+                          strokeWidth={2}
+                          aria-hidden
+                        />
+                        <span className="decision-inbox-heading-title">
+                          {section.label}
                         </span>
-                        <Link
-                          href={`/policies/${p.policy_id}`}
-                          className="table-link"
-                        >
-                          {p.name}
-                        </Link>
-                      </div>
+                        <span className="muted decision-inbox-heading-count">
+                          {count} {count === 1 ? 'policy' : 'policies'}
+                        </span>
+                      </button>
                     </td>
-                    <td>{formatDomainLabel(domain)}</td>
-                    <td>{pack?.name ?? p.pack_id}</td>
-                    <td>
-                      <StatusBadge showLabel status={p.status} />
-                    </td>
-                    <td className="mono">v{p.version}</td>
-                    <td>{p.phase}</td>
-                    <td className="mono">{p.interpreter}</td>
                   </tr>
-                );
-              })}
-            </tbody>
+                  {open
+                    ? section.policies.map((p) => {
+                        const pack = packById.get(p.pack_id);
+                        return (
+                          <tr key={p.policy_id}>
+                            <td>
+                              <div className="policies-name-rail">
+                                <span className="policies-name-rail-gutter" aria-hidden />
+                                <Link
+                                  href={`/policies/${p.policy_id}`}
+                                  className="table-link"
+                                >
+                                  {p.name}
+                                </Link>
+                              </div>
+                            </td>
+                            <td>{pack?.name ?? p.pack_id}</td>
+                            <td>
+                              <StatusBadge showLabel status={p.status} />
+                            </td>
+                            <td className="mono">v{p.version}</td>
+                            <td>{p.phase}</td>
+                            <td className="mono">{p.interpreter}</td>
+                          </tr>
+                        );
+                      })
+                    : null}
+                </tbody>
+              );
+            })}
           </table>
-          {hasMore ? (
-            <div className="table-load-more">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
-              >
-                Load More
-              </button>
-            </div>
-          ) : null}
-        </>
+        </div>
       )}
     </div>
   );

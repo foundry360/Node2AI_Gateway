@@ -21,7 +21,7 @@ export type PriorityFrameworkDef = {
 export const PRIORITY_FRAMEWORKS: PriorityFrameworkDef[] = [
   {
     framework_id: 'eu_ai_act',
-    name: 'EU AI Act',
+    name: 'EU AI ACT',
     pack_ids: ['pack_eu_ai_act', 'pack_eu'],
     domains: ['eu', 'eu_ai_act'],
   },

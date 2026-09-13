@@ -113,11 +113,9 @@ export function SystemSettingsView({
             <div className="settings-section-aside">
               <h2 className="settings-section-title">License & Subscription</h2>
               <p className="settings-section-explainer">
-                Commercial license for this installation. Foundry360 issues a signed
-                license bound to this Deployment ID. Administrators install the file here;
-                Enigma verifies the signature and binding before activation. After the
-                contractual end date, a signed grace period may keep AI available.
-                Cryptographic or binding failures never receive grace.
+                Commercial license for this installation. A signed license bound to this
+                Deployment ID is required. Enigma verifies the signature and binding before
+                activation.
               </p>
             </div>
             <div className="settings-section-data">

@@ -147,7 +147,7 @@
       "priority": 80,
       "requirement_type": "REGULATORY_OBLIGATION",
       "application_date": "2026-08-02",
-      "note": "Regulatory obligation evaluated — not EU AI Act certification.",
+      "note": "Regulatory obligation evaluated — not EU AI ACT certification.",
       "conditions": {
         "regulatory_applicability": "EU_AI_ACT",
         "high_risk_established": true,
@@ -573,7 +573,7 @@
     },
     {
       "rule_id": "EU-AI-ACT-OUTPUT-GOVERNANCE-LOG",
-      "name": "Log governance event for EU AI Act-scoped output",
+      "name": "Log governance event for EU AI ACT-scoped output",
       "phase": "output",
       "priority": 50,
       "requirement_type": "REGULATORY_OBLIGATION",

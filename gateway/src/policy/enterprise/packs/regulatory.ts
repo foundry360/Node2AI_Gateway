@@ -535,7 +535,7 @@ export function euAiActPackContribution(): PackContribution {
       {
         pack_id: 'pack_eu_ai_act',
         status: 'active',
-        name: 'EU AI Act',
+        name: 'EU AI ACT',
         domain: 'ai_risk',
         authority_id: POLICY_AUTHORITY_IDS.euAiAct,
       },

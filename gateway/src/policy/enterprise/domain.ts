@@ -33,7 +33,7 @@ export const AI_RISK_DOMAIN: PolicyDomain = {
   domain_id: 'ai_risk',
   name: 'AI Risk',
   description:
-    'AI governance domain for framework, security-guidance, and standards packs (NIST AI RMF, OWASP LLM 2025, EU AI Act, ISO/IEC 42001 / 23894 / 42005 / 38507 / 27001 / 27701, NIST Privacy Framework 1.0, SOC 2 / AICPA TSC, NIST CSF 2.0). Membership only — not a certification checklist or scoring product.',
+    'AI governance domain for framework, security-guidance, and standards packs (NIST AI RMF, OWASP LLM 2025, EU AI ACT, ISO/IEC 42001 / 23894 / 42005 / 38507 / 27001 / 27701, NIST Privacy Framework 1.0, SOC 2 / AICPA TSC, NIST CSF 2.0). Membership only — not a certification checklist or scoring product.',
   status: 'active',
   pack_ids: ['pack_nist_ai_rmf'],
 };

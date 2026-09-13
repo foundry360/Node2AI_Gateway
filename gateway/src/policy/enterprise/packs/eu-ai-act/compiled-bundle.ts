@@ -1,5 +1,5 @@
 /**
- * Compiled EU AI Act pack artifacts (Pack #5).
+ * Compiled EU AI ACT pack artifacts (Pack #5).
  * Pack version 1.0.0 — Regulation (EU) 2024/1689 (consolidated).
  * Legal authority — not an Enigma compliance certification.
  *
@@ -157,7 +157,7 @@ export const EU_AI_ACT_RULES: EuAiActCompiledRule[] = [
     priority: 80,
     requirement_type: 'REGULATORY_OBLIGATION',
     application_date: EU_AI_ACT_APPLICATION_DATES.high_risk_annex_iii,
-    note: 'Regulatory obligation evaluated — not EU AI Act certification.',
+    note: 'Regulatory obligation evaluated — not EU AI ACT certification.',
     conditions: {
       regulatory_applicability: 'EU_AI_ACT',
       high_risk_established: true,
@@ -430,7 +430,7 @@ export const EU_AI_ACT_RULES: EuAiActCompiledRule[] = [
   // --- Output complementary log ---
   {
     rule_id: 'EU-AI-ACT-OUTPUT-GOVERNANCE-LOG',
-    name: 'Log governance event for EU AI Act-scoped output',
+    name: 'Log governance event for EU AI ACT-scoped output',
     phase: 'output',
     priority: 50,
     requirement_type: 'REGULATORY_OBLIGATION',

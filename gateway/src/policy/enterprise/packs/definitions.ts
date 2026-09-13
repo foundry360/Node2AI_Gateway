@@ -2,7 +2,12 @@
  * Pack-backed policy definition manifests for Admin console.
  * Declarative sections mirror interpreter enforcement until relational
  * subject/resource/condition tables are authored.
+ *
+ * Hand-authored defs cover baseline / healthcare / financial / legal.
+ * Framework packs derive Conditions/Decisions/Obligations from compiled rules.
  */
+
+import { getFrameworkPackDefinition } from './framework-pack-definitions.js';
 
 export interface PolicyDefinition {
   description: string;
@@ -1186,5 +1191,5 @@ export function getPolicyDefinition(
 ): PolicyDefinition | null {
   if (BY_POLICY_ID[policyId]) return BY_POLICY_ID[policyId];
   if (interpreter && BY_INTERPRETER[interpreter]) return BY_INTERPRETER[interpreter];
-  return null;
+  return getFrameworkPackDefinition(policyId, interpreter);
 }
