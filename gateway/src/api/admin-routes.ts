@@ -121,6 +121,10 @@ export interface AdminContext {
   packPdp?: PackBackedEnterprisePdp;
   /** Live Gateway orchestrator - post-AUTHORIZE resume only. */
   orchestrator?: import('./orchestrator.js').GatewayOrchestrator;
+  /** Phase 4 — client Outcome projection (idempotency index). */
+  outcomeStore?: import('../audit/outcome-store.js').ActionOutcomeStore;
+  /** Phase A — Agent/Tool authorization substrate. */
+  actorRegistry?: import('../actors/index.js').ActorRegistry;
   db?: PgQueryable;
   checkDatabase?: () => Promise<DatabaseHealth>;
   checkLocalRuntime?: () => Promise<{
@@ -305,6 +309,93 @@ export function registerAdminRoutes(
           .length
       : policies.filter((p) => p.status === 'active').length;
 
+    // Decision-led Overview aggregates (policy_evaluations only; no second authority).
+    let decisions: Awaited<
+      ReturnType<
+        typeof import('../policy/enterprise/overview-summary.js').buildOverviewDecisionSummary
+      >
+    > | null = null;
+    let decisions_error: string | null = null;
+    let agentsCount = 0;
+    let toolsCount = 0;
+
+    try {
+      if (ctx.policyRepository?.listEvaluations) {
+        const { toEvaluationListItem } = await import(
+          '../policy/enterprise/evaluation-query.js'
+        );
+        const { findAuditForEvaluation } = await import(
+          '../policy/enterprise/enforcement-projection.js'
+        );
+        const {
+          buildOverviewDecisionSummary,
+          overviewOutcomeLabelFromStoreStatus,
+        } = await import('../policy/enterprise/overview-summary.js');
+
+        const records = await Promise.resolve(
+          ctx.policyRepository.listEvaluations({ limit: 200 }),
+        );
+        const items = records.map((r) =>
+          toEvaluationListItem(r, findAuditForEvaluation(r, events)),
+        );
+
+        const outcomeByEvaluationId = new Map<string, string>();
+        if (ctx.outcomeStore) {
+          const deploymentId = ctx.deploymentIdentity
+            ? await ctx.deploymentIdentity.getOrCreateDeploymentId()
+            : 'local-memory';
+          const candidates = items
+            .filter((i) => {
+              const o = String(i.outcome_status ?? '').toLowerCase();
+              return o === 'not reported' || o === 'not_reported';
+            })
+            .slice(0, 100);
+          const lookedUp = await Promise.all(
+            candidates.map(async (item) => {
+              const row = await ctx.outcomeStore!.getLatestByEvaluationId(
+                deploymentId,
+                item.evaluation_id,
+              );
+              const label = overviewOutcomeLabelFromStoreStatus(row?.outcome);
+              return label
+                ? ([item.evaluation_id, label] as const)
+                : null;
+            }),
+          );
+          for (const pair of lookedUp) {
+            if (pair) outcomeByEvaluationId.set(pair[0], pair[1]);
+          }
+        }
+
+        decisions = buildOverviewDecisionSummary({
+          items,
+          days,
+          outcomeByEvaluationId,
+          available: true,
+        });
+      } else {
+        decisions_error = 'EPA evaluation store unavailable';
+      }
+    } catch (err) {
+      decisions_error =
+        err instanceof Error ? err.message : 'Failed to load decision activity';
+      decisions = null;
+    }
+
+    if (ctx.actorRegistry && ctx.deploymentIdentity) {
+      try {
+        const deploymentId = await ctx.deploymentIdentity.getOrCreateDeploymentId();
+        const [agents, tools] = await Promise.all([
+          ctx.actorRegistry.listAgents(deploymentId),
+          ctx.actorRegistry.listTools(deploymentId),
+        ]);
+        agentsCount = agents.length;
+        toolsCount = tools.length;
+      } catch {
+        // Coverage counts are subordinate; leave zero if registry is unreachable.
+      }
+    }
+
     return {
       gateway: { status: 'ok', mode: ctx.config.deploymentMode },
       policy: {
@@ -337,6 +428,15 @@ export function registerAdminRoutes(
         applications: applications.length,
         users: users.length,
       },
+      coverage: {
+        policies: activePolicies,
+        agents: agentsCount,
+        tools: toolsCount,
+        applications: applications.length,
+        models: ctx.registry.listActive().length,
+      },
+      decisions,
+      decisions_error,
     };
   });
 
@@ -927,34 +1027,132 @@ export function registerAdminRoutes(
     }
     const model_governance = projectModelGovernance(authorizationRecord, audit);
 
+    const { projectOutcomeFromRecord } = await import('../audit/outcome.js');
+    const {
+      deriveEnforcementIntegrity,
+      deriveOutcomeIntegrityStatus,
+    } = await import('../policy/enterprise/enforcement-integrity.js');
+    const deploymentId = ctx.deploymentIdentity
+      ? await ctx.deploymentIdentity.getOrCreateDeploymentId()
+      : 'local-memory';
+    const outcomeRow = ctx.outcomeStore
+      ? await ctx.outcomeStore.getLatestByEvaluationId(
+          deploymentId,
+          evaluationId,
+        )
+      : null;
+    const outcome = projectOutcomeFromRecord(outcomeRow);
+
+    const commitAuthorized = events.some((e) => {
+      const codes = e.reason_codes ?? [];
+      const meta = (e.metadata ?? {}) as Record<string, unknown>;
+      const evalMatch =
+        meta.evaluation_id === evaluationId ||
+        (record.request_id != null && e.request_id === record.request_id);
+      return (
+        evalMatch &&
+        (codes.includes('CLIENT_COMMIT_ALLOWED') || meta.client_commit === true) &&
+        !String(e.operation ?? '').includes('outcome')
+      );
+    });
+
+    const enforcement_integrity = deriveEnforcementIntegrity({
+      record,
+      reviewState: review_state,
+      commitAuthorized,
+      outcomeStatus: outcome?.status ?? null,
+    });
+    const outcome_integrity = {
+      status: deriveOutcomeIntegrityStatus({
+        boundary: enforcement_integrity.boundary,
+        outcomeStatus: outcome?.status ?? null,
+      }),
+      evidence_class: outcome?.evidence_class ?? 'not_reported',
+      summary:
+        enforcement_integrity.boundary === 'CLIENT_COMMIT_REQUIRED'
+          ? outcome?.status && outcome.status !== 'NOT_REPORTED'
+            ? 'Client-reported execution receipt sealed to this Decision. Not proof that Enigma executed external DML.'
+            : 'Client commit path — external outcome not yet reported to Enigma.'
+          : enforcement_integrity.boundary === 'GATEWAY_ENFORCED'
+            ? 'Model/transform path is Gateway-enforced; action Outcome API is not applicable.'
+            : 'Outcome not applicable until Gateway authorizes commit after Decision/Review.',
+    };
+
+    const { buildDecisionNarrative } = await import(
+      '../policy/enterprise/decision-narrative.js'
+    );
+    const decision_narrative = buildDecisionNarrative({
+      record,
+      enforcementIntegrity: enforcement_integrity,
+      outcomeIntegrityStatus: outcome_integrity.status,
+    });
+
     return {
       source: 'policy_evaluations',
       evaluation: record,
       decision,
+      decision_narrative,
       consequence,
       enforcement,
+      enforcement_integrity,
+      outcome,
+      outcome_integrity,
       request_context,
       held_request_preview,
       model_governance,
+      runtime_actor:
+        (authorizationRecord.ai_context?.runtime_actor as
+          | Record<string, unknown>
+          | undefined) ??
+        (record.ai_context?.runtime_actor as Record<string, unknown> | undefined) ??
+        null,
+      action_governance:
+        (authorizationRecord.ai_context?.action_governance as
+          | Record<string, unknown>
+          | undefined) ??
+        (record.ai_context?.action_governance as
+          | Record<string, unknown>
+          | undefined) ??
+        null,
       execution: {
         mode: request_context.execution_mode,
         phase: record.phase,
+        // Live evaluation does not mean Enigma performed external DML.
         gateway_executed: request_context.execution_mode === 'live',
+        gateway_executed_side_effect:
+          enforcement_integrity.gateway_executed_side_effect,
         summary:
           request_context.execution_mode === 'simulation'
             ? 'Decision evaluated - Gateway action not executed'
-            : enforcement.status === 'FAILED'
-              ? 'Decision evaluated - Gateway enforcement failed'
-              : enforcement.verified &&
-                  (enforcement.status === 'ALLOWED' ||
-                    enforcement.status === 'CONTROLS_APPLIED' ||
-                    enforcement.status === 'BLOCKED')
-                ? 'Decision evaluated - Gateway enforcement correlated and verified'
-                : enforcement.attempted
-                  ? 'Decision evaluated - Gateway enforcement attempted'
-                  : 'Decision evaluated - Gateway enforcement not yet correlated',
+            : enforcement_integrity.boundary === 'CLIENT_COMMIT_REQUIRED'
+              ? enforcement_integrity.summary
+              : enforcement.status === 'FAILED'
+                ? 'Decision evaluated - Gateway enforcement failed'
+                : enforcement.verified &&
+                    (enforcement.status === 'ALLOWED' ||
+                      enforcement.status === 'CONTROLS_APPLIED' ||
+                      enforcement.status === 'BLOCKED')
+                  ? 'Decision evaluated - Gateway enforcement correlated and verified'
+                  : enforcement.attempted
+                    ? 'Decision evaluated - Gateway enforcement attempted'
+                    : 'Decision evaluated - Gateway enforcement not yet correlated',
         resume: record.execution ?? null,
         held_request_present: Boolean(record.held_request),
+        client: outcomeRow
+          ? {
+              execution_id: outcomeRow.execution_id,
+              status: outcomeRow.outcome,
+              reported_at: outcomeRow.reported_at,
+              application_id: outcomeRow.application_id,
+              audit_event_id: outcomeRow.audit_event_id,
+              evidence_class: 'client_reported' as const,
+              action_kind: outcomeRow.action_kind,
+              tool_id: outcomeRow.tool_id,
+            }
+          : {
+              status: 'NOT_REPORTED' as const,
+              evidence_class: 'not_reported' as const,
+            },
       },
       review: {
         eligible: isEligibleForHumanReview(record) || review_state === 'resolved',
@@ -1721,6 +1919,554 @@ export function registerAdminRoutes(
     }
   });
 
+  // ---------------------------------------------------------------------------
+  // Phase A — Agent / Tool registry (administrator substrate management)
+  // ---------------------------------------------------------------------------
+
+  async function requireDeploymentId(): Promise<string> {
+    if (!ctx.deploymentIdentity) {
+      throw new Error('deployment identity unavailable');
+    }
+    return ctx.deploymentIdentity.getOrCreateDeploymentId();
+  }
+
+  app.get('/v1/admin/agents', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const deploymentId = await requireDeploymentId();
+    const agents = await ctx.actorRegistry.listAgents(deploymentId);
+    const enriched = await Promise.all(
+      agents.map(async (agent) => {
+        const bindings = await ctx.actorRegistry!.listBindingsForAgent(
+          deploymentId,
+          agent.agent_id,
+        );
+        const grants = await ctx.actorRegistry!.listGrantsForAgent(
+          deploymentId,
+          agent.agent_id,
+        );
+        const activeGrants = grants.filter((g) => g.status === 'ACTIVE');
+        return {
+          ...agent,
+          application_ids: bindings
+            .filter((b) => b.status === 'ACTIVE')
+            .map((b) => b.application_id),
+          bindings,
+          granted_tool_count: activeGrants.length,
+          granted_tools: activeGrants.map((g) => ({
+            tool_id: g.tool_id,
+            allowed_operations: g.allowed_operations,
+            status: g.status,
+          })),
+        };
+      }),
+    );
+    return { agents: enriched, deployment_id: deploymentId };
+  });
+
+  app.get('/v1/admin/agents/:agentId', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const { agentId } = request.params as { agentId: string };
+    const deploymentId = await requireDeploymentId();
+    const agent = await ctx.actorRegistry.getAgent(deploymentId, agentId);
+    if (!agent) {
+      return reply.status(404).send({ status: 'error', message: 'agent not found' });
+    }
+    const bindings = await ctx.actorRegistry.listBindingsForAgent(
+      deploymentId,
+      agentId,
+    );
+    const grants = await ctx.actorRegistry.listGrantsForAgent(
+      deploymentId,
+      agentId,
+    );
+    const tools = await Promise.all(
+      grants.map(async (g) => {
+        const tool = await ctx.actorRegistry!.getTool(deploymentId, g.tool_id);
+        return {
+          ...g,
+          tool_name: tool?.name ?? g.tool_id,
+          tool_status: tool?.status ?? null,
+          tool_operations: tool?.operations ?? [],
+        };
+      }),
+    );
+    return {
+      agent,
+      deployment_id: deploymentId,
+      bindings,
+      grants: tools,
+    };
+  });
+
+  app.post('/v1/admin/agents', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const deploymentId = await requireDeploymentId();
+    const applicationId = String(body.application_id ?? '').trim();
+    try {
+      if (applicationId) {
+        const app = await ctx.identityStore.getApplication(applicationId);
+        if (!app) {
+          return reply.status(400).send({
+            status: 'error',
+            message: 'application not found',
+          });
+        }
+      }
+      const agent = await ctx.actorRegistry.createAgent({
+        deployment_id: deploymentId,
+        agent_id: String(body.agent_id ?? '').trim(),
+        organization_id: String(body.organization_id ?? '').trim(),
+        name: String(body.name ?? '').trim(),
+        status: (String(body.status ?? 'ACTIVE') as 'ACTIVE' | 'SUSPENDED' | 'RETIRED'),
+        autonomy_level: (String(body.autonomy_level ?? 'HUMAN_APPROVED') as
+          | 'ASSISTIVE'
+          | 'HUMAN_APPROVED'
+          | 'AUTONOMOUS'),
+        metadata:
+          body.metadata && typeof body.metadata === 'object'
+            ? (body.metadata as Record<string, unknown>)
+            : {},
+      });
+      let binding = null;
+      if (applicationId) {
+        binding = await ctx.actorRegistry.upsertBinding({
+          deployment_id: deploymentId,
+          agent_id: agent.agent_id,
+          application_id: applicationId,
+          status: 'ACTIVE',
+        });
+        await recordAdminAudit(ctx.audit, {
+          principal: __gate.principal,
+          action: 'agent_application_bound',
+          target_type: 'agent_application_binding',
+          target_id: `${agent.agent_id}:${applicationId}`,
+          after: {
+            agent_id: agent.agent_id,
+            application_id: applicationId,
+            status: 'ACTIVE',
+          },
+        });
+      }
+      await recordAdminAudit(ctx.audit, {
+        principal: __gate.principal,
+        action: 'agent_created',
+        target_type: 'agent',
+        target_id: agent.agent_id,
+        after: {
+          agent_id: agent.agent_id,
+          organization_id: agent.organization_id,
+          status: agent.status,
+          autonomy_level: agent.autonomy_level,
+          application_id: applicationId || null,
+        },
+      });
+      return reply.status(201).send({ agent, binding });
+    } catch (err) {
+      return reply.status(400).send({
+        status: 'error',
+        message: err instanceof Error ? err.message : 'create failed',
+      });
+    }
+  });
+
+  app.post('/v1/admin/agents/:agentId/suspend', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const { agentId } = request.params as { agentId: string };
+    const deploymentId = await requireDeploymentId();
+    const before = await ctx.actorRegistry.getAgent(deploymentId, agentId);
+    const agent = await ctx.actorRegistry.updateAgent(deploymentId, agentId, {
+      status: 'SUSPENDED',
+    });
+    if (!agent) {
+      return reply.status(404).send({ status: 'error', message: 'agent not found' });
+    }
+    await recordAdminAudit(ctx.audit, {
+      principal: __gate.principal,
+      action: 'agent_suspended',
+      target_type: 'agent',
+      target_id: agentId,
+      before: before ? { status: before.status } : undefined,
+      after: { status: agent.status },
+    });
+    return { agent };
+  });
+
+  app.post('/v1/admin/agents/:agentId/resume', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const { agentId } = request.params as { agentId: string };
+    const deploymentId = await requireDeploymentId();
+    const before = await ctx.actorRegistry.getAgent(deploymentId, agentId);
+    if (before?.status === 'RETIRED') {
+      return reply.status(409).send({ status: 'error', message: 'retired agent cannot resume' });
+    }
+    const agent = await ctx.actorRegistry.updateAgent(deploymentId, agentId, {
+      status: 'ACTIVE',
+    });
+    if (!agent) {
+      return reply.status(404).send({ status: 'error', message: 'agent not found' });
+    }
+    await recordAdminAudit(ctx.audit, {
+      principal: __gate.principal,
+      action: 'agent_resumed',
+      target_type: 'agent',
+      target_id: agentId,
+      before: before ? { status: before.status } : undefined,
+      after: { status: agent.status },
+    });
+    return { agent };
+  });
+
+  app.post('/v1/admin/agents/:agentId/retire', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const { agentId } = request.params as { agentId: string };
+    const deploymentId = await requireDeploymentId();
+    const before = await ctx.actorRegistry.getAgent(deploymentId, agentId);
+    const agent = await ctx.actorRegistry.updateAgent(deploymentId, agentId, {
+      status: 'RETIRED',
+    });
+    if (!agent) {
+      return reply.status(404).send({ status: 'error', message: 'agent not found' });
+    }
+    await recordAdminAudit(ctx.audit, {
+      principal: __gate.principal,
+      action: 'agent_retired',
+      target_type: 'agent',
+      target_id: agentId,
+      before: before ? { status: before.status } : undefined,
+      after: { status: agent.status },
+    });
+    return { agent };
+  });
+
+  app.put('/v1/admin/agents/:agentId/applications/:applicationId', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const { agentId, applicationId } = request.params as {
+      agentId: string;
+      applicationId: string;
+    };
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const deploymentId = await requireDeploymentId();
+    try {
+      const binding = await ctx.actorRegistry.upsertBinding({
+        deployment_id: deploymentId,
+        agent_id: agentId,
+        application_id: applicationId,
+        status: (String(body.status ?? 'ACTIVE') as 'ACTIVE' | 'SUSPENDED'),
+      });
+      await recordAdminAudit(ctx.audit, {
+        principal: __gate.principal,
+        action: 'agent_application_bound',
+        target_type: 'agent_application_binding',
+        target_id: `${agentId}:${applicationId}`,
+        after: {
+          agent_id: agentId,
+          application_id: applicationId,
+          status: binding.status,
+        },
+      });
+      return { binding };
+    } catch (err) {
+      return reply.status(400).send({
+        status: 'error',
+        message: err instanceof Error ? err.message : 'bind failed',
+      });
+    }
+  });
+
+  app.get('/v1/admin/tools', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const deploymentId = await requireDeploymentId();
+    const tools = await ctx.actorRegistry.listTools(deploymentId);
+    const enriched = await Promise.all(
+      tools.map(async (tool) => {
+        const grants = await ctx.actorRegistry!.listGrantsForTool(
+          deploymentId,
+          tool.tool_id,
+        );
+        const active = grants.filter((g) => g.status === 'ACTIVE');
+        return {
+          ...tool,
+          granted_agent_count: active.length,
+          granted_agents: active.map((g) => ({
+            agent_id: g.agent_id,
+            allowed_operations: g.allowed_operations,
+            status: g.status,
+          })),
+        };
+      }),
+    );
+    return { tools: enriched, deployment_id: deploymentId };
+  });
+
+  app.get('/v1/admin/tools/:toolId', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const { toolId } = request.params as { toolId: string };
+    const deploymentId = await requireDeploymentId();
+    const tool = await ctx.actorRegistry.getTool(deploymentId, toolId);
+    if (!tool) {
+      return reply.status(404).send({ status: 'error', message: 'tool not found' });
+    }
+    const grants = await ctx.actorRegistry.listGrantsForTool(deploymentId, toolId);
+    const agents = await Promise.all(
+      grants.map(async (g) => {
+        const agent = await ctx.actorRegistry!.getAgent(deploymentId, g.agent_id);
+        return {
+          ...g,
+          agent_name: agent?.name ?? g.agent_id,
+          agent_status: agent?.status ?? null,
+        };
+      }),
+    );
+    return { tool, deployment_id: deploymentId, grants: agents };
+  });
+
+  app.post('/v1/admin/tools', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const deploymentId = await requireDeploymentId();
+    const operations = Array.isArray(body.operations)
+      ? body.operations.map(String)
+      : [];
+    try {
+      const tool = await ctx.actorRegistry.createTool({
+        deployment_id: deploymentId,
+        tool_id: String(body.tool_id ?? '').trim(),
+        organization_id: String(body.organization_id ?? '').trim(),
+        name: String(body.name ?? '').trim(),
+        status: (String(body.status ?? 'ACTIVE') as 'ACTIVE' | 'SUSPENDED' | 'RETIRED'),
+        operations,
+        metadata:
+          body.metadata && typeof body.metadata === 'object'
+            ? (body.metadata as Record<string, unknown>)
+            : {},
+      });
+      await recordAdminAudit(ctx.audit, {
+        principal: __gate.principal,
+        action: 'tool_created',
+        target_type: 'tool',
+        target_id: tool.tool_id,
+        after: {
+          tool_id: tool.tool_id,
+          status: tool.status,
+          operations: tool.operations,
+        },
+      });
+      return reply.status(201).send({ tool });
+    } catch (err) {
+      return reply.status(400).send({
+        status: 'error',
+        message: err instanceof Error ? err.message : 'create failed',
+      });
+    }
+  });
+
+  app.post('/v1/admin/tools/:toolId/suspend', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const { toolId } = request.params as { toolId: string };
+    const deploymentId = await requireDeploymentId();
+    const before = await ctx.actorRegistry.getTool(deploymentId, toolId);
+    const tool = await ctx.actorRegistry.updateTool(deploymentId, toolId, {
+      status: 'SUSPENDED',
+    });
+    if (!tool) {
+      return reply.status(404).send({ status: 'error', message: 'tool not found' });
+    }
+    await recordAdminAudit(ctx.audit, {
+      principal: __gate.principal,
+      action: 'tool_suspended',
+      target_type: 'tool',
+      target_id: toolId,
+      before: before ? { status: before.status } : undefined,
+      after: { status: tool.status },
+    });
+    return { tool };
+  });
+
+  app.post('/v1/admin/tools/:toolId/resume', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const { toolId } = request.params as { toolId: string };
+    const deploymentId = await requireDeploymentId();
+    const before = await ctx.actorRegistry.getTool(deploymentId, toolId);
+    if (before?.status === 'RETIRED') {
+      return reply.status(409).send({ status: 'error', message: 'retired tool cannot resume' });
+    }
+    const tool = await ctx.actorRegistry.updateTool(deploymentId, toolId, {
+      status: 'ACTIVE',
+    });
+    if (!tool) {
+      return reply.status(404).send({ status: 'error', message: 'tool not found' });
+    }
+    await recordAdminAudit(ctx.audit, {
+      principal: __gate.principal,
+      action: 'tool_resumed',
+      target_type: 'tool',
+      target_id: toolId,
+      before: before ? { status: before.status } : undefined,
+      after: { status: tool.status },
+    });
+    return { tool };
+  });
+
+  app.post('/v1/admin/tools/:toolId/retire', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const { toolId } = request.params as { toolId: string };
+    const deploymentId = await requireDeploymentId();
+    const before = await ctx.actorRegistry.getTool(deploymentId, toolId);
+    const tool = await ctx.actorRegistry.updateTool(deploymentId, toolId, {
+      status: 'RETIRED',
+    });
+    if (!tool) {
+      return reply.status(404).send({ status: 'error', message: 'tool not found' });
+    }
+    await recordAdminAudit(ctx.audit, {
+      principal: __gate.principal,
+      action: 'tool_retired',
+      target_type: 'tool',
+      target_id: toolId,
+      before: before ? { status: before.status } : undefined,
+      after: { status: tool.status },
+    });
+    return { tool };
+  });
+
+  app.patch('/v1/admin/tools/:toolId', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const { toolId } = request.params as { toolId: string };
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const deploymentId = await requireDeploymentId();
+    const before = await ctx.actorRegistry.getTool(deploymentId, toolId);
+    if (!before) {
+      return reply.status(404).send({ status: 'error', message: 'tool not found' });
+    }
+    const patch: {
+      name?: string;
+      operations?: string[];
+      metadata?: Record<string, unknown>;
+    } = {};
+    if (typeof body.name === 'string') patch.name = body.name.trim();
+    if (Array.isArray(body.operations)) patch.operations = body.operations.map(String);
+    if (body.metadata && typeof body.metadata === 'object') {
+      patch.metadata = body.metadata as Record<string, unknown>;
+    }
+    const tool = await ctx.actorRegistry.updateTool(deploymentId, toolId, patch);
+    await recordAdminAudit(ctx.audit, {
+      principal: __gate.principal,
+      action: 'tool_updated',
+      target_type: 'tool',
+      target_id: toolId,
+      before: {
+        name: before.name,
+        operations: before.operations,
+      },
+      after: tool
+        ? { name: tool.name, operations: tool.operations }
+        : undefined,
+    });
+    return { tool };
+  });
+
+  app.put('/v1/admin/agents/:agentId/tools/:toolId', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const { agentId, toolId } = request.params as {
+      agentId: string;
+      toolId: string;
+    };
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const deploymentId = await requireDeploymentId();
+    const allowed = Array.isArray(body.allowed_operations)
+      ? body.allowed_operations.map(String)
+      : [];
+    try {
+      const grant = await ctx.actorRegistry.upsertGrant({
+        deployment_id: deploymentId,
+        agent_id: agentId,
+        tool_id: toolId,
+        allowed_operations: allowed,
+        status: (String(body.status ?? 'ACTIVE') as 'ACTIVE' | 'REVOKED'),
+      });
+      await recordAdminAudit(ctx.audit, {
+        principal: __gate.principal,
+        action:
+          grant.status === 'REVOKED' ? 'tool_grant_revoked' : 'tool_grant_upserted',
+        target_type: 'agent_tool_grant',
+        target_id: `${agentId}:${toolId}`,
+        after: {
+          agent_id: agentId,
+          tool_id: toolId,
+          allowed_operations: grant.allowed_operations,
+          status: grant.status,
+        },
+      });
+      return { grant };
+    } catch (err) {
+      return reply.status(400).send({
+        status: 'error',
+        message: err instanceof Error ? err.message : 'grant failed',
+      });
+    }
+  });
+
   app.get('/v1/admin/audit', async (request, reply) => {
     const __gate = await gate(request.headers.authorization, 'read');
     if (!__gate.ok) {
@@ -1757,6 +2503,10 @@ export function registerAdminRoutes(
           prev_event_hash: e.prev_event_hash,
           evaluation_id: e.evaluation_id ?? null,
           decision_hash: e.decision_hash ?? null,
+          deployment_id: e.deployment_id ?? null,
+          sequence_number: e.sequence_number ?? null,
+          audit_canonical_version: e.audit_canonical_version ?? null,
+          input_hash: e.input_hash ?? null,
           integrity_signature: e.integrity_signature
             ? `${e.integrity_signature.slice(0, 12)}…`
             : undefined,
@@ -1777,9 +2527,454 @@ export function registerAdminRoutes(
       });
     }
     const result = await audit.verifyIntegrity();
+    let full = null;
+    if (typeof audit.verifyFull === 'function') {
+      try {
+        full = await audit.verifyFull();
+      } catch {
+        full = null;
+      }
+    }
     return {
       integrity: result,
-      note: 'Hash-chained HMAC-signed audit. Response bodies are not stored, only response_hash.',
+      verification: full,
+      note: 'Cryptographically verifiable governance evidence. Response bodies are not stored—only response_hash. Cryptographic verification is not legal/regulatory certification.',
+    };
+  });
+
+  app.post('/v1/admin/audit/verify', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const audit = ctx.audit as IntegrityAuditService;
+    if (typeof audit.verifyFull !== 'function') {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Integrity audit service not configured',
+      });
+    }
+    const body = (request.body ?? {}) as { deployment_id?: string };
+    const result = await audit.verifyFull(body.deployment_id);
+    return { verification: result };
+  });
+
+  app.get('/v1/admin/audit/checkpoints', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const audit = ctx.audit as IntegrityAuditService;
+    if (typeof audit.listCheckpoints !== 'function') {
+      return { checkpoints: [] };
+    }
+    const checkpoints = await audit.listCheckpoints();
+    return {
+      checkpoints: checkpoints.map((c) => ({
+        ...c,
+        signature: `${c.signature.slice(0, 24)}…`,
+      })),
+    };
+  });
+
+  app.post('/v1/admin/audit/checkpoints', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const audit = ctx.audit as IntegrityAuditService;
+    if (typeof audit.createCheckpointDetailed !== 'function') {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Checkpoint signing is not configured',
+      });
+    }
+    const result = await audit.createCheckpointDetailed();
+    if (!result.created || !result.checkpoint) {
+      const status = result.reason === 'EMPTY' ? 409 : 400;
+      return reply.status(status).send({
+        status: 'error',
+        reason: result.reason ?? 'ERROR',
+        message:
+          result.reason === 'EMPTY'
+            ? 'No new audit events since the last checkpoint'
+            : 'Unable to create checkpoint (signing key missing or conflict)',
+        checkpoint_created: false,
+        anchor_pending: false,
+      });
+    }
+    return {
+      checkpoint_created: true,
+      checkpoint: {
+        ...result.checkpoint,
+        signature: `${result.checkpoint.signature.slice(0, 24)}…`,
+      },
+      anchor_status: result.anchor_status ?? 'NOT_CONFIGURED',
+      anchor_pending: Boolean(result.anchor_pending),
+      anchor_completed:
+        result.anchor_status === 'ANCHORED' ||
+        result.anchor_status === 'VERIFIED',
+    };
+  });
+
+  app.get('/v1/admin/audit/lifecycle', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const audit = ctx.audit as IntegrityAuditService;
+    if (typeof audit.getLifecycleStatus !== 'function') {
+      return {
+        metrics: {},
+        last_checkpoint: null,
+        uncheckpointed_events: 0,
+      };
+    }
+    const deploymentIdentity = ctx.deploymentIdentity;
+    const deployment_id = deploymentIdentity
+      ? await deploymentIdentity.getOrCreateDeploymentId()
+      : undefined;
+    const lifecycle = await audit.getLifecycleStatus(deployment_id);
+    return {
+      ...lifecycle,
+      last_checkpoint: lifecycle.last_checkpoint
+        ? {
+            ...lifecycle.last_checkpoint,
+            signature: `${lifecycle.last_checkpoint.signature.slice(0, 24)}…`,
+          }
+        : null,
+      oldest_unanchored_checkpoint: lifecycle.oldest_unanchored_checkpoint
+        ? {
+            checkpoint_id:
+              lifecycle.oldest_unanchored_checkpoint.checkpoint_id,
+            sequence_end: lifecycle.oldest_unanchored_checkpoint.sequence_end,
+            created_at: lifecycle.oldest_unanchored_checkpoint.created_at,
+          }
+        : null,
+    };
+  });
+
+  app.get('/v1/admin/audit/anchors', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const audit = ctx.audit as IntegrityAuditService;
+    const anchoring = audit.getAnchoring?.() ?? null;
+    if (!anchoring) {
+      return {
+        configured: false,
+        status: 'NOT_CONFIGURED',
+        provider: 'NONE',
+        durable_queue: false,
+        anchors: [],
+        jobs: [],
+      };
+    }
+    const deploymentIdentity = ctx.deploymentIdentity;
+    const deployment_id = deploymentIdentity
+      ? await deploymentIdentity.getOrCreateDeploymentId()
+      : undefined;
+    const status = deployment_id
+      ? await anchoring.latestStatus(deployment_id)
+      : { status: 'PENDING' as const, last: null, job: null };
+    const anchors = await anchoring.list(deployment_id);
+    const jobs = await anchoring.listJobs(deployment_id);
+    return {
+      configured: true,
+      status: status.status,
+      provider: anchoring.provider,
+      durable_queue: anchoring.usesDurableQueue,
+      last: status.last
+        ? {
+            checkpoint_id: status.last.checkpoint_id,
+            sequence_end: status.last.sequence_end,
+            anchor_id: status.last.anchor_id,
+            anchor_status: status.last.anchor_status,
+            anchor_type: status.last.anchor_type,
+            anchor_uri: status.last.anchor_uri,
+            anchored_at: status.last.anchored_at,
+            recorded_at: status.last.recorded_at,
+          }
+        : null,
+      job: status.job
+        ? {
+            job_id: status.job.job_id,
+            status: status.job.status,
+            attempt_count: status.job.attempt_count,
+            last_error: status.job.last_error,
+            next_attempt_at: status.job.next_attempt_at,
+          }
+        : null,
+      anchors: anchors.map((a) => ({
+        anchor_record_id: a.anchor_record_id,
+        anchor_id: a.anchor_id,
+        checkpoint_id: a.checkpoint_id,
+        sequence_end: a.sequence_end,
+        anchor_status: a.anchor_status,
+        anchor_type: a.anchor_type,
+        anchor_uri: a.anchor_uri,
+        failure_code: a.failure_code,
+        recorded_at: a.recorded_at,
+      })),
+      jobs: jobs.map((j) => ({
+        job_id: j.job_id,
+        checkpoint_id: j.checkpoint_id,
+        status: j.status,
+        attempt_count: j.attempt_count,
+        last_error: j.last_error,
+        next_attempt_at: j.next_attempt_at,
+      })),
+      pending_count: jobs.filter((j) => j.status === 'PENDING').length,
+      retrying_count: jobs.filter(
+        (j) => j.status === 'RETRY' || j.status === 'IN_PROGRESS',
+      ).length,
+      failed_count: jobs.filter((j) => j.status === 'FAILED').length,
+    };
+  });
+
+  app.post('/v1/admin/audit/anchors', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const audit = ctx.audit as IntegrityAuditService;
+    const anchoring = audit.getAnchoring?.() ?? null;
+    if (!anchoring?.configured) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Evidence anchoring is not configured',
+      });
+    }
+    const body = (request.body ?? {}) as { checkpoint_id?: string };
+    const checkpoints = await audit.listCheckpoints();
+    const cp = body.checkpoint_id
+      ? checkpoints.find((c) => c.checkpoint_id === body.checkpoint_id)
+      : checkpoints.at(-1);
+    if (!cp) {
+      return reply.status(400).send({
+        status: 'error',
+        message: 'No checkpoint available to anchor',
+      });
+    }
+    const result = await anchoring.anchorCheckpoint(cp);
+    return { result };
+  });
+
+  app.post('/v1/admin/audit/anchors/retry', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const audit = ctx.audit as IntegrityAuditService;
+    const anchoring = audit.getAnchoring?.() ?? null;
+    if (!anchoring?.configured) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Evidence anchoring is not configured',
+      });
+    }
+    const body = (request.body ?? {}) as {
+      job_id?: string;
+      checkpoint_id?: string;
+    };
+    if (body.job_id) {
+      return { result: await anchoring.retryJob(body.job_id) };
+    }
+    if (body.checkpoint_id) {
+      return { result: await anchoring.retryCheckpoint(body.checkpoint_id) };
+    }
+    return reply.status(400).send({
+      status: 'error',
+      message: 'job_id or checkpoint_id required',
+    });
+  });
+
+  app.post('/v1/admin/audit/anchors/verify', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const audit = ctx.audit as IntegrityAuditService;
+    const anchoring = audit.getAnchoring?.() ?? null;
+    if (!anchoring?.configured) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Evidence anchoring is not configured',
+      });
+    }
+    const body = (request.body ?? {}) as { checkpoint_id?: string };
+    const checkpoints = await audit.listCheckpoints();
+    const cp = body.checkpoint_id
+      ? checkpoints.find((c) => c.checkpoint_id === body.checkpoint_id)
+      : checkpoints.at(-1);
+    if (!cp) {
+      return reply.status(400).send({
+        status: 'error',
+        message: 'No checkpoint available to verify',
+      });
+    }
+    const verification = await anchoring.verifyAnchor(cp);
+    return { verification };
+  });
+
+  app.get('/v1/admin/audit/evidence/export', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'export');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const { buildEvidencePackage } = await import('../audit/evidence.js');
+    const audit = ctx.audit as IntegrityAuditService;
+    const deploymentIdentity = ctx.deploymentIdentity;
+    if (!deploymentIdentity) {
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Deployment identity not configured',
+      });
+    }
+    const deployment_id = await deploymentIdentity.getOrCreateDeploymentId();
+    const events = await ctx.audit.list();
+    const checkpoints =
+      typeof audit.listCheckpoints === 'function'
+        ? await audit.listCheckpoints(deployment_id)
+        : [];
+    const anchoring = audit.getAnchoring?.() ?? null;
+    const anchorRows = anchoring ? await anchoring.list(deployment_id) : [];
+    // Latest status per checkpoint
+    const byCp = new Map<string, (typeof anchorRows)[0]>();
+    for (const a of anchorRows) byCp.set(a.checkpoint_id, a);
+    const pkg = buildEvidencePackage({
+      deploymentId: deployment_id,
+      events,
+      checkpoints,
+      anchors: [...byCp.values()].map((a) => ({
+        checkpoint_id: a.checkpoint_id,
+        anchor_id: a.anchor_id,
+        anchor_status: a.anchor_status,
+        anchor_type: a.anchor_type,
+        anchor_uri: a.anchor_uri,
+        sequence_end: a.sequence_end,
+        deployment_id: a.deployment_id,
+        sequence_start: a.sequence_start,
+        root_hash: a.root_hash,
+        key_id: a.checkpoint_key_id,
+      })),
+      softwareVersion: process.env.npm_package_version,
+    });
+    return {
+      package: {
+        manifest: pkg.manifest,
+        event_count: pkg.exportEvents.length,
+        checkpoint_count: pkg.checkpoints.length,
+        anchor_count: pkg.anchors.length,
+        events: pkg.exportEvents,
+        checkpoints: pkg.checkpoints,
+        anchors: pkg.anchors,
+      },
+    };
+  });
+
+  app.get('/v1/admin/audit/:auditId', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) {
+      return deny(reply, __gate.status, __gate.reason);
+    }
+    const auditId = String((request.params as { auditId: string }).auditId);
+    const audit = ctx.audit as IntegrityAuditService;
+    const event =
+      typeof audit.getById === 'function'
+        ? await audit.getById(auditId)
+        : (await ctx.audit.list()).find((e) => e.audit_id === auditId) ?? null;
+    if (!event) {
+      return reply.status(404).send({ status: 'error', message: 'Audit event not found' });
+    }
+
+    let checkpoint_id: string | null = null;
+    let checkpoint_root: string | null = null;
+    let checkpoint_signature: string | null = null;
+    let checkpoint_verification: string | null = null;
+    let external_anchor: string | null = null;
+    let anchor_verification: string | null = null;
+    let anchor_type: string | null = null;
+    let anchor_id: string | null = null;
+    let anchor_uri: string | null = null;
+    let anchored_at: string | null = null;
+
+    const seq = event.sequence_number;
+    const dep = event.deployment_id;
+    if (
+      typeof seq === 'number' &&
+      dep &&
+      typeof audit.listCheckpoints === 'function'
+    ) {
+      const checkpoints = await audit.listCheckpoints(dep);
+      const covering = [...checkpoints]
+        .filter((c) => c.sequence_start <= seq && seq <= c.sequence_end)
+        .sort((a, b) => b.sequence_end - a.sequence_end)[0];
+      if (covering) {
+        checkpoint_id = covering.checkpoint_id;
+        checkpoint_root = covering.root_hash;
+        checkpoint_signature = covering.signature
+          ? `${covering.signature.slice(0, 24)}…`
+          : null;
+        checkpoint_verification = covering.signature ? 'PRESENT' : null;
+        if (typeof audit.verifyCheckpointSignature === 'function') {
+          try {
+            const ok = await audit.verifyCheckpointSignature(covering);
+            checkpoint_verification = ok ? 'VALID' : 'INVALID';
+          } catch {
+            checkpoint_verification = 'UNKNOWN';
+          }
+        }
+        const anchoring = audit.getAnchoring?.() ?? null;
+        if (anchoring) {
+          const status = await anchoring.latestStatus(dep);
+          const rows = await anchoring.list(dep);
+          const forCp = rows.filter(
+            (a) => a.checkpoint_id === covering.checkpoint_id,
+          );
+          const last = forCp[forCp.length - 1];
+          if (last) {
+            external_anchor =
+              status.job &&
+              status.job.checkpoint_id === covering.checkpoint_id &&
+              (status.job.status === 'RETRY' || status.job.status === 'IN_PROGRESS')
+                ? 'RETRYING'
+                : last.anchor_status;
+            anchor_type = last.anchor_type;
+            anchor_verification = last.anchor_status;
+            anchor_id = last.anchor_id;
+            anchor_uri = last.anchor_uri;
+            anchored_at = last.anchored_at;
+          } else {
+            external_anchor = anchoring.configured
+              ? 'PENDING'
+              : 'NOT_CONFIGURED';
+          }
+        } else {
+          external_anchor = 'NOT_CONFIGURED';
+        }
+      }
+    }
+
+    return {
+      event: {
+        ...event,
+        integrity_signature: event.integrity_signature
+          ? `${event.integrity_signature.slice(0, 12)}…`
+          : undefined,
+        metadata: undefined,
+        checkpoint_id,
+        checkpoint_root,
+        checkpoint_signature,
+        checkpoint_verification,
+        external_anchor,
+        anchor_verification,
+        anchor_type,
+        anchor_id,
+        anchor_uri,
+        anchored_at,
+      },
     };
   });
 

@@ -172,7 +172,7 @@ describe('Phase B — tiered PHI write policy', () => {
       }) as never,
     );
     expect(decision.decision).toBe('DENY');
-    expect(decision.reason_codes).toContain('HIPAA_PHI_TOOL_UNAUTHORIZED');
+    expect(decision.reason_codes).toContain('TOOL_UNAUTHORIZED');
   });
 
   it('5. unauthorized purpose → DENY', async () => {
@@ -270,10 +270,17 @@ describe('Phase B — tiered PHI write policy', () => {
     const record = repo.getEvaluation(decision.evaluation_id!);
     expect(record).toBeTruthy();
     expect(record?.decision).toBe('ALLOW');
+    // Phase D: sensitive attribute values are stripped from historical Decision context.
     expect(record?.ai_context?.action).toEqual({
       kind: 'field_update',
       target_id: 'patient_x',
-      attributes: { field: 'email', value: 'n@example.com' },
+      attributes: { field: 'email' },
+    });
+    expect(record?.ai_context?.action_governance).toMatchObject({
+      category: 'UPDATE',
+      kind: 'field_update',
+      target_id: 'patient_x',
+      attributes: { field: 'email' },
     });
     expect(record?.ai_context?.tool_id).toBe('update_patient_field');
   });

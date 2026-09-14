@@ -31,6 +31,20 @@ export type AuditEventDetail = {
   evaluation_id?: string | null;
   decision_hash?: string | null;
   integrity_signature?: string;
+  deployment_id?: string | null;
+  sequence_number?: number | null;
+  audit_canonical_version?: number | null;
+  input_hash?: string | null;
+  checkpoint_id?: string | null;
+  checkpoint_root?: string | null;
+  checkpoint_signature?: string | null;
+  checkpoint_verification?: string | null;
+  external_anchor?: string | null;
+  anchor_verification?: string | null;
+  anchor_type?: string | null;
+  anchor_id?: string | null;
+  anchor_uri?: string | null;
+  anchored_at?: string | null;
 };
 
 function Attr({
@@ -205,19 +219,86 @@ export function AuditDetailDrawer({
           </section>
 
           <section className="audit-detail-section">
-            <h3 className="audit-detail-section-title">Integrity</h3>
+            <h3 className="audit-detail-section-title">Cryptographic Evidence</h3>
             <dl className="audit-detail-attrs">
+              <Attr label="Event ID" mono>
+                {event.audit_id}
+              </Attr>
+              <Attr label="Sequence" mono>
+                {typeof event.sequence_number === 'number'
+                  ? String(event.sequence_number)
+                  : '-'}
+              </Attr>
+              <Attr label="Deployment" mono>
+                {event.deployment_id || '-'}
+              </Attr>
+              <Attr label="Canonical version" mono>
+                {typeof event.audit_canonical_version === 'number'
+                  ? String(event.audit_canonical_version)
+                  : '0 (legacy)'}
+              </Attr>
+              <Attr label="Input hash">
+                <HashValue value={event.input_hash} />
+              </Attr>
               <Attr label="Response hash">
                 <HashValue value={event.response_hash} />
               </Attr>
               <Attr label="Event hash">
                 <HashValue value={event.event_hash} />
               </Attr>
-              <Attr label="Previous hash">
+              <Attr label="Previous event hash">
                 <HashValue value={event.prev_event_hash} />
               </Attr>
               <Attr label="Signature">
                 <HashValue value={event.integrity_signature} />
+              </Attr>
+              <Attr label="Checkpoint ID" mono>
+                {event.checkpoint_id || '-'}
+              </Attr>
+              <Attr label="Checkpoint root">
+                <HashValue value={event.checkpoint_root} />
+              </Attr>
+              <Attr label="Checkpoint signature">
+                <HashValue value={event.checkpoint_signature} />
+              </Attr>
+              <Attr label="Checkpoint verification" mono>
+                {event.checkpoint_verification || '-'}
+              </Attr>
+            </dl>
+          </section>
+
+          <section className="audit-detail-section">
+            <h3 className="audit-detail-section-title">External Evidence</h3>
+            <dl className="audit-detail-attrs">
+              <Attr label="Status" mono>
+                {event.external_anchor
+                  ? event.external_anchor.replace(/_/g, ' ')
+                  : '-'}
+              </Attr>
+              <Attr label="Provider" mono>
+                {event.anchor_type
+                  ? event.anchor_type === 'FILESYSTEM'
+                    ? 'Filesystem'
+                    : event.anchor_type === 'S3_OBJECT_LOCK'
+                      ? 'Object storage'
+                      : event.anchor_type.replace(/_/g, ' ')
+                  : '-'}
+              </Attr>
+              <Attr label="Anchor ID" mono>
+                {event.anchor_id || '-'}
+              </Attr>
+              <Attr label="External reference">
+                <HashValue value={event.anchor_uri} />
+              </Attr>
+              <Attr label="Anchored at" mono>
+                {event.anchored_at
+                  ? formatDisplayDateTime(event.anchored_at)
+                  : '-'}
+              </Attr>
+              <Attr label="Verification status" mono>
+                {event.anchor_verification
+                  ? event.anchor_verification.replace(/_/g, ' ')
+                  : '-'}
               </Attr>
             </dl>
           </section>

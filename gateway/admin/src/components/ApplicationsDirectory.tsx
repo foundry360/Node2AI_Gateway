@@ -63,7 +63,7 @@ export function ApplicationsDirectory({
   }
 
   return (
-    <div>
+    <div className="page-fill">
       <PageHeader
         title={title}
         lede={lede}
@@ -116,7 +116,7 @@ export function ApplicationsDirectory({
           description="Create an application to issue API keys and set allowlists."
         />
       ) : view === 'grid' ? (
-        <div className="card-grid">
+        <div className="page-fill-scroll card-grid">
           {filtered.map((app) => (
             <div key={app.application_id} className="entity-card">
               <div className="entity-card-top">
@@ -163,50 +163,52 @@ export function ApplicationsDirectory({
           ))}
         </div>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>Trust</th>
-              <th>Status</th>
-              <th>Keys</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((app) => (
-              <tr key={app.application_id}>
-                <td>
-                  <Link
-                    href={`/applications/${app.application_id}`}
-                    className="table-link"
-                  >
-                    {app.name}
-                  </Link>
-                  <div className="muted mono">{app.application_id}</div>
-                </td>
-                <td>
-                  {app.type} · {app.environment}
-                </td>
-                <td>{app.trust_level}</td>
-                <td>
-                  <span className={`status-inline ${statusClass(app.status)}`}>
-                    <span className="status-dot" aria-hidden />
-                    <span className="status-inline-text">{statusLabel(app.status)}</span>
-                  </span>
-                </td>
-                <td>{app.key_count ?? 0}</td>
-                <td>
-                  <ApplicationCardMenu
-                    applicationId={app.application_id}
-                    name={app.name}
-                  />
-                </td>
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Trust</th>
+                <th>Status</th>
+                <th>Keys</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((app) => (
+                <tr key={app.application_id}>
+                  <td>
+                    <Link
+                      href={`/applications/${app.application_id}`}
+                      className="table-link"
+                    >
+                      {app.name}
+                    </Link>
+                    <div className="muted mono">{app.application_id}</div>
+                  </td>
+                  <td>
+                    {app.type} · {app.environment}
+                  </td>
+                  <td>{app.trust_level}</td>
+                  <td>
+                    <span className={`status-inline ${statusClass(app.status)}`}>
+                      <span className="status-dot" aria-hidden />
+                      <span className="status-inline-text">{statusLabel(app.status)}</span>
+                    </span>
+                  </td>
+                  <td>{app.key_count ?? 0}</td>
+                  <td>
+                    <ApplicationCardMenu
+                      applicationId={app.application_id}
+                      name={app.name}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

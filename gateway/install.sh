@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Node2AI Gateway appliance installer
+# Enigma Gateway appliance installer
+# (Some default DB/user identifiers retain historical node2ai names for compatibility.)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -89,7 +90,7 @@ for i in $(seq 1 60); do
 done
 
 echo ""
-echo "Node2AI Gateway appliance is up."
+echo "Enigma Gateway appliance is up."
 echo "  API:   http://localhost:${GATEWAY_PORT:-8080}"
 echo "  Admin: http://localhost:${ADMIN_PORT:-3080}"
 echo "  Docs:  ../docs/INSTALL.md  ../docs/OPERATIONS.md  ../docs/PILOT_ACCEPTANCE.md"

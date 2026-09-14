@@ -35,6 +35,28 @@ type Enforcement = {
   safety_fallback?: boolean;
 };
 
+type ClientOutcome = {
+  status?: string;
+  evidence_class?: string;
+  execution_id?: string | null;
+  reported_at?: string | null;
+  summary?: string;
+};
+
+type EnforcementIntegrity = {
+  boundary?: string;
+  boundary_label?: string;
+  gateway_executed_side_effect?: boolean;
+  commit_authorized?: boolean;
+  summary?: string;
+};
+
+type OutcomeIntegrity = {
+  machine_decision_unchanged?: boolean;
+  evidence_class?: string;
+  summary?: string;
+};
+
 function AttrRow({
   label,
   children,
@@ -150,6 +172,9 @@ export function DecisionConsequencePanel({
   humanDisposition,
   consequence,
   enforcement,
+  outcome,
+  enforcementIntegrity,
+  outcomeIntegrity,
   executionMode,
 }: {
   decision?: string;
@@ -157,6 +182,9 @@ export function DecisionConsequencePanel({
   humanDisposition?: string | null;
   consequence: Consequence;
   enforcement?: Enforcement | null;
+  outcome?: ClientOutcome | null;
+  enforcementIntegrity?: EnforcementIntegrity | null;
+  outcomeIntegrity?: OutcomeIntegrity | null;
   requiredControls?: string[];
   executionMode?: 'simulation' | 'live';
 }) {
@@ -236,6 +264,40 @@ export function DecisionConsequencePanel({
           </AttrRow>
           {enforcement?.summary ? (
             <AttrRow label="Detail">{enforcement.summary}</AttrRow>
+          ) : null}
+          {enforcementIntegrity?.boundary_label ||
+          enforcementIntegrity?.boundary ? (
+            <AttrRow label="Boundary">
+              {enforcementIntegrity.boundary_label ??
+                formatFieldLabel(enforcementIntegrity.boundary ?? '')}
+            </AttrRow>
+          ) : null}
+          {enforcementIntegrity?.commit_authorized != null ? (
+            <AttrRow label="Commit Authorized">
+              {enforcementIntegrity.commit_authorized ? 'Yes' : 'No'}
+            </AttrRow>
+          ) : null}
+          {outcome?.status ? (
+            <AttrRow label="Client Outcome">
+              <StatusBadge variant="badge" status={outcome.status} />
+            </AttrRow>
+          ) : null}
+          {outcome?.evidence_class || outcomeIntegrity?.evidence_class ? (
+            <AttrRow label="Evidence Class" mono>
+              {outcome?.evidence_class ?? outcomeIntegrity?.evidence_class}
+            </AttrRow>
+          ) : null}
+          {outcome?.execution_id ? (
+            <AttrRow label="Execution ID" mono>
+              {outcome.execution_id}
+            </AttrRow>
+          ) : null}
+          {outcomeIntegrity?.machine_decision_unchanged != null ? (
+            <AttrRow label="Machine Decision">
+              {outcomeIntegrity.machine_decision_unchanged
+                ? 'Unchanged by outcome'
+                : 'Changed (unexpected)'}
+            </AttrRow>
           ) : null}
           {enforcement?.occurred_at ? (
             <AttrRow label="Occurred" mono>

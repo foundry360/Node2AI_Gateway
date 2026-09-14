@@ -91,9 +91,7 @@ export function DecisionResolutionPanel({
         <AttrRow label="Category" mono>
           {operator?.resolution_category ?? resolution?.category ?? '-'}
         </AttrRow>
-        <AttrRow label="Basis">
-          {basisLabel}
-        </AttrRow>
+        <AttrRow label="Basis">{basisLabel}</AttrRow>
         <AttrRow label="Contributing Packs">
           <CodeInline items={packIds} empty="None" />
         </AttrRow>
@@ -117,12 +115,20 @@ export function DecisionResolutionPanel({
   );
 }
 
+/**
+ * Pack-agnostic decision intelligence panel.
+ * Two equal columns with consistent vertical card spacing.
+ */
 export function DecisionExplanationView({
   decision,
+  leftColumn,
+  rightColumn,
+  /** @deprecated Prefer leftColumn / rightColumn for correct two-column spacing. */
   afterTop,
 }: {
   decision: DecisionExplanationPayload;
-  /** Optional second-row companion (e.g. Enforcement Consequence). */
+  leftColumn?: ReactNode;
+  rightColumn?: ReactNode;
   afterTop?: ReactNode;
 }) {
   const operator = decision.explanation?.operator;
@@ -140,132 +146,156 @@ export function DecisionExplanationView({
 
   return (
     <div className="decision-explanation">
-      <div className="decision-explanation-top">
-        <section className="section-card" aria-labelledby="machine-decision-heading">
-          <div className="section-card-header">
-            <h3 id="machine-decision-heading">Machine Decision</h3>
-            <StatusBadge variant="badge" status={machineDecision} />
-          </div>
-          {(operator?.resolution_label ||
-            resolution?.category ||
-            narrative ||
-            decision.reason_codes?.length) ? (
-            <div className="contribution-attrs">
-              {(operator?.resolution_label || resolution?.category) && (
-                <AttrRow label="Resolution">
-                  {operator?.resolution_label ?? resolution?.category}
-                </AttrRow>
-              )}
-              {narrative ? <AttrRow label="Narrative">{narrative}</AttrRow> : null}
-              {decision.reason_codes?.length ? (
-                <AttrRow label="Reason Codes">
-                  {formatReasonCodes(decision.reason_codes)}
-                </AttrRow>
-              ) : null}
+      <div className="decision-explanation-columns">
+        <div className="decision-explanation-col">
+          <section
+            className="section-card"
+            aria-labelledby="machine-decision-heading"
+          >
+            <div className="section-card-header">
+              <h3 id="machine-decision-heading">Machine Decision</h3>
+              <StatusBadge variant="badge" status={machineDecision} />
             </div>
-          ) : null}
-        </section>
+            {(operator?.resolution_label ||
+              resolution?.category ||
+              narrative ||
+              decision.reason_codes?.length) ? (
+              <div className="contribution-attrs">
+                {(operator?.resolution_label || resolution?.category) && (
+                  <AttrRow label="Resolution">
+                    {operator?.resolution_label ?? resolution?.category}
+                  </AttrRow>
+                )}
+                {narrative ? (
+                  <AttrRow label="Narrative">{narrative}</AttrRow>
+                ) : null}
+                {decision.reason_codes?.length ? (
+                  <AttrRow label="Reason Codes">
+                    {formatReasonCodes(decision.reason_codes)}
+                  </AttrRow>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
 
-        <section className="section-card" aria-labelledby="contributions-heading">
-          <div className="section-card-header">
-            <h3 id="contributions-heading">
-              Policy Contributions ({contributions.length})
-            </h3>
-          </div>
-          {contributions.length > 0 ? (
-            <div className="contribution-list contribution-accordion-list">
-              {contributions.map((c) => {
-                const rules =
-                  c.rule_ids.length > 0
-                    ? allRules.filter((r) => c.rule_ids.includes(r.rule_id))
-                    : [];
-                const obligations =
-                  c.obligation_ids.length > 0 ? c.obligation_ids : c.obligations;
-                const controls =
-                  c.controls.map((x) => x.control_id).length > 0
-                    ? c.controls.map((x) => x.control_id)
-                    : c.obligations;
-                const policyLabel = c.policy_name ?? c.policy_id;
-                return (
-                  <details
-                    key={`${c.pack_id}-${c.policy_id}`}
-                    className="contribution-accordion"
-                  >
-                    <summary className="contribution-accordion-summary">
-                      <span className="contribution-accordion-lead">
-                        <ChevronDown
-                          className="contribution-accordion-chevron"
-                          size={16}
-                          strokeWidth={2}
-                          aria-hidden
-                        />
-                        <span className="contribution-accordion-title">
-                          <Link
-                            href={`/policies/${c.policy_id}`}
-                            className="table-link"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {policyLabel}
-                          </Link>
-                          {c.policy_version != null ? (
-                            <span className="muted"> · v{c.policy_version}</span>
-                          ) : null}
-                        </span>
-                      </span>
-                      <StatusBadge variant="badge" status={c.decision} />
-                    </summary>
-                    <div className="contribution-accordion-body">
-                      <div className="contribution-attrs">
-                        {c.pack_name ? (
-                          <AttrRow label="Pack">
-                            {c.pack_name}
-                            {c.pack_version ? (
-                              <span className="muted"> v{c.pack_version}</span>
+          {hasResolution ? (
+            <DecisionResolutionPanel decision={decision} />
+          ) : null}
+          {leftColumn}
+        </div>
+
+        <div className="decision-explanation-col">
+          <section
+            className="section-card"
+            aria-labelledby="contributions-heading"
+          >
+            <div className="section-card-header">
+              <h3 id="contributions-heading">
+                Policy Contributions ({contributions.length})
+              </h3>
+            </div>
+            {contributions.length > 0 ? (
+              <div className="contribution-list contribution-accordion-list">
+                {contributions.map((c) => {
+                  const rules =
+                    c.rule_ids.length > 0
+                      ? allRules.filter((r) => c.rule_ids.includes(r.rule_id))
+                      : [];
+                  const obligations =
+                    c.obligation_ids.length > 0
+                      ? c.obligation_ids
+                      : c.obligations;
+                  const controls =
+                    c.controls.map((x) => x.control_id).length > 0
+                      ? c.controls.map((x) => x.control_id)
+                      : c.obligations;
+                  const policyLabel = c.policy_name ?? c.policy_id;
+                  return (
+                    <details
+                      key={`${c.pack_id}-${c.policy_id}`}
+                      className="contribution-accordion"
+                    >
+                      <summary className="contribution-accordion-summary">
+                        <span className="contribution-accordion-lead">
+                          <ChevronDown
+                            className="contribution-accordion-chevron"
+                            size={16}
+                            strokeWidth={2}
+                            aria-hidden
+                          />
+                          <span className="contribution-accordion-title">
+                            <Link
+                              href={`/policies/${c.policy_id}`}
+                              className="table-link"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {policyLabel}
+                            </Link>
+                            {c.policy_version != null ? (
+                              <span className="muted">
+                                {' '}
+                                · v{c.policy_version}
+                              </span>
                             ) : null}
+                          </span>
+                        </span>
+                        <StatusBadge variant="badge" status={c.decision} />
+                      </summary>
+                      <div className="contribution-accordion-body">
+                        <div className="contribution-attrs">
+                          {c.pack_name ? (
+                            <AttrRow label="Pack">
+                              {c.pack_name}
+                              {c.pack_version ? (
+                                <span className="muted">
+                                  {' '}
+                                  v{c.pack_version}
+                                </span>
+                              ) : null}
+                            </AttrRow>
+                          ) : null}
+                          <AttrRow label="Rules">
+                            <CodeInline items={c.rule_ids} />
                           </AttrRow>
-                        ) : null}
-                        <AttrRow label="Rules">
-                          <CodeInline items={c.rule_ids} />
-                        </AttrRow>
-                        <AttrRow label="Obligations">
-                          <CodeInline items={obligations} />
-                        </AttrRow>
-                        <AttrRow label="Controls">
-                          <CodeInline items={controls} />
-                        </AttrRow>
-                        {rules.length === 0 ? (
-                          <AttrRow label="Evidence">
-                            <span className="muted">-</span>
+                          <AttrRow label="Obligations">
+                            <CodeInline items={obligations} />
                           </AttrRow>
+                          <AttrRow label="Controls">
+                            <CodeInline items={controls} />
+                          </AttrRow>
+                          {rules.length === 0 ? (
+                            <AttrRow label="Evidence">
+                              <span className="muted">-</span>
+                            </AttrRow>
+                          ) : null}
+                        </div>
+                        {rules.length > 0 ? (
+                          <div className="contribution-provenance">
+                            <div className="muted decision-sublabel">
+                              Evidence
+                            </div>
+                            {rules.map((r) => (
+                              <ProvenanceChain key={r.rule_id} rule={r} />
+                            ))}
+                          </div>
                         ) : null}
                       </div>
-                      {rules.length > 0 ? (
-                        <div className="contribution-provenance">
-                          <div className="muted decision-sublabel">Evidence</div>
-                          {rules.map((r) => (
-                            <ProvenanceChain key={r.rule_id} rule={r} />
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  </details>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="muted decision-panel-lede">
-              No policy contributions attached to this evaluation.
-            </p>
-          )}
-        </section>
-      </div>
+                    </details>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="muted decision-panel-lede">
+                No policy contributions attached to this evaluation.
+              </p>
+            )}
+          </section>
 
-      {hasResolution || afterTop ? (
-        <div className="decision-explanation-top">
-          {hasResolution ? <DecisionResolutionPanel decision={decision} /> : null}
-          {afterTop ?? null}
+          {rightColumn}
+          {/* Legacy single-stack fallback */}
+          {!leftColumn && !rightColumn ? afterTop : null}
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }

@@ -1,8 +1,10 @@
-# Pilot Acceptance — Node2AI Gateway v1
+# Pilot Acceptance — Enigma Gateway
 
 Customer (or internal) checklist proving:
 
-> Applications cannot execute AI, and cannot receive model output, except through Node2AI policy enforcement.
+> Applications cannot execute AI, and cannot receive model output, except through Enigma policy enforcement on the governed path.
+
+**Product:** Enigma (AI Action Governance). Seed API key prefixes such as `n2ai_*` are compatibility identifiers, not a separate product brand.
 
 Prerequisites: appliance installed per [INSTALL.md](./INSTALL.md). Have the admin API key from `.env` and a completion API key (seed `n2ai_test_key_approved_app` or one issued in Admin → Applications).
 

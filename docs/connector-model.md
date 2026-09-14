@@ -35,7 +35,7 @@ Salesforce, Epic, SharePoint, SQL, Files, REST APIs, Databases, Object Storage.
 MCP is **optional** and is **not** the governance boundary. Future shape:
 
 ```text
-AI Agent → MCP → Node2AI Gateway → Policy → Approved Tool / Data Source
+AI Agent → MCP → Enigma Gateway → Policy → Approved Tool / Data Source
 ```
 
 ## Non-goals for early phases

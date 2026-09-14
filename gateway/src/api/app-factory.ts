@@ -1,7 +1,48 @@
 import { InMemoryAuditService } from '../audit/service.js';
 import type { AuditService } from '../audit/service.js';
-import { PostgresAuditService } from '../audit/pg-service.js';
-import { IntegrityAuditService } from '../audit/integrity-service.js';
+import { PostgresAuditService, PostgresCheckpointStore } from '../audit/pg-service.js';
+import {
+  IntegrityAuditService,
+  InMemoryCheckpointStore,
+  type CheckpointStore,
+} from '../audit/integrity-service.js';
+import {
+  InMemoryAuditSequenceAllocator,
+  PostgresAuditSequenceAllocator,
+  type AuditSequenceAllocator,
+} from '../audit/sequence.js';
+import {
+  createJoseCheckpointSigner,
+  createJoseCheckpointVerifier,
+  loadCheckpointPrivateJwk,
+  loadCheckpointPublicJwks,
+  type CheckpointSigner,
+  type CheckpointVerifier,
+} from '../audit/checkpoint.js';
+import { FilesystemEvidenceAnchorStore } from '../audit/anchor-store.js';
+import {
+  InMemoryEvidenceAnchorRepository,
+  PostgresEvidenceAnchorRepository,
+} from '../audit/anchor-repository.js';
+import {
+  InMemoryAnchorJobRepository,
+  PostgresAnchorJobRepository,
+} from '../audit/anchor-job.js';
+import { EvidenceAnchoringService } from '../audit/anchoring-service.js';
+import { EvidenceLifecycleWorker } from '../audit/anchor-worker.js';
+import { createS3EvidenceAnchorStore } from '../audit/providers/s3/index.js';
+import type { EvidenceAnchorStore } from '../audit/anchor.js';
+import {
+  InMemoryActionOutcomeStore,
+  PostgresActionOutcomeStore,
+  type ActionOutcomeStore,
+} from '../audit/outcome-store.js';
+import {
+  InMemoryActorRegistry,
+  PostgresActorRegistry,
+  type ActorRegistry,
+} from '../actors/index.js';
+import type { JWK } from 'jose';
 import { IdentityService } from '../identity/service.js';
 import { InMemoryIdentityStore } from '../identity/store.js';
 import type { IdentityStore } from '../identity/store.js';
@@ -46,7 +87,10 @@ import {
 import type { ResponseInspector } from '../response/inspector.js';
 import type { GatewayConfig } from '../shared/config.js';
 import { loadConfig } from '../shared/config.js';
-import { checkDatabase } from '../shared/db-health.js';
+import {
+  assertDatabaseReadyForAppliance,
+  checkDatabase,
+} from '../shared/db-health.js';
 import { hashApiKey } from '../shared/ids.js';
 import {
   FailingTransformService,
@@ -71,6 +115,108 @@ import {
   type DeploymentIdentityStore,
 } from '../admin/deployment-identity.js';
 
+async function buildAuditIntegrityExtras(
+  config: GatewayConfig,
+  opts: {
+    deploymentIdentity?: DeploymentIdentityStore;
+    db?: PgQueryable;
+    sequenceAllocator?: AuditSequenceAllocator;
+    checkpointStore?: CheckpointStore;
+  },
+): Promise<{
+  sequenceAllocator?: AuditSequenceAllocator;
+  checkpointStore?: CheckpointStore;
+  checkpointSigner: CheckpointSigner | null;
+  checkpointVerifier: CheckpointVerifier | null;
+  deploymentId?: () => Promise<string>;
+  anchoring: EvidenceAnchoringService | null;
+  publicJwks: Map<string, JWK> | null;
+}> {
+  const sequenceAllocator =
+    opts.sequenceAllocator ??
+    (opts.db
+      ? new PostgresAuditSequenceAllocator(opts.db)
+      : new InMemoryAuditSequenceAllocator());
+  const checkpointStore =
+    opts.checkpointStore ??
+    (opts.db ? new PostgresCheckpointStore(opts.db) : new InMemoryCheckpointStore());
+
+  let checkpointSigner: CheckpointSigner | null = null;
+  let checkpointVerifier: CheckpointVerifier | null = null;
+  let publicJwks: Map<string, JWK> | null = null;
+  try {
+    const priv = await loadCheckpointPrivateJwk(config.auditCheckpointPrivateJwk);
+    if (priv) {
+      checkpointSigner = createJoseCheckpointSigner(priv.jwk, priv.keyId);
+    }
+    const pubs = await loadCheckpointPublicJwks(config.auditCheckpointPublicJwks);
+    if (pubs.size > 0) {
+      publicJwks = pubs;
+      checkpointVerifier = createJoseCheckpointVerifier(pubs);
+    } else if (priv) {
+      const { d: _d, ...pub } = priv.jwk;
+      publicJwks = new Map([[priv.keyId, { ...pub, kid: priv.keyId, alg: 'EdDSA' }]]);
+      checkpointVerifier = createJoseCheckpointVerifier(publicJwks);
+    }
+  } catch {
+    checkpointSigner = null;
+    checkpointVerifier = null;
+    publicJwks = null;
+  }
+
+  const deploymentId = opts.deploymentIdentity
+    ? () => opts.deploymentIdentity!.getOrCreateDeploymentId()
+    : undefined;
+
+  let anchoring: EvidenceAnchoringService | null = null;
+  if (config.auditAnchoringEnabled && config.auditAnchorProvider !== 'none') {
+    let store: EvidenceAnchorStore | null = null;
+    if (config.auditAnchorProvider === 'filesystem') {
+      const location =
+        config.auditAnchorLocation?.trim() ||
+        '/var/lib/enigma/audit-anchors';
+      store = new FilesystemEvidenceAnchorStore(location);
+    } else if (config.auditAnchorProvider === 's3') {
+      const bucket = config.auditAnchorS3Bucket?.trim();
+      const region = config.auditAnchorS3Region?.trim();
+      if (!bucket || !region) {
+        throw new Error(
+          'GATEWAY_AUDIT_ANCHOR_S3_BUCKET and GATEWAY_AUDIT_ANCHOR_S3_REGION are required when GATEWAY_AUDIT_ANCHOR_PROVIDER=s3',
+        );
+      }
+      store = createS3EvidenceAnchorStore({
+        bucket,
+        region,
+        prefix: config.auditAnchorS3Prefix,
+        endpoint: config.auditAnchorS3Endpoint,
+        forcePathStyle: Boolean(config.auditAnchorS3Endpoint),
+      });
+    }
+
+    if (store) {
+      const repo = opts.db
+        ? new PostgresEvidenceAnchorRepository(opts.db)
+        : new InMemoryEvidenceAnchorRepository();
+      const jobs = opts.db
+        ? new PostgresAnchorJobRepository(opts.db)
+        : new InMemoryAnchorJobRepository();
+      anchoring = new EvidenceAnchoringService(store, repo, publicJwks, jobs, {
+        async: config.auditAnchorAsync,
+        maxAttempts: config.auditAnchorMaxAttempts,
+      });
+    }
+  }
+
+  return {
+    sequenceAllocator,
+    checkpointStore,
+    checkpointSigner,
+    checkpointVerifier,
+    deploymentId,
+    anchoring,
+    publicJwks,
+  };
+}
 function seedAdminUsers(): AdminUserRecord[] {
   const now = new Date().toISOString();
   const password = process.env.ADMIN_UI_PASSWORD ?? 'admin';
@@ -273,10 +419,24 @@ export interface CreateGatewayOptions {
   deploymentIdentity?: DeploymentIdentityStore;
   /** Test-only license install verification keyring. */
   licenseInstallKeyring?: readonly import('../admin/license-keys.js').LicensePublicKeyEntry[];
+  /** Optional Phase 1 integrity wiring (tests / appliance). */
+  auditSequenceAllocator?: AuditSequenceAllocator;
+  auditCheckpointStore?: CheckpointStore;
+  /** Phase 4 client Outcome projection store. */
+  outcomeStore?: ActionOutcomeStore;
+  /**
+   * Phase A Agent/Tool registry.
+   * Pass `null` to simulate registry dependency unavailable (fail-closed tests).
+   */
+  actorRegistry?: ActorRegistry | null;
 }
 
 export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
   const config: GatewayConfig = { ...loadConfig(), ...options.config };
+  // Tests default to legacy attestation unless explicitly testing enforce/shadow.
+  if (options.config?.actorRegistryMode === undefined) {
+    config.actorRegistryMode = 'off';
+  }
   // Keep approve/activate keys aligned with admin key when tests override adminApiKey only.
   if (options.config?.adminApiKey) {
     config.policyApproverKey =
@@ -287,18 +447,40 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
   const seed = createPhase1Seed();
   const identityStore = options.identityStore ?? new InMemoryIdentityStore(seed);
   const identity = new IdentityService(identityStore);
-  const rawAudit = options.audit ?? new InMemoryAuditService();
-  const audit =
-    options.audit instanceof IntegrityAuditService
-      ? options.audit
-      : new IntegrityAuditService(rawAudit, config.auditSigningKey);
-  const persistence = options.persistence ?? 'memory';
   const deploymentIdentity =
     options.deploymentIdentity ??
     (options.db
       ? new PostgresDeploymentIdentityStore(options.db)
       : new InMemoryDeploymentIdentityStore());
-  const policyStore = options.policyStore ?? new InMemoryPolicyStore();
+  const rawAudit = options.audit ?? new InMemoryAuditService();
+  let audit: AuditService;
+  if (options.audit instanceof IntegrityAuditService) {
+    audit = options.audit;
+  } else {
+    // Memory/tests: HMAC chain only unless caller provides Phase 1 wiring.
+    const enableV1 = Boolean(
+      options.auditSequenceAllocator ||
+        options.db ||
+        options.auditCheckpointStore,
+    );
+    audit = new IntegrityAuditService(rawAudit, config.auditSigningKey, {
+      deploymentId: enableV1
+        ? () => deploymentIdentity.getOrCreateDeploymentId()
+        : undefined,
+      sequenceAllocator:
+        options.auditSequenceAllocator ??
+        (enableV1 ? new InMemoryAuditSequenceAllocator() : undefined),
+      checkpointStore:
+        options.auditCheckpointStore ??
+        (enableV1 ? new InMemoryCheckpointStore() : undefined),
+      enableCanonicalV1: enableV1,
+      checkpointEveryEvents: config.auditCheckpointEveryEvents,
+      checkpointIntervalSeconds: config.auditCheckpointIntervalSeconds,
+      checkpointingEnabled: config.auditCheckpointingEnabled,
+      maxCheckpointsPerTick: config.auditCheckpointMaxPerTick,
+    });
+  }
+  const persistence = options.persistence ?? 'memory';  const policyStore = options.policyStore ?? new InMemoryPolicyStore();
   const isPolicyActive = async (policyId: string) => {
     const latest = await policyStore.listLatest();
     const match = latest.find((p) => p.policy_id === policyId);
@@ -400,6 +582,20 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
   const adminUsers: AdminUserStore =
     options.adminUsers ?? new InMemoryAdminUserStore(seedAdminUsers());
 
+  const outcomeStore: ActionOutcomeStore =
+    options.outcomeStore ??
+    (options.db
+      ? new PostgresActionOutcomeStore(options.db)
+      : new InMemoryActionOutcomeStore());
+
+  // Explicit null = dependency outage (enforce/shadow must fail closed).
+  const actorRegistry: ActorRegistry | undefined =
+    options.actorRegistry === null
+      ? undefined
+      : (options.actorRegistry ??
+        (options.db
+          ? new PostgresActorRegistry(options.db)
+          : new InMemoryActorRegistry()));
 
   const orchestrator = new GatewayOrchestrator({
     config,
@@ -413,6 +609,9 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
     audit,
     policyRepository: packRepo,
     identityStore,
+    outcomeStore,
+    resolveDeploymentId: () => deploymentIdentity.getOrCreateDeploymentId(),
+    actorRegistry,
   });
 
   return {
@@ -436,6 +635,8 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
     packPdp,
     db,
     orchestrator,
+    outcomeStore,
+    actorRegistry,
     seed,
     providerCredentials,
     changeGovernance,
@@ -455,6 +656,8 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
           policyRepository: packRepo,
           packPdp,
           orchestrator,
+          outcomeStore,
+          actorRegistry,
           db,
           providerCredentials,
           changeGovernance,
@@ -509,9 +712,33 @@ export async function createApplianceGateway(
   const { PostgresIdentityStore } = await import('../identity/store.js');
   const { PostgresPolicyRepository } = await import('../policy/enterprise/pg-repository.js');
   const pool = createPgPool(config.databaseUrl);
+
+  // Fail closed before bootstrap work when Product 1.0 schema is incomplete.
+  await assertDatabaseReadyForAppliance(config.databaseUrl);
+
   const identityStore = new PostgresIdentityStore(pool);
   const rawAudit = new PostgresAuditService(pool);
-  const audit = new IntegrityAuditService(rawAudit, config.auditSigningKey);
+  const deploymentIdentity = new PostgresDeploymentIdentityStore(pool);
+  // First boot / existing install: ensure durable deployment_id exists.
+  await deploymentIdentity.getOrCreateDeploymentId();
+  const integrityExtras = await buildAuditIntegrityExtras(config, {
+    deploymentIdentity,
+    db: pool,
+  });
+  const audit = new IntegrityAuditService(rawAudit, config.auditSigningKey, {
+    deploymentId: integrityExtras.deploymentId,
+    sequenceAllocator: integrityExtras.sequenceAllocator,
+    checkpointStore: integrityExtras.checkpointStore,
+    checkpointSigner: integrityExtras.checkpointSigner,
+    checkpointVerifier: integrityExtras.checkpointVerifier,
+    enableCanonicalV1: true,
+    checkpointEveryEvents: config.auditCheckpointEveryEvents,
+    checkpointIntervalSeconds: config.auditCheckpointIntervalSeconds,
+    checkpointingEnabled: config.auditCheckpointingEnabled,
+    maxCheckpointsPerTick: config.auditCheckpointMaxPerTick,
+    anchoring: integrityExtras.anchoring,
+    anchorOnCheckpoint: config.auditAnchorOnCheckpoint,
+  });
   await audit.bootstrapFromStore();
   const policyStore = new PostgresPolicyStore(pool);
   const policyRepository = await PostgresPolicyRepository.create(pool);
@@ -523,17 +750,12 @@ export async function createApplianceGateway(
     pool,
     config.vaultEncryptionKey,
   );
-  const deploymentIdentity = new PostgresDeploymentIdentityStore(pool);
-  // First boot / existing install: ensure durable deployment_id exists.
-  await deploymentIdentity.getOrCreateDeploymentId();
   const dbModels = await loadModelsFromPostgres(pool);
   const registry = new InMemoryModelRegistry(
     dbModels.length > 0 ? dbModels : defaultPhase4Registry(),
   );
 
-  await checkDatabase(config.databaseUrl);
-
-  return createPhase1Gateway({
+  const gateway = createPhase1Gateway({
     ...base,
     identityStore,
     audit,
@@ -547,6 +769,20 @@ export async function createApplianceGateway(
     deploymentIdentity,
     config: { ...config, requireVaultKey: true },
   });
+
+  const lifecycleWorker = new EvidenceLifecycleWorker(
+    audit,
+    integrityExtras.anchoring,
+    config.auditAnchorWorkerIntervalMs,
+  );
+  lifecycleWorker.start();
+
+  return {
+    ...gateway,
+    stopBackgroundJobs: () => {
+      lifecycleWorker.stop();
+    },
+  };
 }
 
 export {

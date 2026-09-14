@@ -704,6 +704,47 @@ export const actionRequestSchema = z
 
 export type ActionRequestBody = z.infer<typeof actionRequestSchema>;
 
+/**
+ * Client-reported execution Outcome for a previously authorized governed write.
+ * Distinct from Decision / Enforcement — does not re-run policy.
+ */
+export const actionOutcomeRequestSchema = z
+  .object({
+    application_id: z.string().min(1),
+    evaluation_id: z.string().min(1),
+    /** Stable id for one downstream execution attempt (client- or gateway-generated). */
+    execution_id: z.string().min(1).max(128),
+    outcome: z.enum([
+      'EXECUTED',
+      'EXECUTION_FAILED',
+      'EXECUTION_TIMEOUT',
+      'EXECUTION_UNKNOWN',
+    ]),
+    user: z.object({ id: z.string().min(1) }).optional(),
+    request_id: z.string().min(1).optional(),
+    agent_id: z.string().min(1).optional(),
+    tool_id: z.string().min(1).optional(),
+    operation: z.string().min(1).optional(),
+    purpose: z.string().min(1).optional(),
+    authorization_context: z.string().min(1).optional(),
+    action: z
+      .object({
+        kind: z.string().min(1),
+        target_id: z.string().min(1).optional(),
+        attributes: z.record(z.string(), z.unknown()).optional(),
+      })
+      .optional(),
+    metadata: z
+      .object({
+        correlation_id: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .strict();
+
+export type ActionOutcomeRequestBody = z.infer<typeof actionOutcomeRequestSchema>;
+
 export function findForbiddenOverrides(body: unknown): string[] {
   if (!body || typeof body !== 'object') return [];
   const keys = Object.keys(body as Record<string, unknown>);

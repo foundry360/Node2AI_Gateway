@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const TABS: Array<{ href: string; label: string }> = [
@@ -17,7 +18,7 @@ export function AdministrationTabs() {
           const active =
             pathname === tab.href || pathname.startsWith(`${tab.href}/`);
           return (
-            <a
+            <Link
               key={tab.href}
               href={tab.href}
               role="tab"
@@ -25,7 +26,7 @@ export function AdministrationTabs() {
               className={`tab${active ? ' tab-active' : ''}`}
             >
               {tab.label}
-            </a>
+            </Link>
           );
         })}
       </div>

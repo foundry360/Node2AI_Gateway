@@ -648,6 +648,11 @@ export interface PolicyRequestContext {
   /** Generic governance evidence (accountability, context, measurement, risk response). */
   governance_context?: GovernanceContext;
   /**
+   * Server-authored Agent/Tool substrate snapshot (Phase A).
+   * Persisted on policy_evaluations.ai_context for historical evidence.
+   */
+  runtime_actor?: Record<string, unknown>;
+  /**
    * Evaluation timestamp (ISO-8601) used for phased obligation applicability.
    * Prefer an explicit client/request value; Gateway may stamp request time once
    * at the boundary — packs must not call Date.now() themselves.
@@ -692,6 +697,8 @@ export interface PolicyResponseContext {
   agent_id?: string;
   /** Tool identity forwarded from the input request when applicable. */
   tool_id?: string;
+  /** Phase A substrate snapshot forwarded when applicable. */
+  runtime_actor?: Record<string, unknown>;
   /** Minimum-necessary entity scope forwarded from the input request. */
   permitted_entity_types?: string[];
   /** Generic governance evidence for output-phase packs when applicable. */

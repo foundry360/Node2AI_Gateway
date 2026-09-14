@@ -1,16 +1,19 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { LucideIcon } from 'lucide-react';
 import {
   AppWindow,
+  Bot,
   Boxes,
   Eye,
   FileText,
   Files,
   LayoutDashboard,
   ShieldCheck,
+  Wrench,
 } from 'lucide-react';
 import { useAdminCapabilities } from '@/hooks/useAdminCapabilities';
 
@@ -21,6 +24,8 @@ type SidebarMode = 'expanded' | 'collapsed' | 'hover';
 const primary: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: '/', label: 'Console', icon: LayoutDashboard },
   { href: '/applications', label: 'Applications', icon: AppWindow },
+  { href: '/agents', label: 'Agents', icon: Bot },
+  { href: '/tools', label: 'Tools', icon: Wrench },
   { href: '/policies', label: 'Policies', icon: FileText },
   { href: '/decisions', label: 'Decisions', icon: Files },
   { href: '/models', label: 'Models', icon: Boxes },
@@ -146,7 +151,7 @@ export function SidebarNav() {
           const active = isNavActive(pathname, item.href);
           const Icon = item.icon;
           return (
-            <a
+            <Link
               key={item.href}
               href={item.href}
               className={`nav-link${active ? ' nav-link-active' : ''}`}
@@ -156,12 +161,12 @@ export function SidebarNav() {
                 <Icon size={20} strokeWidth={1.75} />
               </span>
               <span className="nav-label">{item.label}</span>
-            </a>
+            </Link>
           );
         })}
 
         {showAdministration ? (
-          <a
+          <Link
             href="/administration/users"
             className={`nav-link${
               pathname.startsWith('/administration') || pathname.startsWith('/system')
@@ -174,7 +179,7 @@ export function SidebarNav() {
               <ShieldCheck size={20} strokeWidth={1.75} />
             </span>
             <span className="nav-label">Administration</span>
-          </a>
+          </Link>
         ) : null}
       </nav>
 

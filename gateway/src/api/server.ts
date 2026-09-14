@@ -100,6 +100,21 @@ export async function buildServer(opts: BuildServerOptions): Promise<FastifyInst
       });
     }
 
+    // Postgres appliance: distinguish reachable DB from Product 1.0 schema readiness.
+    if (db && db.ok === false) {
+      const schemaIncomplete =
+        db.connectivity_ok === true && db.schema && db.schema.ok === false;
+      return reply.status(503).send({
+        status: 'unavailable',
+        service: 'node2ai-gateway',
+        reason_code: schemaIncomplete
+          ? 'SCHEMA_NOT_READY'
+          : 'DATABASE_UNAVAILABLE',
+        database: db,
+        local_runtime: localRuntime,
+      });
+    }
+
     return {
       status: 'ok',
       service: 'node2ai-gateway',
@@ -138,6 +153,19 @@ export async function buildServer(opts: BuildServerOptions): Promise<FastifyInst
     }
     const rawKey = extractBearer(request.headers.authorization);
     const result = await opts.orchestrator.actions(rawKey, request.body);
+    return reply.status(result.httpStatus).send(result.body);
+  });
+
+  app.post('/v1/ai/actions/outcome', async (request, reply) => {
+    const gate = await assertAiLicense(opts.admin);
+    if (!gate.ok) {
+      return reply.status(403).send(gate.body);
+    }
+    const rawKey = extractBearer(request.headers.authorization);
+    const result = await opts.orchestrator.reportActionOutcome(
+      rawKey,
+      request.body,
+    );
     return reply.status(result.httpStatus).send(result.body);
   });
 

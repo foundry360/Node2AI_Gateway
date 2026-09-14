@@ -2,7 +2,7 @@
   "name": "@node2ai/gateway",
   "version": "0.1.0-ship",
   "private": true,
-  "description": "Node2AI AI Governance Gateway — policy enforcement layer",
+  "description": "Enigma AI Action Governance Gateway — policy enforcement layer",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
@@ -17,6 +17,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1131.0",
     "@fastify/multipart": "^9",
     "fastify": "^5.2.1",
     "jose": "^5.9.6",

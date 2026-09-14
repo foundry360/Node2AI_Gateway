@@ -1,5 +1,7 @@
 export type DeploymentMode = 'connected' | 'airgap';
 export type LocalRuntimeMode = 'stub' | 'ollama' | 'auto';
+/** Phase A Agent/Tool registry: off=legacy attestation, shadow=resolve+compare, enforce=server authority. */
+export type ActorRegistryMode = 'off' | 'shadow' | 'enforce';
 
 export interface GatewayConfig {
   host: string;
@@ -27,6 +29,43 @@ export interface GatewayConfig {
   /** HMAC key for signed audit hash chain (defaults to vault key or admin key). */
   auditSigningKey: string;
   /**
+   * Path or inline JSON for Ed25519 private JWK used to sign audit checkpoints.
+   * Never logged or returned via API.
+   */
+  auditCheckpointPrivateJwk?: string;
+  /** Path or inline JWKS/public JWK for verifying audit checkpoints. */
+  auditCheckpointPublicJwks?: string;
+  /** Auto-create checkpoint every N new events since last checkpoint (0 disables). Default 500. */
+  auditCheckpointEveryEvents: number;
+  /** Auto-create checkpoint when this many seconds elapsed since last (0 disables). Default 900. */
+  auditCheckpointIntervalSeconds: number;
+  /** Master switch for automatic checkpointing (manual still allowed). */
+  auditCheckpointingEnabled: boolean;
+  /** Max catch-up checkpoints per worker tick. Default 5. */
+  auditCheckpointMaxPerTick: number;
+  /** Enable external evidence anchoring (Phase 2+). */
+  auditAnchoringEnabled: boolean;
+  /** filesystem | s3 | none — S3 is optional; air-gap uses filesystem. */
+  auditAnchorProvider: 'filesystem' | 's3' | 'none';
+  /** Root directory for filesystem anchors (air-gap / local). */
+  auditAnchorLocation?: string;
+  /** When true, auto-anchor after checkpoint creation. */
+  auditAnchorOnCheckpoint: boolean;
+  /** Customer S3 bucket for evidence anchors (provider=s3). */
+  auditAnchorS3Bucket?: string;
+  /** Optional key prefix inside the bucket. */
+  auditAnchorS3Prefix?: string;
+  /** AWS region for the evidence bucket. */
+  auditAnchorS3Region?: string;
+  /** Optional custom endpoint (LocalStack / VPC endpoint tests). */
+  auditAnchorS3Endpoint?: string;
+  /** Max durable anchor attempts before FAILED. */
+  auditAnchorMaxAttempts: number;
+  /** Background worker poll interval (ms). */
+  auditAnchorWorkerIntervalMs: number;
+  /** Use durable async queue when a job repository is available. */
+  auditAnchorAsync: boolean;
+  /**
    * Policy engine path (Enigma EPA):
    * - enterprise: pack PDP authoritative (default)
    * - shadow: EPA authoritative + legacy dual-run mismatch reporting
@@ -49,6 +88,11 @@ export interface GatewayConfig {
    * Default true. Set GATEWAY_ALLOW_DETOKENIZATION=false to disable.
    */
   allowDetokenization: boolean;
+  /**
+   * Agent/Tool registry mode (Phase A).
+   * Production default: enforce. createPhase1Gateway tests default to off.
+   */
+  actorRegistryMode: ActorRegistryMode;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig {
@@ -75,6 +119,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
 
   const requireVaultKey = env.GATEWAY_REQUIRE_VAULT_KEY === 'true';
   const allowDetokenization = env.GATEWAY_ALLOW_DETOKENIZATION !== 'false';
+  const actorModeRaw = (env.GATEWAY_ACTOR_REGISTRY_MODE ?? 'enforce').toLowerCase();
+  const actorRegistryMode: ActorRegistryMode =
+    actorModeRaw === 'off' || actorModeRaw === 'shadow' || actorModeRaw === 'enforce'
+      ? actorModeRaw
+      : 'enforce';
 
   return {
     host: env.GATEWAY_HOST ?? '127.0.0.1',
@@ -92,12 +141,48 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
     corsOrigins: cors.split(',').map((s) => s.trim()).filter(Boolean),
     vaultEncryptionKey,
     auditSigningKey:
-      env.GATEWAY_AUDIT_KEY ?? vaultEncryptionKey ?? adminApiKey,
+      (env.GATEWAY_AUDIT_KEY && env.GATEWAY_AUDIT_KEY.trim()) ||
+      vaultEncryptionKey ||
+      adminApiKey,
+    auditCheckpointPrivateJwk: env.GATEWAY_AUDIT_CHECKPOINT_PRIVATE_JWK,
+    auditCheckpointPublicJwks: env.GATEWAY_AUDIT_CHECKPOINT_PUBLIC_JWKS,
+    auditCheckpointEveryEvents: Number(
+      env.GATEWAY_AUDIT_CHECKPOINT_EVERY_EVENTS ??
+        env.GATEWAY_AUDIT_CHECKPOINT_EVENT_THRESHOLD ??
+        500,
+    ),
+    auditCheckpointIntervalSeconds: Number(
+      env.GATEWAY_AUDIT_CHECKPOINT_INTERVAL_SECONDS ?? 900,
+    ),
+    auditCheckpointingEnabled:
+      env.GATEWAY_AUDIT_CHECKPOINTING_ENABLED !== 'false',
+    auditCheckpointMaxPerTick: Number(
+      env.GATEWAY_AUDIT_CHECKPOINT_MAX_PER_TICK ?? 5,
+    ),
+    auditAnchoringEnabled: env.GATEWAY_AUDIT_ANCHORING_ENABLED === 'true',
+    auditAnchorProvider:
+      env.GATEWAY_AUDIT_ANCHOR_PROVIDER === 'filesystem'
+        ? 'filesystem'
+        : env.GATEWAY_AUDIT_ANCHOR_PROVIDER === 's3'
+          ? 's3'
+          : 'none',
+    auditAnchorLocation: env.GATEWAY_AUDIT_ANCHOR_LOCATION,
+    auditAnchorOnCheckpoint: env.GATEWAY_AUDIT_ANCHOR_ON_CHECKPOINT !== 'false',
+    auditAnchorS3Bucket: env.GATEWAY_AUDIT_ANCHOR_S3_BUCKET,
+    auditAnchorS3Prefix: env.GATEWAY_AUDIT_ANCHOR_S3_PREFIX,
+    auditAnchorS3Region: env.GATEWAY_AUDIT_ANCHOR_S3_REGION ?? env.AWS_REGION,
+    auditAnchorS3Endpoint: env.GATEWAY_AUDIT_ANCHOR_S3_ENDPOINT,
+    auditAnchorMaxAttempts: Number(env.GATEWAY_AUDIT_ANCHOR_MAX_ATTEMPTS ?? 8),
+    auditAnchorWorkerIntervalMs: Number(
+      env.GATEWAY_AUDIT_ANCHOR_WORKER_INTERVAL_MS ?? 5000,
+    ),
+    auditAnchorAsync: env.GATEWAY_AUDIT_ANCHOR_ASYNC !== 'false',
     policyEngineMode,
     policyApproverKey: env.GATEWAY_POLICY_APPROVER_KEY ?? adminApiKey,
     policyActivatorKey: env.GATEWAY_POLICY_ACTIVATOR_KEY ?? adminApiKey,
     allowLegacyEngine,
     requireVaultKey,
     allowDetokenization,
+    actorRegistryMode,
   };
 }

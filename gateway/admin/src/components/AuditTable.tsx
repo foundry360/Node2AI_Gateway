@@ -22,6 +22,7 @@ export function AuditTable({
   const [decision, setDecision] = useState('all');
   const [application, setApplication] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<AuditEventDetail | null>(null);
   const focusRef = useRef<HTMLTableRowElement | null>(null);
 
   const focusedId = focusAuditId?.trim() || null;
@@ -63,15 +64,36 @@ export function AuditTable({
     }
   }, [focusedId, focusedRequest, events]);
 
-  const selected = useMemo(
-    () => events.find((e) => e.audit_id === selectedId) ?? null,
-    [events, selectedId],
-  );
+  useEffect(() => {
+    if (!selectedId) {
+      setDetail(null);
+      return;
+    }
+    const fallback = events.find((e) => e.audit_id === selectedId) ?? null;
+    setDetail(fallback);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/proxy/audit/${encodeURIComponent(selectedId)}`,
+          { cache: 'no-store' },
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as { event?: AuditEventDetail };
+        if (!cancelled && data.event) setDetail(data.event);
+      } catch {
+        // Keep list row fields if enrich fails
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId, events]);
 
   const closePanel = useCallback(() => setSelectedId(null), []);
 
   return (
-    <div className="stack-tight">
+    <div className="page-fill-body">
       <div className="toolbar">
         <SelectDropdown
           compact
@@ -102,70 +124,72 @@ export function AuditTable({
           description="Adjust filters or wait for governed traffic."
         />
       ) : (
-        <table className="audit-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Event</th>
-              <th>Application</th>
-              <th>Policy Decision</th>
-              <th>Decision Response</th>
-              <th>Model</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((e) => {
-              const isFocused =
-                (focusedId && e.audit_id === focusedId) ||
-                (!focusedId &&
-                  focusedRequest &&
-                  e.request_id === focusedRequest);
-              const isSelected = selectedId === e.audit_id;
-              return (
-                <tr
-                  key={e.audit_id}
-                  id={`audit-${e.audit_id}`}
-                  ref={isFocused ? focusRef : undefined}
-                  className={[
-                    'audit-row',
-                    isFocused ? 'audit-row-focus' : '',
-                    isSelected ? 'audit-row-selected' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  tabIndex={0}
-                  aria-selected={isSelected}
-                  onClick={() => setSelectedId(e.audit_id)}
-                  onKeyDown={(ev) => {
-                    if (ev.key === 'Enter' || ev.key === ' ') {
-                      ev.preventDefault();
-                      setSelectedId(e.audit_id);
-                    }
-                  }}
-                >
-                  <td className="mono">{formatDisplayDateTime(e.timestamp)}</td>
-                  <td className="mono">{e.audit_id}</td>
-                  <td className="mono">{e.application_id ?? '-'}</td>
-                  <td>
-                    <StatusBadge
-                      variant="badge"
-                      status={e.policy_decision ?? '-'}
-                    />
-                  </td>
-                  <td>
-                    <StatusBadge
-                      variant="badge"
-                      status={e.response_decision ?? '-'}
-                    />
-                  </td>
-                  <td className="mono">{e.model_selected ?? '-'}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="table-scroll">
+          <table className="audit-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Event</th>
+                <th>Application</th>
+                <th>Policy Decision</th>
+                <th>Decision Response</th>
+                <th>Model</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((e) => {
+                const isFocused =
+                  (focusedId && e.audit_id === focusedId) ||
+                  (!focusedId &&
+                    focusedRequest &&
+                    e.request_id === focusedRequest);
+                const isSelected = selectedId === e.audit_id;
+                return (
+                  <tr
+                    key={e.audit_id}
+                    id={`audit-${e.audit_id}`}
+                    ref={isFocused ? focusRef : undefined}
+                    className={[
+                      'audit-row',
+                      isFocused ? 'audit-row-focus' : '',
+                      isSelected ? 'audit-row-selected' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    tabIndex={0}
+                    aria-selected={isSelected}
+                    onClick={() => setSelectedId(e.audit_id)}
+                    onKeyDown={(ev) => {
+                      if (ev.key === 'Enter' || ev.key === ' ') {
+                        ev.preventDefault();
+                        setSelectedId(e.audit_id);
+                      }
+                    }}
+                  >
+                    <td className="mono">{formatDisplayDateTime(e.timestamp)}</td>
+                    <td className="mono">{e.audit_id}</td>
+                    <td className="mono">{e.application_id ?? '-'}</td>
+                    <td>
+                      <StatusBadge
+                        variant="badge"
+                        status={e.policy_decision ?? '-'}
+                      />
+                    </td>
+                    <td>
+                      <StatusBadge
+                        variant="badge"
+                        status={e.response_decision ?? '-'}
+                      />
+                    </td>
+                    <td className="mono">{e.model_selected ?? '-'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
-      <AuditDetailDrawer event={selected} onClose={closePanel} />
+      <AuditDetailDrawer event={detail} onClose={closePanel} />
     </div>
   );
 }

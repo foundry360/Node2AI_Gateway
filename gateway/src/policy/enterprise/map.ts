@@ -13,6 +13,10 @@ import type {
   PolicyEvaluationRequest,
   PolicyEvidence,
 } from './types.js';
+import {
+  buildRuntimeActionFacts,
+  sanitizeActionAttributes,
+} from './action-governance.js';
 
 function newEvaluationId(): string {
   return `eval_${randomBytes(8).toString('hex')}`;
@@ -47,6 +51,24 @@ export function toInputEvaluationRequest(
   const regulatory = (context.classification.reason_codes ?? [])
     .filter((c) => c.startsWith('REGULATORY_APPLICABILITY:'))
     .map((c) => c.replace('REGULATORY_APPLICABILITY:', ''));
+  const clientCommit = Boolean(
+    (context.governance_context as { client_commit?: boolean } | undefined)
+      ?.client_commit,
+  );
+  const actionGovernance = buildRuntimeActionFacts({
+    operation: context.operation,
+    action: context.action ?? null,
+    clientCommit,
+  });
+  const sanitizedAction = context.action
+    ? {
+        kind: context.action.kind,
+        ...(context.action.target_id != null
+          ? { target_id: context.action.target_id }
+          : {}),
+        attributes: sanitizeActionAttributes(context.action.attributes),
+      }
+    : undefined;
   return {
     evaluation_phase: context.evaluation_phase === 'simulate' ? 'simulate' : 'input',
     subject: {
@@ -105,7 +127,12 @@ export function toInputEvaluationRequest(
           : undefined,
       ...(context.agent_id != null ? { agent_id: context.agent_id } : {}),
       ...(context.tool_id != null ? { tool_id: context.tool_id } : {}),
-      ...(context.action != null ? { action: context.action } : {}),
+      ...(sanitizedAction != null ? { action: sanitizedAction } : {}),
+      action_governance:
+        actionGovernance as unknown as Record<string, unknown>,
+      ...(context.runtime_actor != null
+        ? { runtime_actor: context.runtime_actor }
+        : {}),
     },
     evidence: {
       classification: classification as PolicyEvidence['classification'],
@@ -186,6 +213,9 @@ export function toOutputEvaluationRequest(
       execution: context.model_id.startsWith('local-') ? 'local' : 'cloud',
       ...(context.agent_id != null ? { agent_id: context.agent_id } : {}),
       ...(context.tool_id != null ? { tool_id: context.tool_id } : {}),
+      ...(context.runtime_actor != null
+        ? { runtime_actor: context.runtime_actor }
+        : {}),
     },
     evidence: {
       classification: classification as PolicyEvidence['classification'],

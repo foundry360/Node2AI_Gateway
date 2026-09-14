@@ -10,7 +10,7 @@ For each threat: Attack, Impact, Control, Detection, Residual Risk.
 
 | Field | Detail |
 |-------|--------|
-| **Threat** | Apps call providers directly, skipping Node2AI |
+| **Threat** | Apps call providers directly, skipping Enigma |
 | **Attack** | Direct HTTPS to OpenAI/Anthropic/etc. |
 | **Impact** | Ungoverned AI; data exfiltration; audit gap |
 | **Control** | Network deny-by-default egress; DNS/firewall allowlist only to gateway/providers via gateway; document Test 7 |

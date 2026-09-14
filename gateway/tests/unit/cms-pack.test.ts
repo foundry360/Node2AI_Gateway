@@ -331,7 +331,7 @@ describe('CMS Thin Pack — Provider Access', () => {
       governanceExtras: { agent_authorized: false },
     });
     expect(decision.decision).toBe('DENY');
-    expect(decision.reason_codes).toContain('CMS_PROVIDER_AGENT_UNAUTHORIZED');
+    expect(decision.reason_codes).toContain('AGENT_UNAUTHORIZED');
   });
 });
 
@@ -499,7 +499,7 @@ describe('CMS Thin Pack — AI / Agent', () => {
       governanceExtras: { agent_authorized: true, tool_authorized: false },
     });
     expect(decision.decision).toBe('DENY');
-    expect(decision.reason_codes).toContain('CMS_AI_AGENT_TOOL_UNAUTHORIZED');
+    expect(decision.reason_codes).toContain('TOOL_UNAUTHORIZED');
   });
 
   it('22. restricted cloud model on payer-to-payer → DENY', async () => {

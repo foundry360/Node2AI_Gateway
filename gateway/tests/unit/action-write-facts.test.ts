@@ -197,7 +197,7 @@ describe('Phase A — Agent WRITE action facts in HIPAA evaluation', () => {
     });
 
     expect(decision.decision).toBe('DENY');
-    expect(decision.reason_codes).toContain('HIPAA_PHI_TOOL_UNAUTHORIZED');
+    expect(decision.reason_codes).toContain('TOOL_UNAUTHORIZED');
   });
 
   it('toInputEvaluationRequest persists declared action on ai_context', () => {
@@ -224,10 +224,20 @@ describe('Phase A — Agent WRITE action facts in HIPAA evaluation', () => {
     });
 
     expect(mapped.ai_context.tool_id).toBe('update_patient_field');
+    // Phase D: sensitive attribute values are not persisted on the Decision snapshot.
     expect(mapped.ai_context.action).toEqual({
       kind: 'field_update',
-      attributes: { field: 'Email__c', value: 'a@b.com' },
+      attributes: { field: 'Email__c' },
     });
+    expect(mapped.ai_context.action_governance).toMatchObject({
+      category: 'UPDATE',
+      kind: 'field_update',
+      attributes: { field: 'Email__c' },
+    });
+    expect(
+      (mapped.ai_context.action_governance as { attributes?: { value?: unknown } })
+        ?.attributes?.value,
+    ).toBeUndefined();
     expect(mapped.action).toBe('WRITE');
   });
 });

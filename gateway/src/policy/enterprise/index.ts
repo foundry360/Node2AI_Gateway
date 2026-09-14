@@ -222,6 +222,26 @@ export {
   toOutputEvaluationRequest,
 } from './map.js';
 export {
+  buildRuntimeActionFacts,
+  deriveActionCategory,
+  sanitizeActionAttributes,
+  type ActionCategory,
+  type ActionEnforcementBoundary,
+  type RuntimeActionFacts,
+} from './action-governance.js';
+export {
+  deriveEnforcementIntegrity,
+  deriveOutcomeIntegrityStatus,
+  type EnforcementBoundaryClass,
+  type EnforcementIntegrity,
+  type OutcomeIntegrityStatus,
+} from './enforcement-integrity.js';
+export {
+  buildDecisionNarrative,
+  type DecisionNarrative,
+  type DecisionNarrativeStatus,
+} from './decision-narrative.js';
+export {
   appendRuleProvenance,
   emptyProvenanceGraph,
   resolveMatchedRuleProvenance,

@@ -610,11 +610,13 @@ public with sharing class EnigmaGatewayService {
      */
     public class GovernedWriteResult {
         @AuraEnabled public Boolean success;
-        /** COMPLETED | HELD | ERROR */
+        /** COMPLETED | HELD | ERROR | AUTHORIZED */
         @AuraEnabled public String status;
         @AuraEnabled public String message;
         @AuraEnabled public String evaluationId;
         @AuraEnabled public String requestId;
+        /** Stable id for one downstream DML attempt (reported with Outcome). */
+        @AuraEnabled public String executionId;
         @AuraEnabled public String changeId;
         @AuraEnabled public String materiality;
         @AuraEnabled public String lifecycleDecision;
@@ -622,6 +624,8 @@ public with sharing class EnigmaGatewayService {
         @AuraEnabled public String clinicalNotes;
         @AuraEnabled public String updatedField;
         @AuraEnabled public String updatedValue;
+        /** Client-reported Outcome status when sent to Enigma. */
+        @AuraEnabled public String outcomeStatus;
     }
 
     /**
@@ -679,6 +683,7 @@ public with sharing class EnigmaGatewayService {
             return gate;
         }
 
+        String executionId = newExecutionId();
         try {
             Clinical_Note__c note = new Clinical_Note__c(
                 Patient__c = patientId,
@@ -693,14 +698,34 @@ public with sharing class EnigmaGatewayService {
             out.status = 'COMPLETED';
             out.evaluationId = gate.evaluationId;
             out.requestId = gate.requestId;
+            out.executionId = executionId;
             out.writeCapability = true;
             out.clinicalNotes = notesText;
             out.message = 'Clinical note saved.';
+            out.outcomeStatus = reportWriteOutcome(
+                gate,
+                executionId,
+                'EXECUTED',
+                'update_clinical_notes',
+                'clinical_note',
+                String.valueOf(patientId)
+            );
             return out;
         } catch (Exception e) {
             out.success = false;
             out.status = 'ERROR';
+            out.evaluationId = gate.evaluationId;
+            out.requestId = gate.requestId;
+            out.executionId = executionId;
             out.message = e.getMessage();
+            out.outcomeStatus = reportWriteOutcome(
+                gate,
+                executionId,
+                'EXECUTION_FAILED',
+                'update_clinical_notes',
+                'clinical_note',
+                String.valueOf(patientId)
+            );
             return out;
         }
     }
@@ -818,6 +843,7 @@ public with sharing class EnigmaGatewayService {
             return gate;
         }
 
+        String executionId = newExecutionId();
         try {
             Patient__c toUpdate = new Patient__c(Id = patientId);
             if (field == 'Weight_lb__c' || field == 'Height_in__c') {
@@ -827,7 +853,18 @@ public with sharing class EnigmaGatewayService {
                 if (String.isBlank(numeric)) {
                     out.success = false;
                     out.status = 'ERROR';
+                    out.evaluationId = gate.evaluationId;
+                    out.requestId = gate.requestId;
+                    out.executionId = executionId;
                     out.message = 'A numeric value is required for ' + field + '.';
+                    out.outcomeStatus = reportWriteOutcome(
+                        gate,
+                        executionId,
+                        'EXECUTION_FAILED',
+                        'update_patient_field',
+                        'field_update',
+                        String.valueOf(patientId)
+                    );
                     return out;
                 }
                 toUpdate.put(field, Decimal.valueOf(numeric));
@@ -836,8 +873,19 @@ public with sharing class EnigmaGatewayService {
                 if (parsed == null) {
                     out.success = false;
                     out.status = 'ERROR';
+                    out.evaluationId = gate.evaluationId;
+                    out.requestId = gate.requestId;
+                    out.executionId = executionId;
                     out.message =
                         'Could not parse date of birth. Use MM/DD/YYYY or YYYY-MM-DD.';
+                    out.outcomeStatus = reportWriteOutcome(
+                        gate,
+                        executionId,
+                        'EXECUTION_FAILED',
+                        'update_patient_field',
+                        'field_update',
+                        String.valueOf(patientId)
+                    );
                     return out;
                 }
                 toUpdate.Date_of_Birth__c = parsed;
@@ -850,15 +898,38 @@ public with sharing class EnigmaGatewayService {
             out.status = 'COMPLETED';
             out.evaluationId = gate.evaluationId;
             out.requestId = gate.requestId;
+            out.executionId = executionId;
             out.writeCapability = true;
             out.updatedField = field;
             out.updatedValue = fieldValue;
             out.message = 'Updated ' + field + '.';
+            out.outcomeStatus = reportWriteOutcome(
+                gate,
+                executionId,
+                'EXECUTED',
+                'update_patient_field',
+                'field_update',
+                String.valueOf(patientId)
+            );
             return out;
         } catch (Exception e) {
             out.success = false;
             out.status = 'ERROR';
+            out.evaluationId = gate.evaluationId;
+            out.requestId = gate.requestId;
+            out.executionId = executionId;
             out.message = e.getMessage();
+            // Callout after DML is not possible in the same transaction; when
+            // the client cannot determine completion (e.g. lost response), use
+            // EXECUTION_UNKNOWN. Known Apex DML exceptions are EXECUTION_FAILED.
+            out.outcomeStatus = reportWriteOutcome(
+                gate,
+                executionId,
+                'EXECUTION_FAILED',
+                'update_patient_field',
+                'field_update',
+                String.valueOf(patientId)
+            );
             return out;
         }
     }
@@ -1012,11 +1083,159 @@ public with sharing class EnigmaGatewayService {
 
         out.success = false;
         out.status = 'ERROR';
-        out.message =
-            (String) parsed.get('message') != null
-                ? (String) parsed.get('message')
-                : 'Enigma blocked this write (HTTP ' + res.getStatusCode() + ').';
+        out.message = 'Enigma blocked this write (HTTP ' + res.getStatusCode() + ').';
         return out;
+    }
+
+    private static String newExecutionId() {
+        return 'exec_' +
+            String.valueOf(Crypto.getRandomLong()).replace('-', '') +
+            String.valueOf(Datetime.now().getTime());
+    }
+
+    /**
+     * Report client-reported execution Outcome to Enigma.
+     * After DML, callouts must be async (Salesforce mixed DML/callout rule).
+     * Retries must reuse the same executionId.
+     *
+     * Outcome semantics:
+     * - EXECUTED: client observed successful DML
+     * - EXECUTION_FAILED: client observed failure
+     * - EXECUTION_UNKNOWN: client cannot determine whether DML completed
+     *
+     * Enigma records what the client reports; it does not independently verify Salesforce.
+     */
+    public static String reportWriteOutcome(
+        GovernedWriteResult gate,
+        String executionId,
+        String outcome,
+        String toolId,
+        String actionKind,
+        String targetId
+    ) {
+        if (gate == null || String.isBlank(gate.evaluationId) || String.isBlank(executionId)) {
+            return null;
+        }
+        try {
+            System.enqueueJob(
+                new OutcomeReportQueueable(
+                    gate.evaluationId,
+                    gate.requestId,
+                    executionId,
+                    outcome,
+                    toolId,
+                    actionKind,
+                    targetId
+                )
+            );
+            return outcome + '_QUEUED';
+        } catch (Exception e) {
+            // Best-effort: do not fail the local write because Outcome reporting failed.
+            return outcome + '_QUEUE_FAILED';
+        }
+    }
+
+    /**
+     * Async Outcome report so DML and Enigma callout are not in the same transaction.
+     */
+    public class OutcomeReportQueueable implements Queueable, Database.AllowsCallouts {
+        private String evaluationId;
+        private String requestId;
+        private String executionId;
+        private String outcome;
+        private String toolId;
+        private String actionKind;
+        private String targetId;
+
+        public OutcomeReportQueueable(
+            String evaluationId,
+            String requestId,
+            String executionId,
+            String outcome,
+            String toolId,
+            String actionKind,
+            String targetId
+        ) {
+            this.evaluationId = evaluationId;
+            this.requestId = requestId;
+            this.executionId = executionId;
+            this.outcome = outcome;
+            this.toolId = toolId;
+            this.actionKind = actionKind;
+            this.targetId = targetId;
+        }
+
+        public void execute(QueueableContext ctx) {
+            postOutcomeReceipt(
+                evaluationId,
+                requestId,
+                executionId,
+                outcome,
+                toolId,
+                actionKind,
+                targetId
+            );
+        }
+    }
+
+    /**
+     * POST /v1/ai/actions/outcome — idempotent on execution_id.
+     * On transient failure, callers may retry with the same execution_id.
+     */
+    public static Boolean postOutcomeReceipt(
+        String evaluationId,
+        String requestId,
+        String executionId,
+        String outcome,
+        String toolId,
+        String actionKind,
+        String targetId
+    ) {
+        Enigma_Config__c cfg = requireConfig();
+        String apiKey = cfg.Api_Key__c;
+        String applicationId = cfg.Application_Id__c;
+        if (String.isBlank(apiKey) || String.isBlank(applicationId)) {
+            return false;
+        }
+        String base = cfg.Endpoint_URL__c.removeEnd('/');
+        String endpoint = base + '/v1/ai/actions/outcome';
+
+        Map<String, Object> action = new Map<String, Object>{
+            'kind' => actionKind
+        };
+        if (String.isNotBlank(targetId)) {
+            action.put('target_id', targetId);
+        }
+
+        Map<String, Object> body = new Map<String, Object>{
+            'application_id' => applicationId,
+            'evaluation_id' => evaluationId,
+            'execution_id' => executionId,
+            'outcome' => outcome,
+            'user' => new Map<String, Object>{ 'id' => 'user_clinician' },
+            'request_id' => requestId,
+            'agent_id' => AGENT_TARGET_ID,
+            'tool_id' => toolId,
+            'operation' => 'write',
+            'action' => action,
+            'metadata' => new Map<String, Object>{
+                'correlation_id' =>
+                    'sf-outcome-' + String.valueOf(Datetime.now().getTime()),
+                'salesforce_user_id' => UserInfo.getUserId()
+            }
+        };
+
+        HttpRequest req = new HttpRequest();
+        req.setEndpoint(endpoint);
+        req.setMethod('POST');
+        req.setHeader('Content-Type', 'application/json');
+        req.setHeader('Authorization', 'Bearer ' + apiKey);
+        req.setTimeout(60000);
+        req.setBody(JSON.serialize(body));
+
+        HttpResponse res = new Http().send(req);
+        // 200 accepted/idempotent; treat as success. 409 conflict is not retried here.
+        return res.getStatusCode() >= 200 && res.getStatusCode() < 300;
     }
 
     /**

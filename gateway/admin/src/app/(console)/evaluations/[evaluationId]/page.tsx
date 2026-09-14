@@ -14,6 +14,18 @@ import {
   DecisionRequestPreviewPanel,
   type HeldRequestPreview,
 } from '@/components/DecisionRequestPreviewPanel';
+import {
+  DecisionRuntimeActorPanel,
+  type RuntimeActorSnapshot,
+} from '@/components/DecisionRuntimeActorPanel';
+import {
+  DecisionActionGovernancePanel,
+  type ActionGovernanceSnapshot,
+} from '@/components/DecisionActionGovernancePanel';
+import {
+  DecisionNarrativePanel,
+  type DecisionNarrativePayload,
+} from '@/components/DecisionNarrativePanel';
 import { formatDisplayDateTime } from '@/lib/display-datetime';
 import { formatFieldLabel } from '@/lib/field-label';
 import type { DecisionExplanationPayload } from '@/lib/decision-explanation';
@@ -108,6 +120,28 @@ type EvaluationDetailResponse = {
   request_context?: RequestContext;
   held_request_preview?: HeldRequestPreview | null;
   model_governance?: ModelGovernance;
+  runtime_actor?: RuntimeActorSnapshot | null;
+  action_governance?: ActionGovernanceSnapshot | null;
+  decision_narrative?: DecisionNarrativePayload | null;
+  enforcement_integrity?: {
+    boundary?: string;
+    boundary_label?: string;
+    gateway_executed_side_effect?: boolean;
+    commit_authorized?: boolean;
+    summary?: string;
+  } | null;
+  outcome?: {
+    status?: string;
+    evidence_class?: string;
+    execution_id?: string | null;
+    reported_at?: string | null;
+    summary?: string;
+  } | null;
+  outcome_integrity?: {
+    machine_decision_unchanged?: boolean;
+    evidence_class?: string;
+    summary?: string;
+  } | null;
   execution?: {
     mode?: 'simulation' | 'live';
     phase?: string;
@@ -154,6 +188,12 @@ export default async function EvaluationDetailPage({
   const requestContext = data?.request_context;
   const heldRequestPreview = data?.held_request_preview ?? null;
   const modelGovernance = data?.model_governance;
+  const runtimeActor = data?.runtime_actor ?? null;
+  const actionGovernance = data?.action_governance ?? null;
+  const narrative = data?.decision_narrative ?? null;
+  const enforcementIntegrity = data?.enforcement_integrity ?? null;
+  const outcome = data?.outcome ?? null;
+  const outcomeIntegrity = data?.outcome_integrity ?? null;
   const execution = data?.execution;
   const showReview =
     review?.review_state === 'pending' ||
@@ -176,6 +216,45 @@ export default async function EvaluationDetailPage({
   const recordedAt = formatDisplayDateTime(record?.created_at ?? null);
   const resolutionCategory = decision?.explanation?.resolution?.category;
 
+  const leftColumn = (
+    <>
+      {actionGovernance ? (
+        <DecisionActionGovernancePanel actionGovernance={actionGovernance} />
+      ) : null}
+      {consequence ? (
+        <DecisionConsequencePanel
+          decision={decision?.decision ?? record?.decision}
+          finalDecision={review?.final_decision ?? undefined}
+          humanDisposition={review?.human_resolution?.human_disposition}
+          consequence={consequence}
+          enforcement={enforcement}
+          outcome={outcome}
+          enforcementIntegrity={enforcementIntegrity}
+          outcomeIntegrity={outcomeIntegrity}
+          requiredControls={requiredControls}
+          executionMode={requestContext?.execution_mode ?? execution?.mode}
+        />
+      ) : null}
+    </>
+  );
+  const rightColumn = (
+    <>
+      {narrative ? <DecisionNarrativePanel narrative={narrative} /> : null}
+      {runtimeActor ? (
+        <DecisionRuntimeActorPanel runtimeActor={runtimeActor} />
+      ) : null}
+      {modelGovernance ? (
+        <DecisionModelGovernancePanel governance={modelGovernance} />
+      ) : null}
+    </>
+  );
+  const hasEvidence =
+    Boolean(narrative) ||
+    Boolean(runtimeActor) ||
+    Boolean(actionGovernance) ||
+    Boolean(modelGovernance) ||
+    Boolean(consequence);
+
   const page = (
     <div className="stack">
       <Breadcrumbs
@@ -196,7 +275,7 @@ export default async function EvaluationDetailPage({
         </div>
 
         {record ? (
-          <div className="meridian-panel">
+          <div className="meridian-panel decision-identity-panel">
             <div className="meridian-panel-left">
               <div className="meridian-card-head">
                 <h2 className="meridian-card-title">Decision Identity</h2>
@@ -240,6 +319,9 @@ export default async function EvaluationDetailPage({
             </div>
 
             <div className="meridian-panel-right">
+              <div className="meridian-card-head">
+                <h2 className="meridian-card-title">Record</h2>
+              </div>
               <div className="meridian-attr">
                 <span className="meridian-attr-label">Evaluation ID</span>
                 <span className="meridian-attr-value mono">
@@ -280,12 +362,12 @@ export default async function EvaluationDetailPage({
       <DecisionDetailTabs
         showPreview
         showContext={Boolean(requestContext)}
-        showPolicy={Boolean(decision || consequence || modelGovernance)}
+        showPolicy={Boolean(decision || hasEvidence)}
         showReview={showReview}
         defaultTab={
           review?.review_state === 'pending'
             ? 'review'
-            : decision || consequence
+            : decision || hasEvidence
               ? 'policy'
               : 'policy'
         }
@@ -300,47 +382,13 @@ export default async function EvaluationDetailPage({
           decision ? (
             <DecisionExplanationView
               decision={decision}
-              afterTop={
-                modelGovernance || consequence ? (
-                  <div className="decision-evidence-stack">
-                    {modelGovernance ? (
-                      <DecisionModelGovernancePanel governance={modelGovernance} />
-                    ) : null}
-                    {consequence ? (
-                      <DecisionConsequencePanel
-                        decision={decision?.decision ?? record?.decision}
-                        finalDecision={review?.final_decision ?? undefined}
-                        humanDisposition={
-                          review?.human_resolution?.human_disposition
-                        }
-                        consequence={consequence}
-                        enforcement={enforcement}
-                        requiredControls={requiredControls}
-                        executionMode={
-                          requestContext?.execution_mode ?? execution?.mode
-                        }
-                      />
-                    ) : null}
-                  </div>
-                ) : undefined
-              }
+              leftColumn={hasEvidence ? leftColumn : undefined}
+              rightColumn={hasEvidence ? rightColumn : undefined}
             />
-          ) : modelGovernance || consequence ? (
-            <div className="decision-evidence-stack">
-              {modelGovernance ? (
-                <DecisionModelGovernancePanel governance={modelGovernance} />
-              ) : null}
-              {consequence ? (
-                <DecisionConsequencePanel
-                  decision={record?.decision}
-                  finalDecision={review?.final_decision ?? undefined}
-                  humanDisposition={review?.human_resolution?.human_disposition}
-                  consequence={consequence}
-                  enforcement={enforcement}
-                  requiredControls={requiredControls}
-                  executionMode={requestContext?.execution_mode ?? execution?.mode}
-                />
-              ) : null}
+          ) : hasEvidence ? (
+            <div className="decision-explanation-columns">
+              <div className="decision-explanation-col">{leftColumn}</div>
+              <div className="decision-explanation-col">{rightColumn}</div>
             </div>
           ) : null
         }

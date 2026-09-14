@@ -3,6 +3,8 @@
 **Status:** Architectural contract  
 **Base path:** `/v1`
 
+For Product 1.0 enterprise integration (actions, `commit_allowed`, REVIEW/resume, Outcome, enforcement honesty), use the canonical **[`ENIGMA_INTEGRATION_CONTRACT.md`](./ENIGMA_INTEGRATION_CONTRACT.md)**. This file remains the lighter public API sketch.
+
 ## Authentication
 
 ```http

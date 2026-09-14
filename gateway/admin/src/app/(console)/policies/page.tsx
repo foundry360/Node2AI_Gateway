@@ -1,5 +1,4 @@
 import { adminFetch } from '@/lib/api';
-import { PageHeader } from '@/components/PageHeader';
 import { PoliciesTable } from '@/components/PoliciesTable';
 
 type PacksResponse = {
@@ -34,15 +33,12 @@ export default async function PoliciesPage() {
   }
 
   return (
-    <div>
-      <PageHeader
-        title="Policies"
-        lede="Define and manage the policies that govern AI actions."
-      />
+    <div className="page-fill">
       {error ? <div className="error">{error}</div> : null}
-      {packs ? (
-        <PoliciesTable packs={packs.packs} policies={packs.policies} />
-      ) : null}
+      <PoliciesTable
+        packs={packs?.packs ?? []}
+        policies={packs?.policies ?? []}
+      />
     </div>
   );
 }

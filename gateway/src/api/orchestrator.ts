@@ -15,12 +15,30 @@ import { isGatewayError, gatewayErrorFromUnknown } from '../shared/errors.js';
 import { newAuditId, newCorrelationId, newRequestId } from '../shared/ids.js';
 import type { DetokenizationService, TransformService } from '../transform/types.js';
 import {
+  actionOutcomeRequestSchema,
   actionRequestSchema,
   completionRequestSchema,
   findForbiddenOverrides,
+  type ActionOutcomeRequestBody,
   type ActionRequestBody,
   type CompletionRequestBody,
 } from './validation.js';
+import {
+  computeOutcomeReceiptHash,
+  clientOutcomeContextMismatch,
+  deriveAuthorizedOutcomeContext,
+  OUTCOME_REASON_CODES,
+  outcomeReasonCode,
+  type ClientOutcomeStatus,
+} from '../audit/outcome.js';
+import type { ActionOutcomeStore } from '../audit/outcome-store.js';
+import type { ActorRegistry } from '../actors/registry.js';
+import {
+  applyRuntimeActorToGovernanceContext,
+  normalizeRequestedOperation,
+} from '../actors/facts.js';
+import type { RuntimeActorFacts } from '../actors/types.js';
+import type { GovernanceContext } from '../policy/types.js';
 
 export interface CompletionSuccess {
   request_id: string;
@@ -78,8 +96,13 @@ export interface ActionSuccess {
   status: 'approved';
   evaluation_id: string;
   machine_decision: string;
-  /** Client may commit the side effect (Salesforce DML, etc.). */
+  /**
+   * Client may commit the external side effect (DML, etc.).
+   * This is Gateway authorization to commit — not proof Enigma executed it.
+   */
   action: 'commit_allowed';
+  /** Product 1.0: actions ALLOW is always client-commit at the Gateway boundary. */
+  enforcement_boundary: 'client_commit_required';
   resumed?: boolean;
 }
 
@@ -92,11 +115,43 @@ export interface ActionBlocked {
   evaluation_id?: string;
   machine_decision?: string;
   safety_hold?: boolean;
+  /** Product 1.0 honesty: denied vs held for review. */
+  enforcement_boundary?: 'denied' | 'review_required';
 }
 
 export type ActionResult =
   | { httpStatus: 200; body: ActionSuccess }
   | { httpStatus: number; body: ActionBlocked };
+
+export interface ActionOutcomeSuccess {
+  request_id: string;
+  correlation_id: string;
+  status: 'accepted' | 'idempotent';
+  evaluation_id: string;
+  execution_id: string;
+  outcome: string;
+  audit_id: string;
+  /** Explicit: receipt is client-reported, not independently verified. */
+  evidence_class: 'client_reported';
+  machine_decision?: string;
+  human_resolution?: string | null;
+  enforcement?: string;
+}
+
+export interface ActionOutcomeBlocked {
+  request_id: string;
+  correlation_id: string;
+  status: 'blocked' | 'conflict';
+  reason_code: string;
+  message: string;
+  evaluation_id?: string;
+  execution_id?: string;
+  existing_outcome?: string;
+}
+
+export type ActionOutcomeResult =
+  | { httpStatus: 200; body: ActionOutcomeSuccess }
+  | { httpStatus: number; body: ActionOutcomeBlocked };
 
 export interface GatewayOrchestratorDeps {
   config: GatewayConfig;
@@ -111,6 +166,12 @@ export interface GatewayOrchestratorDeps {
   /** Optional — required for REVIEW hold + post-AUTHORIZE resume. */
   policyRepository?: PolicyRepository;
   identityStore?: IdentityStore;
+  /** Phase 4 — client Outcome receipt projection / idempotency. */
+  outcomeStore?: import('../audit/outcome-store.js').ActionOutcomeStore;
+  /** Installation deployment_id for Outcome claim scoping (Phase 4.1). */
+  resolveDeploymentId?: () => Promise<string>;
+  /** Phase A — Agent/Tool authorization substrate (not a PDP). */
+  actorRegistry?: ActorRegistry;
 }
 
 /**
@@ -120,6 +181,181 @@ export interface GatewayOrchestratorDeps {
  */
 export class GatewayOrchestrator {
   constructor(private readonly deps: GatewayOrchestratorDeps) {}
+
+  /**
+   * Resolve Agent/Tool substrate facts before EPA.
+   * Client may identify actors; client may not authorize them (enforce/shadow).
+   */
+  private async resolveRuntimeActors(opts: {
+    applicationId: string;
+    organizationId: string;
+    agentId?: string | null;
+    toolId?: string | null;
+    operation?: string | null;
+    actionKind?: string | null;
+    governanceContext?: Record<string, unknown> | GovernanceContext;
+  }): Promise<{
+    governance_context: GovernanceContext | undefined;
+    runtime_actor: RuntimeActorFacts | null;
+  }> {
+    const mode = this.deps.config.actorRegistryMode;
+    const clientGov = opts.governanceContext as
+      | Record<string, unknown>
+      | undefined;
+    const hasActorIds = !!opts.agentId?.trim() || !!opts.toolId?.trim();
+
+    // off: legacy client attestation (migration/compat only).
+    if (mode === 'off' || !hasActorIds) {
+      return {
+        governance_context: clientGov as GovernanceContext | undefined,
+        runtime_actor: null,
+      };
+    }
+
+    // enforce/shadow: never fall back to client authorization when deps missing.
+    if (!this.deps.actorRegistry || !this.deps.resolveDeploymentId) {
+      const failFacts: RuntimeActorFacts = {
+        mode,
+        agent: opts.agentId?.trim()
+          ? {
+              id: opts.agentId.trim(),
+              registered: false,
+              status: 'UNKNOWN',
+              bound_to_application: false,
+              autonomy_level: null,
+              authorized: false,
+            }
+          : null,
+        tool: opts.toolId?.trim()
+          ? {
+              id: opts.toolId.trim(),
+              registered: false,
+              status: 'UNKNOWN',
+              granted_to_agent: false,
+              operation: normalizeRequestedOperation({
+                operation: opts.operation,
+                actionKind: opts.actionKind,
+              }),
+              operation_declared: false,
+              operation_granted: false,
+              authorized: false,
+            }
+          : null,
+        substrate: {
+          agent_authorized: opts.agentId?.trim() ? false : null,
+          tool_authorized: opts.toolId?.trim() ? false : null,
+          reason_codes: ['REGISTRY_UNAVAILABLE'],
+        },
+        client_attested: {
+          ...(typeof clientGov?.agent_authorized === 'boolean'
+            ? { agent_authorized: clientGov.agent_authorized }
+            : {}),
+          ...(typeof clientGov?.tool_authorized === 'boolean'
+            ? { tool_authorized: clientGov.tool_authorized }
+            : {}),
+        },
+        mismatch: true,
+        registry_error: 'actor_registry_or_deployment_unavailable',
+      };
+      const merged = applyRuntimeActorToGovernanceContext(
+        mode,
+        clientGov,
+        failFacts,
+      );
+      return {
+        governance_context: merged as GovernanceContext | undefined,
+        runtime_actor: failFacts,
+      };
+    }
+
+    try {
+      const deploymentId = await this.deps.resolveDeploymentId();
+      const operation = normalizeRequestedOperation({
+        operation: opts.operation,
+        actionKind: opts.actionKind,
+      });
+      const facts = await this.deps.actorRegistry.resolve({
+        deploymentId,
+        applicationId: opts.applicationId,
+        organizationId: opts.organizationId,
+        agentId: opts.agentId,
+        toolId: opts.toolId,
+        operation,
+        mode,
+        clientAgentAuthorized:
+          typeof clientGov?.agent_authorized === 'boolean'
+            ? clientGov.agent_authorized
+            : undefined,
+        clientToolAuthorized:
+          typeof clientGov?.tool_authorized === 'boolean'
+            ? clientGov.tool_authorized
+            : undefined,
+      });
+      const merged = applyRuntimeActorToGovernanceContext(
+        mode,
+        clientGov,
+        facts,
+      );
+      return {
+        governance_context: merged as GovernanceContext | undefined,
+        runtime_actor: facts,
+      };
+    } catch (err) {
+      const failFacts: RuntimeActorFacts = {
+        mode,
+        agent: opts.agentId?.trim()
+          ? {
+              id: opts.agentId.trim(),
+              registered: false,
+              status: 'UNKNOWN',
+              bound_to_application: false,
+              autonomy_level: null,
+              authorized: false,
+            }
+          : null,
+        tool: opts.toolId?.trim()
+          ? {
+              id: opts.toolId.trim(),
+              registered: false,
+              status: 'UNKNOWN',
+              granted_to_agent: false,
+              operation: normalizeRequestedOperation({
+                operation: opts.operation,
+                actionKind: opts.actionKind,
+              }),
+              operation_declared: false,
+              operation_granted: false,
+              authorized: false,
+            }
+          : null,
+        substrate: {
+          agent_authorized: opts.agentId?.trim() ? false : null,
+          tool_authorized: opts.toolId?.trim() ? false : null,
+          reason_codes: ['REGISTRY_UNAVAILABLE'],
+        },
+        client_attested: {
+          ...(typeof clientGov?.agent_authorized === 'boolean'
+            ? { agent_authorized: clientGov.agent_authorized }
+            : {}),
+          ...(typeof clientGov?.tool_authorized === 'boolean'
+            ? { tool_authorized: clientGov.tool_authorized }
+            : {}),
+        },
+        mismatch: true,
+        registry_error:
+          err instanceof Error ? err.message : 'registry_resolve_failed',
+      };
+      const merged = applyRuntimeActorToGovernanceContext(
+        mode,
+        clientGov,
+        failFacts,
+      );
+      return {
+        governance_context: merged as GovernanceContext | undefined,
+        runtime_actor: failFacts,
+      };
+    }
+  }
 
   async completions(
     rawKey: string | undefined,
@@ -247,6 +483,9 @@ export class GatewayOrchestrator {
       };
 
       let policyResult;
+      let resolvedActors: Awaited<
+        ReturnType<GatewayOrchestrator['resolveRuntimeActors']>
+      > | null = null;
       try {
         const applicabilityCodes = (body.regulatory_applicability ?? []).map(
           (a) =>
@@ -257,6 +496,16 @@ export class GatewayOrchestrator {
         const reasonCodes = [
           ...new Set([...classification.reason_codes, ...applicabilityCodes]),
         ];
+        resolvedActors = await this.resolveRuntimeActors({
+          applicationId: principal.application.application_id,
+          organizationId: principal.organization.organization_id,
+          agentId: body.agent_id,
+          toolId: body.tool_id,
+          operation: body.operation,
+          governanceContext: body.governance_context as
+            | Record<string, unknown>
+            | undefined,
+        });
         policyResult = await this.deps.policy.evaluateRequest({
           user,
           application: principal.application,
@@ -278,7 +527,10 @@ export class GatewayOrchestrator {
           permitted_entity_types: body.permitted_entity_types,
           source_system: body.source_system,
           processing_location: body.processing_location,
-          governance_context: body.governance_context,
+          governance_context: resolvedActors.governance_context,
+          runtime_actor: resolvedActors.runtime_actor
+            ? (resolvedActors.runtime_actor as unknown as Record<string, unknown>)
+            : undefined,
           evaluation_as_of: body.evaluation_as_of,
         });
       } catch {
@@ -335,9 +587,8 @@ export class GatewayOrchestrator {
             source_system: body.source_system,
             processing_location: body.processing_location,
             evaluation_as_of: body.evaluation_as_of,
-            governance_context: body.governance_context as
-              | Record<string, unknown>
-              | undefined,
+            governance_context: (resolvedActors?.governance_context ??
+              body.governance_context) as Record<string, unknown> | undefined,
           };
           try {
             await Promise.resolve(
@@ -486,7 +737,11 @@ export class GatewayOrchestrator {
           agent_id: body.agent_id,
           tool_id: body.tool_id,
           permitted_entity_types: body.permitted_entity_types,
-          governance_context: body.governance_context,
+          governance_context:
+            resolvedActors?.governance_context ?? body.governance_context,
+          runtime_actor: resolvedActors?.runtime_actor
+            ? (resolvedActors.runtime_actor as unknown as Record<string, unknown>)
+            : undefined,
           evaluation_as_of: body.evaluation_as_of,
         });
       } catch {
@@ -771,6 +1026,8 @@ export class GatewayOrchestrator {
               ? meta.machine_decision
               : undefined,
           safety_hold: meta.safety_hold === true ? true : undefined,
+          enforcement_boundary:
+            meta.safety_hold === true ? 'review_required' : 'denied',
         },
       };
     };
@@ -845,6 +1102,8 @@ export class GatewayOrchestrator {
         content: corpus,
         toolId: body.tool_id,
         agentId: body.agent_id,
+        purpose: body.purpose,
+        authorizationContext: body.authorization_context,
         action: body.action,
       });
       if (claimed) {
@@ -901,6 +1160,9 @@ export class GatewayOrchestrator {
       };
 
       let policyResult;
+      let resolvedActors: Awaited<
+        ReturnType<GatewayOrchestrator['resolveRuntimeActors']>
+      > | null = null;
       try {
         const applicabilityCodes = (body.regulatory_applicability ?? []).map(
           (a) =>
@@ -911,6 +1173,19 @@ export class GatewayOrchestrator {
         const reasonCodes = [
           ...new Set([...classification.reason_codes, ...applicabilityCodes]),
         ];
+        resolvedActors = await this.resolveRuntimeActors({
+          applicationId: principal.application.application_id,
+          organizationId: principal.organization.organization_id,
+          agentId: body.agent_id,
+          toolId: body.tool_id,
+          operation: body.operation,
+          actionKind: body.action?.kind,
+          governanceContext: {
+            ...((body.governance_context as Record<string, unknown>) ?? {}),
+            client_commit: true,
+            ...(body.action ? { action: body.action } : {}),
+          },
+        });
         policyResult = await this.deps.policy.evaluateRequest({
           user,
           application: principal.application,
@@ -932,8 +1207,11 @@ export class GatewayOrchestrator {
           permitted_entity_types: body.permitted_entity_types,
           source_system: body.source_system,
           processing_location: body.processing_location,
-          governance_context: body.governance_context,
           evaluation_as_of: body.evaluation_as_of,
+          governance_context: resolvedActors.governance_context,
+          runtime_actor: resolvedActors.runtime_actor
+            ? (resolvedActors.runtime_actor as unknown as Record<string, unknown>)
+            : undefined,
           action: body.action,
         });
       } catch {
@@ -1002,7 +1280,12 @@ export class GatewayOrchestrator {
             processing_location: body.processing_location,
             evaluation_as_of: body.evaluation_as_of,
             governance_context: {
-              ...((body.governance_context as Record<string, unknown>) ?? {}),
+              ...((resolvedActors?.governance_context as Record<
+                string,
+                unknown
+              >) ??
+                (body.governance_context as Record<string, unknown>) ??
+                {}),
               client_commit: true,
               ...(body.action ? { action: body.action } : {}),
             },
@@ -1080,6 +1363,7 @@ export class GatewayOrchestrator {
           evaluation_id: policyResult.evaluation_id ?? '',
           machine_decision: String(policyResult.decision),
           action: 'commit_allowed',
+          enforcement_boundary: 'client_commit_required',
         },
       };
     } catch (err) {
@@ -1511,6 +1795,8 @@ export class GatewayOrchestrator {
     content: string;
     toolId?: string;
     agentId?: string;
+    purpose?: string;
+    authorizationContext?: string;
     action?: {
       kind: string;
       target_id?: string;
@@ -1545,12 +1831,14 @@ export class GatewayOrchestrator {
       if (held.operation !== opts.operation) continue;
       const heldContent = held.messages.map((m) => m.content).join('\n').trim();
       if (heldContent !== needle) continue;
-      // Content matched — also require action-context compatibility when declared.
+      // Content matched — also require full action-context compatibility.
       if (
         this.clientCommitContextMismatch(held, {
           operation: opts.operation,
           toolId: opts.toolId,
           agentId: opts.agentId,
+          purpose: opts.purpose,
+          authorizationContext: opts.authorizationContext,
           action: opts.action,
         })
       ) {
@@ -1564,6 +1852,11 @@ export class GatewayOrchestrator {
   /**
    * Material action-context binding for client_commit resume.
    * Returns a reason_code when the retry is not the same governed action.
+   *
+   * Product 1.0 integrity: when the held Decision recorded a binding field,
+   * the resume request MUST present the same value. Omitting a held field
+   * (one-sided skip) is treated as CONTEXT_MISMATCH — clients cannot use
+   * Evaluation A authorization to continue Action B by dropping identifiers.
    */
   private clientCommitContextMismatch(
     held: HeldRequestSnapshot,
@@ -1580,21 +1873,20 @@ export class GatewayOrchestrator {
       };
     },
   ): string | null {
+    const mustMatch = (
+      heldVal: string | undefined | null,
+      reqVal: string | undefined | null,
+    ): boolean => {
+      if (heldVal == null || heldVal === '') return true;
+      if (reqVal == null || reqVal === '') return false;
+      return heldVal === reqVal;
+    };
+
     if (held.operation !== opts.operation) return 'CONTEXT_MISMATCH';
-    if (held.tool_id && opts.toolId && held.tool_id !== opts.toolId) {
-      return 'CONTEXT_MISMATCH';
-    }
-    if (held.agent_id && opts.agentId && held.agent_id !== opts.agentId) {
-      return 'CONTEXT_MISMATCH';
-    }
-    if (held.purpose && opts.purpose && held.purpose !== opts.purpose) {
-      return 'CONTEXT_MISMATCH';
-    }
-    if (
-      held.authorization_context &&
-      opts.authorizationContext &&
-      held.authorization_context !== opts.authorizationContext
-    ) {
+    if (!mustMatch(held.tool_id, opts.toolId)) return 'CONTEXT_MISMATCH';
+    if (!mustMatch(held.agent_id, opts.agentId)) return 'CONTEXT_MISMATCH';
+    if (!mustMatch(held.purpose, opts.purpose)) return 'CONTEXT_MISMATCH';
+    if (!mustMatch(held.authorization_context, opts.authorizationContext)) {
       return 'CONTEXT_MISMATCH';
     }
 
@@ -1609,9 +1901,7 @@ export class GatewayOrchestrator {
         : undefined;
     const heldKind =
       typeof heldAction?.kind === 'string' ? heldAction.kind : undefined;
-    if (heldKind && opts.action?.kind && heldKind !== opts.action.kind) {
-      return 'CONTEXT_MISMATCH';
-    }
+    if (!mustMatch(heldKind, opts.action?.kind)) return 'CONTEXT_MISMATCH';
     const heldField =
       typeof heldAction?.attributes?.field === 'string'
         ? heldAction.attributes.field
@@ -1620,15 +1910,10 @@ export class GatewayOrchestrator {
       typeof opts.action?.attributes?.field === 'string'
         ? opts.action.attributes.field
         : undefined;
-    if (heldField && reqField && heldField !== reqField) {
-      return 'CONTEXT_MISMATCH';
-    }
+    if (!mustMatch(heldField, reqField)) return 'CONTEXT_MISMATCH';
     const heldTarget =
       typeof heldAction?.target_id === 'string' ? heldAction.target_id : undefined;
-    const reqTarget = opts.action?.target_id;
-    if (heldTarget && reqTarget && heldTarget !== reqTarget) {
-      return 'CONTEXT_MISMATCH';
-    }
+    if (!mustMatch(heldTarget, opts.action?.target_id)) return 'CONTEXT_MISMATCH';
     return null;
   }
 
@@ -1780,6 +2065,7 @@ export class GatewayOrchestrator {
           evaluation_id: opts.evaluationId,
           machine_decision: String(machineDecision),
           action: 'commit_allowed',
+          enforcement_boundary: 'client_commit_required',
           resumed: true,
         },
       };
@@ -1799,17 +2085,473 @@ export class GatewayOrchestrator {
     );
   }
 
+  /**
+   * Phase 4 / 4.1 — accept a client-reported execution Outcome for an authorized write.
+   * Does not re-run PDP. Does not overwrite machine decision.
+   * Atomically claims (deployment_id, execution_id) before sealing CLIENT_OUTCOME_RECEIPT.
+   */
+  async reportActionOutcome(
+    rawKey: string | undefined,
+    rawBody: unknown,
+  ): Promise<ActionOutcomeResult> {
+    const requestId = newRequestId();
+    let correlationId = newCorrelationId();
+
+    const fail = (
+      httpStatus: number,
+      reason_code: string,
+      message: string,
+      extra: Partial<ActionOutcomeBlocked> = {},
+    ): ActionOutcomeResult => ({
+      httpStatus,
+      body: {
+        request_id: requestId,
+        correlation_id: correlationId,
+        status: httpStatus === 409 ? 'conflict' : 'blocked',
+        reason_code,
+        message,
+        ...extra,
+      },
+    });
+
+    const forbidden = findForbiddenOverrides(rawBody);
+    if (forbidden.length > 0) {
+      return fail(400, 'VALIDATION_FAILED', 'Invalid outcome receipt.');
+    }
+
+    const parsed = actionOutcomeRequestSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return fail(400, 'VALIDATION_FAILED', 'Invalid outcome receipt.');
+    }
+    const body: ActionOutcomeRequestBody = parsed.data;
+    if (body.metadata?.correlation_id) {
+      correlationId = body.metadata.correlation_id;
+    }
+
+    let principal;
+    try {
+      principal = await this.deps.identity.authenticateApiKey(rawKey);
+    } catch {
+      return fail(401, 'UNAUTHORIZED', 'Authentication required.');
+    }
+
+    if (body.application_id !== principal.application.application_id) {
+      return fail(403, 'APPLICATION_MISMATCH', 'Request blocked by policy.');
+    }
+
+    if (!this.deps.policyRepository?.getEvaluation) {
+      return fail(503, 'OUTCOME_UNAVAILABLE', 'Outcome store unavailable.');
+    }
+    const outcomeStore: ActionOutcomeStore | undefined = this.deps.outcomeStore;
+    if (!outcomeStore) {
+      return fail(503, 'OUTCOME_UNAVAILABLE', 'Outcome store unavailable.');
+    }
+
+    const deploymentId = this.deps.resolveDeploymentId
+      ? await this.deps.resolveDeploymentId()
+      : 'local-memory';
+
+    const record = await Promise.resolve(
+      this.deps.policyRepository.getEvaluation(body.evaluation_id),
+    );
+    if (!record) {
+      return fail(404, 'NOT_FOUND', 'evaluation not found', {
+        evaluation_id: body.evaluation_id,
+        execution_id: body.execution_id,
+      });
+    }
+
+    const machineDecision = String(record.decision ?? '').toUpperCase();
+    if (machineDecision === 'DENY') {
+      return fail(
+        403,
+        'OUTCOME_NOT_AUTHORIZED',
+        'Denied evaluations cannot receive execution outcomes.',
+        {
+          evaluation_id: body.evaluation_id,
+          execution_id: body.execution_id,
+        },
+      );
+    }
+
+    const events = await this.deps.audit.list();
+    const authzAudit = findClientCommitAllowedAudit(
+      body.evaluation_id,
+      events,
+    );
+    if (!authzAudit) {
+      return fail(
+        403,
+        'OUTCOME_NOT_AUTHORIZED',
+        'No CLIENT_COMMIT_ALLOWED enforcement for this evaluation.',
+        {
+          evaluation_id: body.evaluation_id,
+          execution_id: body.execution_id,
+        },
+      );
+    }
+
+    const evalApp =
+      (typeof record.subject?.application_id === 'string'
+        ? record.subject.application_id
+        : undefined) ??
+      record.held_request?.application_id ??
+      authzAudit.application_id;
+    if (evalApp && evalApp !== body.application_id) {
+      return fail(403, 'APPLICATION_MISMATCH', 'Request blocked by policy.', {
+        evaluation_id: body.evaluation_id,
+        execution_id: body.execution_id,
+      });
+    }
+    if (
+      authzAudit.application_id &&
+      authzAudit.application_id !== body.application_id
+    ) {
+      return fail(403, 'APPLICATION_MISMATCH', 'Request blocked by policy.', {
+        evaluation_id: body.evaluation_id,
+        execution_id: body.execution_id,
+      });
+    }
+
+    const bound = deriveAuthorizedOutcomeContext({
+      evaluation: record,
+      authzAudit,
+      applicationId: body.application_id,
+    });
+
+    const mismatch = clientOutcomeContextMismatch(bound, {
+      user: body.user,
+      agent_id: body.agent_id,
+      tool_id: body.tool_id,
+      operation: body.operation,
+      purpose: body.purpose,
+      authorization_context: body.authorization_context,
+      action: body.action,
+    });
+    if (mismatch) {
+      return fail(
+        409,
+        mismatch,
+        'Outcome context does not match the authorized action.',
+        {
+          evaluation_id: body.evaluation_id,
+          execution_id: body.execution_id,
+        },
+      );
+    }
+
+    const outcome = body.outcome as ClientOutcomeStatus;
+    const receiptHash = computeOutcomeReceiptHash({
+      deployment_id: deploymentId,
+      evaluation_id: bound.evaluation_id,
+      execution_id: body.execution_id,
+      outcome,
+      application_id: bound.application_id,
+      user_id: bound.user_id,
+      agent_id: bound.agent_id,
+      tool_id: bound.tool_id,
+      operation: bound.operation,
+      purpose: bound.purpose,
+      authorization_context: bound.authorization_context,
+      action_kind: bound.action_kind,
+      target_id: bound.target_id,
+      action_field: bound.action_field,
+      request_id: bound.request_id,
+    });
+
+    const successBody = (opts: {
+      status: 'accepted' | 'idempotent';
+      projection: {
+        request_id?: string | null;
+        evaluation_id: string;
+        execution_id: string;
+        outcome: string;
+        audit_event_id: string;
+      };
+    }): ActionOutcomeResult => ({
+      httpStatus: 200,
+      body: {
+        request_id: opts.projection.request_id ?? requestId,
+        correlation_id: correlationId,
+        status: opts.status,
+        evaluation_id: opts.projection.evaluation_id,
+        execution_id: opts.projection.execution_id,
+        outcome: opts.projection.outcome,
+        audit_id: opts.projection.audit_event_id,
+        evidence_class: 'client_reported',
+        machine_decision: String(record.decision),
+        human_resolution: record.human_resolution?.human_disposition ?? null,
+        enforcement: 'CLIENT_COMMIT_ALLOWED',
+      },
+    });
+
+    const sealConflict = async (existingOutcome: string, existingAuditId: string) => {
+      await this.writeAudit({
+        audit_id: newAuditId(),
+        timestamp: new Date().toISOString(),
+        organization_id: principal.organization.organization_id,
+        application_id: body.application_id,
+        user_id: bound.user_id ?? undefined,
+        request_id: requestId,
+        correlation_id: correlationId,
+        operation: 'action.outcome_conflict',
+        policy_decision: String(record.decision),
+        response_decision: 'BLOCK',
+        reason_codes: [
+          OUTCOME_REASON_CODES.CONFLICT,
+          outcomeReasonCode(outcome),
+        ],
+        metadata: {
+          evaluation_id: body.evaluation_id,
+          execution_id: body.execution_id,
+          deployment_id: deploymentId,
+          outcome,
+          existing_outcome: existingOutcome,
+          existing_audit_event_id: existingAuditId,
+          client_outcome_report: true,
+          authoritative: false,
+          evidence_class: 'client_reported',
+          enforcement: 'CLIENT_COMMIT_ALLOWED',
+          __response_content: '',
+        },
+      });
+    };
+
+    // Existing claim — compare without sealing another RECEIPT.
+    const existing = await outcomeStore.getByExecutionId(
+      deploymentId,
+      body.execution_id,
+    );
+    if (existing) {
+      if (existing.receipt_hash === receiptHash) {
+        await this.ensureOutcomeReceiptSealed(existing, {
+          organizationId: principal.organization.organization_id,
+          correlationId,
+          machineDecision: String(record.decision),
+          humanResolution: record.human_resolution?.human_disposition ?? null,
+          bound,
+        });
+        return successBody({ status: 'idempotent', projection: existing });
+      }
+      await sealConflict(existing.outcome, existing.audit_event_id);
+      return fail(
+        409,
+        'OUTCOME_CONFLICT',
+        'execution_id already recorded with a different outcome.',
+        {
+          evaluation_id: body.evaluation_id,
+          execution_id: body.execution_id,
+          existing_outcome: existing.outcome,
+        },
+      );
+    }
+
+    // Atomic claim BEFORE sealing CLIENT_OUTCOME_RECEIPT.
+    const reportedAt = new Date().toISOString();
+    const auditId = newAuditId();
+    const projection = {
+      deployment_id: deploymentId,
+      execution_id: body.execution_id,
+      evaluation_id: body.evaluation_id,
+      application_id: body.application_id,
+      outcome,
+      receipt_hash: receiptHash,
+      audit_event_id: auditId,
+      request_id: bound.request_id,
+      reported_at: reportedAt,
+      user_id: bound.user_id,
+      agent_id: bound.agent_id,
+      tool_id: bound.tool_id,
+      operation: bound.operation,
+      purpose: bound.purpose,
+      authorization_context: bound.authorization_context,
+      action_kind: bound.action_kind,
+      target_id: bound.target_id,
+      action_field: bound.action_field,
+      evidence_class: 'client_reported' as const,
+    };
+
+    const claimed = await outcomeStore.claimAuthoritative(projection);
+    if (!claimed.created) {
+      if (claimed.record.receipt_hash === receiptHash) {
+        // Winner seals RECEIPT; do not heal-race here.
+        return successBody({
+          status: 'idempotent',
+          projection: claimed.record,
+        });
+      }
+      await sealConflict(claimed.record.outcome, claimed.record.audit_event_id);
+      return fail(
+        409,
+        'OUTCOME_CONFLICT',
+        'execution_id already recorded with a different outcome.',
+        {
+          evaluation_id: body.evaluation_id,
+          execution_id: body.execution_id,
+          existing_outcome: claimed.record.outcome,
+        },
+      );
+    }
+
+    // Winner only: seal authoritative RECEIPT with the pre-claimed audit_id.
+    const audited = await this.writeAudit({
+      audit_id: auditId,
+      timestamp: reportedAt,
+      organization_id: principal.organization.organization_id,
+      application_id: body.application_id,
+      user_id: bound.user_id ?? undefined,
+      request_id: bound.request_id ?? requestId,
+      correlation_id: correlationId,
+      operation: 'action.outcome',
+      policy_decision: String(record.decision),
+      response_decision: 'RELEASE',
+      reason_codes: [
+        OUTCOME_REASON_CODES.RECEIPT,
+        outcomeReasonCode(outcome),
+      ],
+      metadata: {
+        evaluation_id: body.evaluation_id,
+        execution_id: body.execution_id,
+        deployment_id: deploymentId,
+        outcome,
+        client_outcome_report: true,
+        authoritative: true,
+        evidence_class: 'client_reported',
+        enforcement: 'CLIENT_COMMIT_ALLOWED',
+        machine_decision: record.decision,
+        human_resolution: record.human_resolution?.human_disposition ?? null,
+        agent_id: bound.agent_id,
+        tool_id: bound.tool_id,
+        operation: bound.operation,
+        purpose: bound.purpose,
+        authorization_context: bound.authorization_context,
+        action: {
+          kind: bound.action_kind,
+          target_id: bound.target_id,
+          ...(bound.action_field ? { attributes: { field: bound.action_field } } : {}),
+        },
+        receipt_hash: receiptHash,
+        __response_content: '',
+      },
+    });
+
+    if (!audited.ok || !audited.event) {
+      return fail(500, 'INTERNAL_ERROR', 'Outcome audit write failed.', {
+        evaluation_id: body.evaluation_id,
+        execution_id: body.execution_id,
+      });
+    }
+
+    return successBody({ status: 'accepted', projection });
+  }
+
+  /**
+   * If a claim exists but the RECEIPT audit was lost (seal failed after claim),
+   * seal once using the reserved audit_event_id. Never creates a second RECEIPT
+   * when the event already exists.
+   */
+  private async ensureOutcomeReceiptSealed(
+    projection: {
+      audit_event_id: string;
+      evaluation_id: string;
+      execution_id: string;
+      outcome: string;
+      application_id: string;
+      request_id?: string | null;
+      receipt_hash: string;
+      deployment_id: string;
+      user_id?: string | null;
+      agent_id?: string | null;
+      tool_id?: string | null;
+      operation?: string | null;
+      purpose?: string | null;
+      authorization_context?: string | null;
+      action_kind?: string | null;
+      target_id?: string | null;
+      action_field?: string | null;
+      reported_at: string;
+    },
+    opts: {
+      organizationId: string;
+      correlationId: string;
+      machineDecision: string;
+      humanResolution: string | null;
+      bound: {
+        evaluation_id: string;
+      };
+    },
+  ): Promise<void> {
+    const audit = this.deps.audit as {
+      getById?: (id: string) => Promise<AuditEvent | null>;
+      list: () => Promise<AuditEvent[]>;
+    };
+    let existingEvent: AuditEvent | null = null;
+    if (typeof audit.getById === 'function') {
+      existingEvent = await audit.getById(projection.audit_event_id);
+    } else {
+      const all = await audit.list();
+      existingEvent =
+        all.find((e) => e.audit_id === projection.audit_event_id) ?? null;
+    }
+    if (existingEvent) return;
+
+    await this.writeAudit({
+      audit_id: projection.audit_event_id,
+      timestamp: projection.reported_at,
+      organization_id: opts.organizationId,
+      application_id: projection.application_id,
+      user_id: projection.user_id ?? undefined,
+      request_id: projection.request_id ?? newRequestId(),
+      correlation_id: opts.correlationId,
+      operation: 'action.outcome',
+      policy_decision: opts.machineDecision,
+      response_decision: 'RELEASE',
+      reason_codes: [
+        OUTCOME_REASON_CODES.RECEIPT,
+        outcomeReasonCode(projection.outcome as ClientOutcomeStatus),
+      ],
+      metadata: {
+        evaluation_id: opts.bound.evaluation_id,
+        execution_id: projection.execution_id,
+        deployment_id: projection.deployment_id,
+        outcome: projection.outcome,
+        client_outcome_report: true,
+        authoritative: true,
+        evidence_class: 'client_reported',
+        enforcement: 'CLIENT_COMMIT_ALLOWED',
+        machine_decision: opts.machineDecision,
+        human_resolution: opts.humanResolution,
+        agent_id: projection.agent_id ?? null,
+        tool_id: projection.tool_id ?? null,
+        receipt_hash: projection.receipt_hash,
+        healed_receipt: true,
+        __response_content: '',
+      },
+    });
+  }
+
+  private auditWriteTail: Promise<void> = Promise.resolve();
+
   private async writeAudit(
     event: AuditEvent,
   ): Promise<{ ok: boolean; event?: AuditEvent }> {
-    try {
-      const sealed = await this.deps.audit.record(
-        await this.withDecisionBinding(event),
-      );
-      return { ok: true, event: sealed };
-    } catch {
-      return { ok: false };
-    }
+    // Serialize integrity-chain writes within this process (Phase 4.1 concurrency).
+    const run = async (): Promise<{ ok: boolean; event?: AuditEvent }> => {
+      try {
+        const sealed = await this.deps.audit.record(
+          await this.withDecisionBinding(event),
+        );
+        return { ok: true, event: sealed };
+      } catch {
+        return { ok: false };
+      }
+    };
+    const queued = this.auditWriteTail.then(run, run);
+    this.auditWriteTail = queued.then(
+      () => undefined,
+      () => undefined,
+    );
+    return queued;
   }
 
   /**
@@ -1867,4 +2609,41 @@ export class GatewayOrchestrator {
       return { ...event, evaluation_id: preferred, decision_hash: null };
     }
   }
+}
+
+/** Prefer the latest CLIENT_COMMIT_ALLOWED enforcement audit (not Outcome receipts). */
+function findClientCommitAllowedAudit(
+  evaluationId: string,
+  events: AuditEvent[],
+): AuditEvent | null {
+  const matching: AuditEvent[] = [];
+  for (const e of events) {
+    const codes = e.reason_codes ?? [];
+    if (!codes.includes('CLIENT_COMMIT_ALLOWED')) continue;
+    // Phase 4.1: Outcome / conflict events also stamp CLIENT_COMMIT_ALLOWED for
+    // correlation — they must not replace the enforcement authz event.
+    if (codes.includes(OUTCOME_REASON_CODES.RECEIPT)) continue;
+    if (codes.includes(OUTCOME_REASON_CODES.CONFLICT)) continue;
+    if (
+      e.operation === 'action.outcome' ||
+      e.operation === 'action.outcome_conflict'
+    ) {
+      continue;
+    }
+    if (e.metadata?.client_outcome_report === true) continue;
+
+    if (e.evaluation_id === evaluationId) {
+      matching.push(e);
+      continue;
+    }
+    const meta = e.metadata ?? {};
+    if (meta.evaluation_id === evaluationId) {
+      matching.push(e);
+    }
+  }
+  if (matching.length === 0) return null;
+  matching.sort((a, b) =>
+    String(a.timestamp) < String(b.timestamp) ? 1 : -1,
+  );
+  return matching[0] ?? null;
 }

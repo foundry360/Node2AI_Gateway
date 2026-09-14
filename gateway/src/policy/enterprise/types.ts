@@ -93,6 +93,7 @@ export interface PolicyAIContext {
   tool_provider?: string;
   /**
    * Declared agent/tool action intent (request fact for evaluation/audit).
+   * Sensitive payload attributes are stripped before persistence.
    * Not an authorization grant — packs treat this as declared context only.
    */
   action?: {
@@ -100,6 +101,13 @@ export interface PolicyAIContext {
     target_id?: string;
     attributes?: Record<string, unknown>;
   };
+  /**
+   * Phase D — server-authored action governance snapshot at evaluation time.
+   * Category / write class / enforcement boundary are never client-authoritative.
+   */
+  action_governance?: Record<string, unknown>;
+  /** Phase A — historical Agent/Tool substrate snapshot at evaluation time. */
+  runtime_actor?: Record<string, unknown>;
   mcp_server_id?: string;
   requested_model?: string;
   available_models?: string[];

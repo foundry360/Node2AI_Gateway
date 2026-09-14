@@ -4,6 +4,7 @@ const ACRONYMS = new Set([
   'api',
   'cfr',
   'epa',
+  'eu',
   'gdpr',
   'hipaa',
   'id',

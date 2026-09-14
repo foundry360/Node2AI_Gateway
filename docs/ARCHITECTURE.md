@@ -1,15 +1,16 @@
-# Node2AI Gateway — Architecture
+# Enigma Gateway — Architecture
 
 **Status:** Architectural contract  
-**Invariant:** Agent reasons. Policy decides. Gateway enforces.
+**Invariant:** Agent reasons. Policy decides. Gateway enforces.  
+**Canonical architecture (current):** [`ENIGMA_ARCHITECTURE.md`](./ENIGMA_ARCHITECTURE.md)
 
 ## 1. Product role
 
-Node2AI Gateway is an **AI Governance Gateway / Policy Enforcement Layer**. It is not an end-user AI application.
+Enigma is an **AI Action Governance** product deployed as an **AI Governance Gateway / Policy Enforcement Layer**. It is not an end-user AI application.
 
-> **ALL AI INPUTS AND ALL AI RESPONSES MUST PASS THROUGH NODE2AI BEFORE THEY ARE ALLOWED TO REACH THEIR DESTINATION.**
+> **All AI inputs and AI responses that are to be governed must pass through Enigma before they are allowed to reach their destination on the Enigma path.**
 
-Applications talk only to Node2AI. Node2AI decides eligibility, transforms data when required, executes against approved models, inspects responses, and releases or blocks results.
+Applications call Enigma. Enigma decides eligibility, transforms data when required, executes against approved models on Gateway-controlled paths, inspects responses, and releases or blocks results. For **client-commit** actions, Enigma authorizes (`commit_allowed`); the client performs the external side effect and reports Outcome.
 
 ## 2. System context
 
@@ -18,7 +19,7 @@ Enterprise Applications (CRM/ERP, custom apps, agents)
         │
         ▼
 ┌───────────────────────┐
-│  NODE2AI GATEWAY      │  ← sole public AI execution boundary
+│  ENIGMA GATEWAY       │  ← sole public AI execution boundary (on path)
 │  API / Auth Boundary  │
 └───────────┬───────────┘
             ▼
@@ -28,9 +29,9 @@ Enterprise Applications (CRM/ERP, custom apps, agents)
             ▼
     Policy Engine (authoritative)
        │
-  ALLOW / TRANSFORM / BLOCK
+  ALLOW / TRANSFORM / BLOCK / REVIEW
             ▼
-    Model Gateway (execution only)
+    Model Gateway (execution only)  — or commit_allowed for client-commit actions
             ▼
     Response Inspector
             ▼
@@ -108,7 +109,7 @@ An LLM must never return `ALLOW` and have that treated as authorization.
 
 ## 9. Repository layout (new product)
 
-Legacy Node2AI code under `apps/`, `packages/`, and `docs/legacy/` is **reference only**. The product lives in:
+Legacy Node2AI code under `apps/`, `packages/`, and `docs/legacy/` is **reference only**. The current product (**Enigma**) lives in:
 
 ```text
 gateway/                 # self-contained product

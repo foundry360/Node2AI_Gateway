@@ -26,14 +26,14 @@ export default async function ModelsPage() {
   }
 
   return (
-    <div>
+    <div className="page-fill">
       <PageHeader
         title="Models"
-        lede="Register local and cloud models available to this appliance. Policy decides eligibility for each request. Authorization appears on Decisions, not here."
+        lede="Register local and cloud models available to this appliance."
         actions={<ModelRegisterDrawer />}
       />
       {error ? <div className="error">{error}</div> : null}
-      <div className="settings-sections">
+      <div className="settings-sections page-fill-scroll">
         <section className="settings-section">
           <div className="settings-section-aside">
             <h2 className="settings-section-title">Registered models</h2>
@@ -56,7 +56,7 @@ export default async function ModelsPage() {
                     <th>Name</th>
                     <th>Model ID</th>
                     <th>Provider</th>
-                    <th>Kind</th>
+                    <th>Type</th>
                     <th>Status</th>
                     <th></th>
                   </tr>
@@ -98,7 +98,7 @@ export default async function ModelsPage() {
                 <thead>
                   <tr>
                     <th>Provider</th>
-                    <th>Kind</th>
+                    <th>Type</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -109,7 +109,7 @@ export function ModelRegisterDrawer({
                   <input name="provider_id" defaultValue="local-runtime" />
                 </label>
                 <SelectDropdown
-                  label="Kind"
+                  label="Type"
                   name="kind"
                   defaultValue="local"
                   options={[

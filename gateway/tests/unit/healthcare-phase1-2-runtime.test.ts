@@ -251,7 +251,8 @@ describe('Healthcare Phase 1–2 runtime completion', () => {
       request_id: 'req_hc_8',
     });
     expect(decision.decision).toBe('DENY');
-    expect(decision.reason_codes).toContain('HIPAA_PHI_AGENT_UNAUTHORIZED');
+    // Phase A: shared substrate DENY (packs may also contribute when they run first).
+    expect(decision.reason_codes).toContain('AGENT_UNAUTHORIZED');
   });
 
   it('9. Approved agent + approved tool → ALLOW', async () => {
@@ -294,7 +295,8 @@ describe('Healthcare Phase 1–2 runtime completion', () => {
       request_id: 'req_hc_10',
     });
     expect(decision.decision).toBe('DENY');
-    expect(decision.reason_codes).toContain('HIPAA_PHI_TOOL_UNAUTHORIZED');
+    // Phase A: shared substrate DENY for unauthorized tools.
+    expect(decision.reason_codes).toContain('TOOL_UNAUTHORIZED');
   });
 
   it('11. Requested data within permitted scope → ALLOW', async () => {

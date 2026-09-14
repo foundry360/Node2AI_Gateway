@@ -13,9 +13,9 @@
 6. **Model authorization** — Clients cannot select arbitrary models; PolicyEngine produces eligible set.
 7. **Dataset authorization** — Clients cannot access arbitrary datasets.
 8. **Complete audit trail** — Every decision is correlatable via `request_id` / `correlation_id`.
-9. **Tamper-evident response audit** — Released responses are cryptographically hashed; audit events are hash-chained, HMAC-signed, and append-only.
+9. **Tamper-evident response audit** — Released responses are cryptographically hashed; audit events are hash-chained, HMAC-signed, and append-only. Phase 1 adds deployment-scoped sequences, versioned canonical payloads, and Ed25519 signed checkpoints.
 
-## Audit immutability (v1)
+## Audit immutability (v1 / Phase 1)
 
 **Requirement met:** cryptographic / tamper-evident immutability for governed AI responses and their audit records.
 
@@ -26,7 +26,9 @@
 | Response content is hashed | SHA-256 `response_hash` of the exact released assistant text |
 | History cannot be silently rewritten | Each event includes `prev_event_hash` → `event_hash` (hash chain) |
 | Events are authenticated | HMAC-SHA256 `integrity_signature` with appliance audit key |
-| Store is append-only | Postgres rejects `UPDATE` / `DELETE` on `audit_events` |
+| Store is append-only | Postgres rejects `UPDATE` / `DELETE` / `TRUNCATE` on `audit_events` |
+| Sequence integrity | Deployment-scoped monotonic `sequence_number` |
+| Signed checkpoints | Ed25519 statements over chain tip (`audit_checkpoints`) |
 | Raw response text is not retained in audit | Only hashes + decision metadata |
 
 Approved completions also return an `integrity` object (`response_hash`, `event_hash`, `prev_event_hash`) so clients can retain a receipt.
@@ -36,21 +38,27 @@ Verify anytime:
 ```bash
 curl -s -H "Authorization: Bearer $GATEWAY_ADMIN_API_KEY" \
   http://127.0.0.1:8080/v1/admin/audit/integrity
+
+curl -s -X POST -H "Authorization: Bearer $GATEWAY_ADMIN_API_KEY" \
+  http://127.0.0.1:8080/v1/admin/audit/verify
 ```
 
-Admin → **Audit** shows the chain status and per-event response hashes.
+Admin → **Audit** shows integrity status (`VERIFIED` / `FAILED` / …) and per-event cryptographic evidence.
+
+See [enigma/audit-integrity.md](./enigma/audit-integrity.md) and [enigma/audit-evidence.md](./enigma/audit-evidence.md).
 
 ### What it is not (explicit non-claim)
 
-- **Not a public or multi-party blockchain.** There is no distributed consensus ledger in v1.
-- **Not immune to a fully compromised appliance** where an attacker controls both the database and `GATEWAY_AUDIT_KEY` / signing material.
+- **Not a public or multi-party blockchain.** There is no distributed consensus ledger.
+- **Not immune to a fully compromised appliance** where an attacker controls both the database and `GATEWAY_AUDIT_KEY` / checkpoint private key.
+- **Not legal/regulatory certification** by itself — cryptographic verification ≠ compliance attestation.
 - Legacy Hyperledger Fabric paths under `blockchain/` and `apps/api` are **reference only** and are not part of the gateway appliance.
 
 For buyers/compliance, preferred wording:
 
-> Governed AI responses are cryptographically hashed; audit events are append-only, hash-chained, and HMAC-signed for tamper-evident immutability.
+> Governed AI activity is recorded in an append-only, tamper-evident audit ledger with hash-chained events, HMAC authentication, and asymmetrically signed checkpoints.
 
-Do **not** describe the v1 appliance as “blockchain-backed” unless ledger anchoring is added later.
+Do **not** describe the appliance as “blockchain-backed” unless ledger anchoring is added later.
 
 See [OPERATIONS.md](./OPERATIONS.md) for backup of audit keys and migration of integrity columns.
 
@@ -95,7 +103,7 @@ Plus classification, environment, requested model (hint only), and risk evidence
 
 ## Network enforcement
 
-Applications → Node2AI → approved providers (or local only).
+Applications → Enigma → approved providers (or local only).
 
 Appliance capabilities:
 

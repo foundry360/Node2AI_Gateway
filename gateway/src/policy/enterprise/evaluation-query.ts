@@ -39,6 +39,11 @@ import {
   buildActionReviewPresentation,
   type ActionReviewPresentation,
 } from './action-review-presentation.js';
+import { buildDecisionNarrative } from './decision-narrative.js';
+import {
+  deriveEnforcementIntegrity,
+  deriveOutcomeIntegrityStatus,
+} from './enforcement-integrity.js';
 
 export interface PolicyEvaluationListItem {
   evaluation_id: string;
@@ -68,6 +73,12 @@ export interface PolicyEvaluationListItem {
   human_resolution?: HumanResolution;
   /** Verified Gateway enforcement when an audit record can be joined. */
   enforcement: EnforcementProjection;
+  /** Compact Product 1.0 narrative fields for Decisions list (from historical snapshot). */
+  narrative_headline?: string;
+  actor_label?: string;
+  action_label?: string;
+  enforcement_boundary_label?: string;
+  outcome_status?: string;
 }
 
 export interface DecisionConsequence {
@@ -215,9 +226,19 @@ export interface ProjectedRequestContext {
    */
   action_kind?: string;
   /**
-   * Declared action field attribute when persisted (e.g. Salesforce field API name).
+   * Declared action field attribute when persisted (e.g. field API name).
    */
   action_field?: string;
+  /** Target id from ai_context.action when persisted. */
+  action_target_id?: string;
+  /** Server-derived action category from ai_context.action_governance. */
+  action_category?: string;
+  /** Server-derived write class from action_governance snapshot. */
+  action_write_class?: string;
+  /** Enforcement boundary from action_governance snapshot. */
+  action_enforcement_boundary?: string;
+  /** Request operation when recorded on action_governance. */
+  operation?: string;
   model?: string;
   intent?: string;
 }
@@ -824,6 +845,25 @@ export function projectRequestContext(
       : undefined;
   const actionField = optionalString(actionAttrs?.field);
   if (actionField) projected.action_field = actionField;
+  const actionTarget = optionalString(actionObj?.target_id);
+  if (actionTarget) projected.action_target_id = actionTarget;
+
+  const actionGov =
+    ai.action_governance && typeof ai.action_governance === 'object'
+      ? (ai.action_governance as Record<string, unknown>)
+      : undefined;
+  const actionCategory = optionalString(actionGov?.category);
+  if (actionCategory) projected.action_category = actionCategory;
+  const actionWriteClass = optionalString(actionGov?.write_governance_class);
+  if (actionWriteClass) projected.action_write_class = actionWriteClass;
+  const actionBoundary = optionalString(actionGov?.enforcement_boundary);
+  if (actionBoundary) projected.action_enforcement_boundary = actionBoundary;
+  const operation =
+    optionalString(actionGov?.operation) ?? optionalString(record.action);
+  if (operation && !projected.action) projected.operation = operation;
+  else if (optionalString(actionGov?.operation)) {
+    projected.operation = optionalString(actionGov?.operation);
+  }
 
   const model =
     optionalString(ai.requested_model) ?? optionalString(ai.model_id);
@@ -861,6 +901,31 @@ export function toEvaluationListItem(
     consequence.requires_review = false;
   }
   const enforcement = projectEnforcementResult(record, audit ?? null);
+  const ei = deriveEnforcementIntegrity({
+    record,
+    reviewState,
+  });
+  const narrative = buildDecisionNarrative({
+    record,
+    enforcementIntegrity: ei,
+    outcomeIntegrityStatus: deriveOutcomeIntegrityStatus({
+      boundary: ei.boundary,
+      outcomeStatus: null,
+    }),
+  });
+  const actorLabel = [
+    narrative.actors.agent_name || narrative.actors.agent_id,
+    narrative.actors.tool_name || narrative.actors.tool_id,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const actionLabel = [
+    narrative.action.kind || narrative.action.operation || narrative.action.category,
+    narrative.action.field ? `field:${narrative.action.field}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return {
     evaluation_id: record.evaluation_id,
     created_at: record.created_at,
@@ -885,6 +950,11 @@ export function toEvaluationListItem(
     review_state: reviewState,
     human_resolution: record.human_resolution,
     enforcement,
+    narrative_headline: narrative.headline,
+    actor_label: actorLabel || undefined,
+    action_label: actionLabel || undefined,
+    enforcement_boundary_label: ei.boundary_label,
+    outcome_status: narrative.status.outcome,
   };
 }
 

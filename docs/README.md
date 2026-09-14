@@ -7,6 +7,11 @@ Legacy Node2AI documentation lives in [`legacy/`](./legacy/) and is **reference 
 
 | Document | Purpose |
 |----------|---------|
+| **[ENIGMA_PRODUCT_1_0.md](./ENIGMA_PRODUCT_1_0.md)** | Product 1.0 definition |
+| **[ENIGMA_COMMERCIAL_PRODUCT_1_0.md](./ENIGMA_COMMERCIAL_PRODUCT_1_0.md)** | **Commercial identity, packaging, ICP (no prices)** |
+| **[ENIGMA_IDENTITY_AND_MIGRATION.md](./ENIGMA_IDENTITY_AND_MIGRATION.md)** | Enigma vs Node2AI lineage / preserved namespaces |
+| **[ENIGMA_INTEGRATION_CONTRACT.md](./ENIGMA_INTEGRATION_CONTRACT.md)** | **Product 1.0 enterprise integration & enforcement boundary** |
+| **[ENIGMA_ARCHITECTURE.md](./ENIGMA_ARCHITECTURE.md)** | Canonical architecture |
 | **[enigma/](./enigma/)** | **Enterprise Policy Architecture** (ADR, domain model, contract, migration) |
 | [INSTALL.md](./INSTALL.md) | Customer appliance install |
 | [OPERATIONS.md](./OPERATIONS.md) | Backup, restore, rotate secrets |

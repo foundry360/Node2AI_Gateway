@@ -197,7 +197,7 @@ export function UsersAdminPanel() {
   }
 
   return (
-    <div>
+    <div className="page-fill">
       <PageHeader
         title="Users"
         lede="Manage who can access Enigma and what they are allowed to do."
@@ -218,7 +218,7 @@ export function UsersAdminPanel() {
           description="Add a user to grant access to the Enigma console."
         />
       ) : (
-        <div className="settings-section-data">
+        <div className="table-scroll">
           <table className="admin-users-table">
             <thead>
               <tr>

@@ -55,7 +55,11 @@ export interface BaselineFacts {
    */
   action_attributes?: Record<string, unknown>;
   /**
-   * Server-derived write governance class (HIPAA pack).
+   * Server-derived action category (Phase D). Never client-supplied.
+   */
+  action_category?: string;
+  /**
+   * Server-derived write governance class (HIPAA pack / Phase D snapshot).
    * Never client-supplied — computed from declared action facts + allowlists.
    */
   write_governance_class?:
@@ -64,6 +68,12 @@ export interface BaselineFacts {
     | 'UNKNOWN';
   /** Minimum-necessary permitted entity types when scoped by the caller. */
   permitted_entity_types?: string[];
+  /**
+   * Enforcement boundary for this action path (Phase D fact).
+   */
+  action_enforcement_boundary?:
+    | 'gateway_enforced'
+    | 'client_commit_required';
   /**
    * Generic governance evidence. Packs map these into control inputs.
    * Distinct from authorization_context.
@@ -196,6 +206,12 @@ function deny(
   };
 }
 
+function runtimeActorReasonCodes(facts: BaselineFacts): string[] {
+  const ra = (facts.governance_context as { runtime_actor?: { substrate?: { reason_codes?: string[] } } } | undefined)
+    ?.runtime_actor?.substrate?.reason_codes;
+  return Array.isArray(ra) ? ra.filter((c) => typeof c === 'string') : [];
+}
+
 /**
  * Baseline input interpreter v2 — data-driven via PackPolicyMeta; semantics match
  * legacy DeterministicPolicyEngine for M2 parity / comparison.
@@ -219,6 +235,22 @@ export function interpretBaselineInput(
   if (facts.application_status !== 'active') {
     matched.push('application_status!=active');
     return deny(meta, ['APPLICATION_INACTIVE'], matched);
+  }
+
+  // Phase A — shared runtime actor substrate (server-derived facts via governance_context).
+  if (facts.agent_id && facts.governance_context?.agent_authorized === false) {
+    matched.push('agent_unauthorized');
+    const extra = runtimeActorReasonCodes(facts).filter(
+      (c) => c !== 'AGENT_UNAUTHORIZED',
+    );
+    return deny(meta, ['AGENT_UNAUTHORIZED', ...extra], matched);
+  }
+  if (facts.tool_id && facts.governance_context?.tool_authorized === false) {
+    matched.push('tool_unauthorized');
+    const extra = runtimeActorReasonCodes(facts).filter(
+      (c) => c !== 'TOOL_UNAUTHORIZED',
+    );
+    return deny(meta, ['TOOL_UNAUTHORIZED', ...extra], matched);
   }
 
   if (!facts.allowed_operations.includes(facts.operation)) {

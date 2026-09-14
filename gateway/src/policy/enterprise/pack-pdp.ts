@@ -23,6 +23,10 @@ import {
   toInputEvaluationRequest,
   toOutputEvaluationRequest,
 } from './map.js';
+import {
+  buildRuntimeActionFacts,
+} from './action-governance.js';
+import { deriveWriteGovernanceClass } from './packs/hipaa/write-field-class.js';
 
 function newEvaluationId(): string {
   return `eval_${randomBytes(8).toString('hex')}`;
@@ -77,6 +81,29 @@ function factsFromRequest(context: PolicyRequestContext): BaselineFacts {
     tool_id: context.tool_id,
     action_kind: context.action?.kind,
     action_attributes: context.action?.attributes,
+    action_category: (() => {
+      const clientCommit = Boolean(
+        (context.governance_context as { client_commit?: boolean } | undefined)
+          ?.client_commit,
+      );
+      return buildRuntimeActionFacts({
+        operation: context.operation,
+        action: context.action ?? null,
+        clientCommit,
+      }).category;
+    })(),
+    write_governance_class:
+      deriveWriteGovernanceClass({
+        operation: context.operation,
+        action_kind: context.action?.kind,
+        action_attributes: context.action?.attributes,
+      }) ?? undefined,
+    action_enforcement_boundary: Boolean(
+      (context.governance_context as { client_commit?: boolean } | undefined)
+        ?.client_commit,
+    )
+      ? 'client_commit_required'
+      : 'gateway_enforced',
     permitted_entity_types: context.permitted_entity_types,
     governance_context: context.governance_context,
     evaluation_as_of: context.evaluation_as_of ?? new Date().toISOString(),
@@ -362,6 +389,52 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
       tool_id: request.ai_context.tool_id,
       action_kind: request.ai_context.action?.kind,
       action_attributes: request.ai_context.action?.attributes,
+      action_category: (() => {
+        const ag = request.ai_context.action_governance as
+          | { category?: string }
+          | undefined;
+        if (typeof ag?.category === 'string') return ag.category;
+        return buildRuntimeActionFacts({
+          operation: String(
+            (request.ai_context.action_governance as { operation?: string } | undefined)
+              ?.operation ?? request.action,
+          ),
+          action: request.ai_context.action ?? null,
+          clientCommit: Boolean(
+            (request.context.governance as { client_commit?: boolean } | undefined)
+              ?.client_commit,
+          ),
+        }).category;
+      })(),
+      write_governance_class: (() => {
+        const ag = request.ai_context.action_governance as
+          | {
+              operation?: string;
+              write_governance_class?: BaselineFacts['write_governance_class'];
+            }
+          | undefined;
+        if (ag?.write_governance_class) return ag.write_governance_class;
+        const op =
+          ag?.operation ??
+          (String(request.action).toUpperCase() === 'WRITE' ? 'write' : undefined);
+        return deriveWriteGovernanceClass({
+          operation: op,
+          action_kind: request.ai_context.action?.kind,
+          action_attributes: request.ai_context.action?.attributes,
+        });
+      })(),
+      action_enforcement_boundary: (() => {
+        const ag = request.ai_context.action_governance as
+          | { enforcement_boundary?: BaselineFacts['action_enforcement_boundary'] }
+          | undefined;
+        if (ag?.enforcement_boundary) return ag.enforcement_boundary;
+        return Boolean(
+          (request.context.governance as { client_commit?: boolean } | undefined)
+            ?.client_commit,
+        )
+          ? 'client_commit_required'
+          : 'gateway_enforced';
+      })(),
       governance_context: request.context.governance,
       evaluation_as_of:
         request.context.time ?? new Date().toISOString(),

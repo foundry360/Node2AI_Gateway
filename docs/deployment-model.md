@@ -7,7 +7,7 @@
 ### A. Connected private appliance
 
 ```text
-Enterprise Apps ──(private net)──► Node2AI Gateway ──(allowlist)──► Approved providers
+Enterprise Apps ──(private net)──► Enigma Gateway ──(allowlist)──► Approved providers
                                       │
                                       ├── PostgreSQL (local)
                                       └── Local models (optional)
@@ -16,7 +16,7 @@ Enterprise Apps ──(private net)──► Node2AI Gateway ──(allowlist)�
 ### B. True air-gap
 
 ```text
-Enterprise Apps ──► Node2AI Gateway ──► Local model runtime only
+Enterprise Apps ──► Enigma Gateway ──► Local model runtime only
                          │
                          └── PostgreSQL (local)
 ```
@@ -29,13 +29,13 @@ Same logical components; network policies implement allowlisted egress.
 
 ## Network enforcement (required for production)
 
-> If applications can directly reach OpenAI/Anthropic/etc., they can bypass Node2AI.
+> If applications can directly reach OpenAI/Anthropic/etc., they can bypass Enigma.
 
 Enterprise controls:
 
 1. Default-deny egress from application subnets
-2. Permit application → Node2AI only for AI traffic
-3. Permit Node2AI → approved provider endpoints only (connected mode)
+2. Permit application → Enigma only for AI traffic
+3. Permit Enigma → approved provider endpoints only (connected mode)
 4. DNS restrictions / TLS inspection where required by customer policy
 5. Appliance health check warns if gateway host has overly broad egress
 

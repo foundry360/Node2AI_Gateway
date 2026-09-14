@@ -1,6 +1,8 @@
-# Install Node2AI Gateway Appliance
+# Install Enigma Gateway Appliance
 
 Pilot-ready Docker Compose appliance. Ship artifact is **`gateway/`** only.
+
+**Product:** Enigma (AI Action Governance). Some package/DB identifiers retain the historical `node2ai` namespace for compatibility — see [ENIGMA_IDENTITY_AND_MIGRATION.md](./ENIGMA_IDENTITY_AND_MIGRATION.md).
 
 ## Prerequisites
 

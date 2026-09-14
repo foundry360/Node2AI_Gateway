@@ -13,6 +13,8 @@ const DOMAIN_LABELS: Record<string, string> = {
   sox: 'SOX',
   soc2: 'SOC 2',
   hitrust: 'HITRUST',
+  eu: 'EU',
+  eu_ai_act: 'EU AI ACT',
 };
 
 export function formatDomainLabel(domain: string | undefined | null): string {

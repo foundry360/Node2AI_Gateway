@@ -1,7 +1,7 @@
-// Point Enigma Config at the current Cloudflare quick tunnel + cloud model.
+// Point Enigma Config at the current Cloudflare quick tunnel.
 Enigma_Config__c cfg = Enigma_Config__c.getOrgDefaults();
-cfg.Endpoint_URL__c = 'https://efficiently-boxes-vacuum-shadows.trycloudflare.com';
-cfg.Default_Model__c = 'cloud-public-gpt';
+cfg.Endpoint_URL__c = 'https://hospital-bedrooms-jan-joshua.trycloudflare.com';
+cfg.Default_Model__c = 'local-general-v1';
 if (String.isBlank(cfg.Application_Id__c)) {
   cfg.Application_Id__c = 'app_clinical';
 }

@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react';
 import { roleHasCapability, type AdminRole } from '@/lib/auth-session';
 
+/** Survive soft remounts so gated nav does not flash away on every click. */
+let cachedRole: AdminRole | null = null;
+
 /**
  * Client hint for UI gating only - backend remains authoritative.
  */
 export function useAdminCapabilities() {
-  const [role, setRole] = useState<AdminRole | null>(null);
+  const [role, setRole] = useState<AdminRole | null>(cachedRole);
 
   useEffect(() => {
     let cancelled = false;
@@ -17,7 +20,9 @@ export function useAdminCapabilities() {
         if (!res.ok) return;
         const data = (await res.json()) as { role?: string };
         if (!cancelled && data.role) {
-          setRole(data.role.toUpperCase() as AdminRole);
+          const next = data.role.toUpperCase() as AdminRole;
+          cachedRole = next;
+          setRole(next);
         }
       } catch {
         // ignore

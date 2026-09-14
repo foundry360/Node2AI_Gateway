@@ -38,6 +38,14 @@ export interface AuditEvent {
   event_hash?: string;
   /** HMAC-SHA256 of event_hash with appliance audit key. */
   integrity_signature?: string;
+  /** Installation deployment_id stamped at seal time (Phase 1). */
+  deployment_id?: string | null;
+  /** Monotonic sequence scoped to deployment_id (Phase 1). */
+  sequence_number?: number | null;
+  /** 0/absent = legacy canonical; 1 = Phase 1 canonical. */
+  audit_canonical_version?: number | null;
+  /** Optional SHA-256 of request content (never raw PHI). */
+  input_hash?: string | null;
 }
 
 export interface AuditService {
@@ -59,5 +67,9 @@ export class InMemoryAuditService implements AuditService {
 
   async list(): Promise<AuditEvent[]> {
     return [...this.events];
+  }
+
+  async getById(auditId: string): Promise<AuditEvent | null> {
+    return this.events.find((e) => e.audit_id === auditId) ?? null;
   }
 }
