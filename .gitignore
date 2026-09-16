@@ -192,6 +192,9 @@ apps/api/src/middleware.ts
 docs/ENV_UNIFIED_AUTH.example
 docs/UNIFIED_AUTH_*.md
 
+# Sales decks — generated .pptx and preview renders, kept out of platform history
+docs/decks/
+
 # Blockchain wallet (contains sensitive crypto material)
 blockchain/wallet/*
 !blockchain/wallet/.gitkeep
