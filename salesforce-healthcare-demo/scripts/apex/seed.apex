@@ -4,6 +4,7 @@ Enigma_Config__c cfg = Enigma_Config__c.getOrgDefaults();
 if (cfg.Id == null || String.isBlank(cfg.Endpoint_URL__c)) {
   cfg.Endpoint_URL__c = 'https://efficiently-boxes-vacuum-shadows.trycloudflare.com';
   cfg.Application_Id__c = 'app_clinical';
+  cfg.Agent_Id__c = 'clinical_summary_agent';
   cfg.Api_Key__c = 'n2ai_test_key_approved_app';
   cfg.Default_Model__c = 'cloud-public-gpt';
   upsert cfg;
@@ -13,6 +14,7 @@ if (cfg.Id == null || String.isBlank(cfg.Endpoint_URL__c)) {
 Enigma_Config__c liveCfg = Enigma_Config__c.getOrgDefaults();
 if (liveCfg.Id != null) {
   liveCfg.Default_Model__c = 'cloud-public-gpt';
+  liveCfg.Agent_Id__c = 'clinical_summary_agent';
   if (String.isBlank(liveCfg.Endpoint_URL__c)) {
     liveCfg.Endpoint_URL__c = 'https://efficiently-boxes-vacuum-shadows.trycloudflare.com';
   }
@@ -52,7 +54,7 @@ Patient__c p = new Patient__c(
   Emergency_Contact_Relation__c = 'Spouse',
   Emergency_Contact_Phone__c = '(415) 555-0198',
   Primary_Diagnosis__c = 'Type 2 diabetes mellitus; Essential hypertension',
-  Last_Visit_Date__c = Date.today().addDays(-14),
+  Last_Visit_Date__c = Date.newInstance(2026, 8, 23),
   Clinical_Notes__c =
     'Follow-up visit for diabetes and hypertension.\n' +
     'BP 138/86, HR 78, BMI 28.4. Patient reports improved diet compliance and ' +

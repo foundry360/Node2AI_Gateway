@@ -23,7 +23,7 @@ public with sharing class EnigmaAgentConsoleController {
     @AuraEnabled
     public static ConsoleState getConsoleState() {
         ConsoleState state = new ConsoleState();
-        state.agentTargetId = EnigmaGatewayService.AGENT_TARGET_ID;
+        state.agentTargetId = EnigmaGatewayService.requireConfiguredAgentId();
         state.patients = new List<PatientOption>();
         for (Patient__c p : [
             SELECT Id, Name, MRN__c
@@ -67,7 +67,7 @@ public with sharing class EnigmaAgentConsoleController {
                 requesterPrompt,
                 agentRationale,
                 'After Authorize, the clinical agent may append notes via update_clinical_notes.',
-                'Console operator requested enabling write on agent_enigma_clinical.'
+                'Console operator requested enabling write capability.'
             );
         } catch (EnigmaGatewayService.EnigmaException e) {
             throw new AuraHandledException(e.getMessage());

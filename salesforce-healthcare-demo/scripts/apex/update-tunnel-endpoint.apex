@@ -1,7 +1,10 @@
 // Point Enigma Config at the current Cloudflare quick tunnel.
+// Do not overwrite Default_Model / keys if already set — Enigma decides from config.
 Enigma_Config__c cfg = Enigma_Config__c.getOrgDefaults();
-cfg.Endpoint_URL__c = 'https://hospital-bedrooms-jan-joshua.trycloudflare.com';
-cfg.Default_Model__c = 'local-general-v1';
+cfg.Endpoint_URL__c = 'https://blocks-allocated-prescribed-todd.trycloudflare.com';
+if (String.isBlank(cfg.Default_Model__c)) {
+  cfg.Default_Model__c = 'cloud-public-gpt';
+}
 if (String.isBlank(cfg.Application_Id__c)) {
   cfg.Application_Id__c = 'app_clinical';
 }

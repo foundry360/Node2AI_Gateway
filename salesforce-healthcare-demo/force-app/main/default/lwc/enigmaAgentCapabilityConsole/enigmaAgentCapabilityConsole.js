@@ -13,7 +13,7 @@ export default class EnigmaAgentCapabilityConsole extends LightningElement {
   @track writeCapability = false;
   @track baselineOk = false;
   @track baselineMessage;
-  @track agentTargetId = 'agent_enigma_clinical';
+  @track agentTargetId = '';
   @track userRequest = '';
   @track noteText = '';
   @track result;
@@ -63,7 +63,7 @@ export default class EnigmaAgentCapabilityConsole extends LightningElement {
     try {
       const state = await getConsoleState();
       this.patients = Array.isArray(state.patients) ? state.patients : [];
-      this.agentTargetId = state.agentTargetId || 'agent_enigma_clinical';
+      this.agentTargetId = state.agentTargetId || '';
       this.baselineId = state.baselineId;
       this.writeCapability = state.writeCapability === true;
       this.baselineOk = state.baselineOk === true;

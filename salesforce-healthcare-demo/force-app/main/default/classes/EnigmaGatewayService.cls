@@ -32,7 +32,8 @@ public with sharing class EnigmaGatewayService {
         );
         parts.add('');
         parts.add(formatPatientChart(patient));
-        return complete(
+        // Enigma Config Default_Model + policy decide path (TOKENIZE / local / DENY).
+        return completeChartRead(
             String.join(parts, '\n'),
             'sf-patient-' + String.valueOf(patient.Id)
         );
@@ -52,26 +53,270 @@ public with sharing class EnigmaGatewayService {
             'You are a clinical copilot assisting a clinician with one patient chart.'
         );
         parts.add(
-            'Answer the clinician question using only the chart facts below. Be concise and clinically useful.'
+            'Answer using only the chart facts below. Be concise and clinically useful.'
         );
         parts.add(
-            'Demographics in the chart (including DOB) are authoritative. Never say a listed field is missing.'
+            'If a value appears as {{TOK_...}}, that field is present — answer with the exact token. Do not invent values.'
         );
         parts.add(
-            'You cannot update chart fields in this path. If the clinician asks to change a field, state the current chart value and tell them to use a clear update phrase such as "update date of birth to MM/DD/YYYY".'
-        );
-        parts.add(
-            'If the chart truly does not contain the answer, say what is missing. Do not invent facts.'
+            'Answer questions about the chart only. Do not claim you updated the chart.'
         );
         parts.add('');
         parts.add('=== Clinician question ===');
         parts.add(question.trim());
         parts.add('');
         parts.add(formatPatientChart(patient));
-        return complete(
+        return completeChartRead(
             String.join(parts, '\n'),
             'sf-patient-qa-' + String.valueOf(patient.Id)
         );
+    }
+
+    /**
+     * Ask the configured Enigma model to interpret a Clinical Copilot utterance.
+     * Salesforce does not phrase-match intents — the model classifies; Enigma still
+     * governs the completion and any subsequent write Decision.
+     */
+    public class CopilotIntent {
+        public Boolean success;
+        public String intent; // summarize | field_update | clinical_note | prescription_update | question | multi
+        public String fieldApi;
+        public String fieldValue;
+        public String noteBody;
+        public String medicationName;
+        public String frequency;
+        public String prescriptionStatus;
+        public String requestId;
+        public String message;
+        public String rawBody;
+        public List<CopilotAction> actions;
+    }
+
+    public class CopilotAction {
+        public String kind; // field_update | clinical_note | prescription_update
+        public String fieldApi;
+        public String fieldValue;
+        public String noteBody;
+        public String medicationName;
+        public String frequency;
+        public String prescriptionStatus;
+    }
+
+    public static CopilotIntent interpretCopilotIntent(String utterance) {
+        CopilotIntent out = new CopilotIntent();
+        if (String.isBlank(utterance)) {
+            out.success = false;
+            out.intent = 'question';
+            out.message = 'Utterance is required.';
+            return out;
+        }
+
+        String prompt =
+            'You are the Clinical Copilot intent interpreter for a patient chart UI.\n' +
+            'Classify the clinician utterance. Return JSON only (no markdown, no prose).\n' +
+            'Schema:\n' +
+            '{\n' +
+            '  "intent": "summarize" | "field_update" | "clinical_note" | "prescription_update" | "question" | "multi",\n' +
+            '  "field_api": string|null,\n' +
+            '  "field_value": string|null,\n' +
+            '  "note_body": string|null,\n' +
+            '  "medication_name": string|null,\n' +
+            '  "frequency": string|null,\n' +
+            '  "prescription_status": "Active"|"Completed"|"Discontinued"|null,\n' +
+            '  "actions": [{"kind":"field_update"|"clinical_note"|"prescription_update","field_api":string|null,"field_value":string|null,"note_body":string|null,"medication_name":string|null,"frequency":string|null,"prescription_status":string|null}]|null\n' +
+            '}\n' +
+            'Rules:\n' +
+            '- summarize: chart summary / overview requests.\n' +
+            '- field_update: set ONE demographic/admin Patient field ONLY. field_api MUST be an exact ' +
+            'API name from this list (never invent medication/aspirin fields): ' +
+            'Phone__c, Email__c, Date_of_Birth__c, Gender__c, Weight_lb__c, Height_in__c, ' +
+            'Allergies__c, Patient_Status__c, Primary_Care_Provider__c, Preferred_Language__c, ' +
+            'City__c, State__c, Street__c, Postal_Code__c, Emergency_Contact_Name__c, ' +
+            'Emergency_Contact_Phone__c, Primary_Diagnosis__c. field_value is the new value.\n' +
+            '  Patient-level only: "change the patient status to Active" → Patient_Status__c / Active.\n' +
+            '- prescription_update: change a medication on the Prescription chart ' +
+            '(frequency and/or prescription Status). medication_name is the drug name. ' +
+            'frequency examples: "Twice daily", "Once daily". prescription_status: Active|Completed|Discontinued.\n' +
+            '  "Update aspirin to twice daily and make it Active" →\n' +
+            '  {"intent":"prescription_update","medication_name":"Aspirin","frequency":"Twice daily","prescription_status":"Active"}\n' +
+            '  Do NOT use clinical_note or Patient_Status__c for medication dosing/status.\n' +
+            '- clinical_note: symptoms, assessments, narrative documentation that is NOT a ' +
+            'structured prescription or Patient field change.\n' +
+            '- multi: MORE THAN ONE distinct change types (e.g. Patient field AND a note). ' +
+            'Medication dosing+status alone is prescription_update, not multi.\n' +
+            '- question: ask about chart facts without changing the record.\n\n' +
+            'Utterance:\n' +
+            utterance.trim();
+
+        CompleteRequest req = new CompleteRequest();
+        req.content = prompt;
+        req.correlationId =
+            'sf-copilot-intent-' + String.valueOf(Datetime.now().getTime());
+        req.purpose = 'treatment';
+        req.operation = 'summarize';
+        CompletionResult r = completeWithOptions(req);
+        out.requestId = r.requestId;
+        out.rawBody = r.summary;
+        if (!r.success || String.isBlank(r.summary)) {
+            out.success = false;
+            out.intent = 'question';
+            out.message = String.isNotBlank(r.message)
+                ? r.message
+                : 'Enigma could not interpret the request.';
+            return out;
+        }
+
+        Map<String, Object> parsed = parseModelJsonObject(r.summary);
+        if (parsed == null) {
+            out.success = false;
+            out.intent = 'question';
+            out.message = 'Intent response was not valid JSON.';
+            return out;
+        }
+
+        String intent = String.valueOf(parsed.get('intent'));
+        if (String.isBlank(intent)) {
+            intent = 'question';
+        }
+        intent = intent.trim().toLowerCase();
+        if (
+            intent != 'summarize' &&
+            intent != 'field_update' &&
+            intent != 'clinical_note' &&
+            intent != 'prescription_update' &&
+            intent != 'question' &&
+            intent != 'multi'
+        ) {
+            intent = 'question';
+        }
+
+        out.success = true;
+        out.intent = intent;
+        out.fieldApi = stringOrNull(parsed.get('field_api'));
+        out.fieldValue = stringOrNull(parsed.get('field_value'));
+        out.noteBody = stringOrNull(parsed.get('note_body'));
+        out.medicationName = stringOrNull(parsed.get('medication_name'));
+        out.frequency = stringOrNull(parsed.get('frequency'));
+        out.prescriptionStatus = stringOrNull(parsed.get('prescription_status'));
+        out.actions = parseCopilotActions(parsed.get('actions'));
+        if (intent == 'multi' && (out.actions == null || out.actions.isEmpty())) {
+            out.actions = new List<CopilotAction>();
+            if (String.isNotBlank(out.fieldApi) && String.isNotBlank(out.fieldValue)) {
+                CopilotAction a = new CopilotAction();
+                a.kind = 'field_update';
+                a.fieldApi = out.fieldApi;
+                a.fieldValue = out.fieldValue;
+                out.actions.add(a);
+            }
+            if (
+                String.isNotBlank(out.medicationName) &&
+                (String.isNotBlank(out.frequency) ||
+                    String.isNotBlank(out.prescriptionStatus))
+            ) {
+                CopilotAction a = new CopilotAction();
+                a.kind = 'prescription_update';
+                a.medicationName = out.medicationName;
+                a.frequency = out.frequency;
+                a.prescriptionStatus = out.prescriptionStatus;
+                out.actions.add(a);
+            }
+            if (String.isNotBlank(out.noteBody)) {
+                CopilotAction a = new CopilotAction();
+                a.kind = 'clinical_note';
+                a.noteBody = out.noteBody;
+                out.actions.add(a);
+            }
+            if (out.actions.isEmpty()) {
+                intent = 'clinical_note';
+                out.intent = intent;
+                out.noteBody = utterance.trim();
+            }
+        }
+        if (intent == 'clinical_note' && String.isBlank(out.noteBody)) {
+            out.noteBody = utterance.trim();
+        }
+        return out;
+    }
+
+    private static List<CopilotAction> parseCopilotActions(Object raw) {
+        if (!(raw instanceof List<Object>)) {
+            return null;
+        }
+        List<CopilotAction> out = new List<CopilotAction>();
+        for (Object item : (List<Object>) raw) {
+            if (!(item instanceof Map<String, Object>)) {
+                continue;
+            }
+            Map<String, Object> m = (Map<String, Object>) item;
+            CopilotAction a = new CopilotAction();
+            a.kind = stringOrNull(m.get('kind'));
+            if (String.isBlank(a.kind)) {
+                continue;
+            }
+            a.kind = a.kind.trim().toLowerCase();
+            a.fieldApi = stringOrNull(m.get('field_api'));
+            a.fieldValue = stringOrNull(m.get('field_value'));
+            a.noteBody = stringOrNull(m.get('note_body'));
+            a.medicationName = stringOrNull(m.get('medication_name'));
+            a.frequency = stringOrNull(m.get('frequency'));
+            a.prescriptionStatus = stringOrNull(m.get('prescription_status'));
+            out.add(a);
+        }
+        return out.isEmpty() ? null : out;
+    }
+
+    private static String stringOrNull(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String s = String.valueOf(value).trim();
+        if (String.isBlank(s) || s == 'null') {
+            return null;
+        }
+        return s;
+    }
+
+    private static Map<String, Object> parseModelJsonObject(String raw) {
+        if (String.isBlank(raw)) {
+            return null;
+        }
+        String s = raw.trim();
+        if (s.startsWith('```')) {
+            s = s.replaceFirst('(?s)^```(?:json)?\\s*', '');
+            s = s.replaceFirst('(?s)\\s*```\\s*$', '');
+            s = s.trim();
+        }
+        Integer start = s.indexOf('{');
+        Integer last = s.lastIndexOf('}');
+        if (start < 0 || last <= start) {
+            return null;
+        }
+        s = s.substring(start, last + 1);
+        try {
+            Object decoded = JSON.deserializeUntyped(s);
+            if (decoded instanceof Map<String, Object>) {
+                return (Map<String, Object>) decoded;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        return null;
+    }
+
+    /**
+     * Patient chart summarize / Q&A — uses Enigma Config default model.
+     * External-processing attestation is attached automatically for non-local models.
+     */
+    private static CompletionResult completeChartRead(
+        String userContent,
+        String correlationId
+    ) {
+        CompleteRequest req = new CompleteRequest();
+        req.content = userContent;
+        req.correlationId = correlationId;
+        req.purpose = 'treatment';
+        // model + external auth: leave null → Config Default_Model + auto attestation
+        return completeWithOptions(req);
     }
 
     private static Patient__c loadPatientChart(Id patientId) {
@@ -136,7 +381,7 @@ public with sharing class EnigmaGatewayService {
         parts.add('Name: ' + displayName(patient));
         parts.add('MRN: ' + nullToEmpty(patient.MRN__c));
         parts.add(
-            'DOB: ' +
+            'Date of Birth: ' +
                 (patient.Date_of_Birth__c == null ? 'n/a' : String.valueOf(patient.Date_of_Birth__c))
         );
         parts.add('Gender: ' + nullToEmpty(patient.Gender__c));
@@ -188,7 +433,7 @@ public with sharing class EnigmaGatewayService {
             String.isBlank(patient.Primary_Diagnosis__c) ? 'None documented' : patient.Primary_Diagnosis__c
         );
         parts.add(
-            'Last visit: ' +
+            'Last visit date (exact): ' +
                 (patient.Last_Visit_Date__c == null
                     ? 'n/a'
                     : String.valueOf(patient.Last_Visit_Date__c))
@@ -313,7 +558,12 @@ public with sharing class EnigmaGatewayService {
 
         String modelName = String.isNotBlank(opts.model)
             ? opts.model
-            : (String.isBlank(cfg.Default_Model__c) ? 'cloud-public-gpt' : cfg.Default_Model__c);
+            : cfg.Default_Model__c;
+        if (String.isBlank(modelName)) {
+            throw new EnigmaException(
+                'Enigma Config is missing Default Model. Set Custom Settings → Enigma Config.'
+            );
+        }
         String operation = String.isBlank(opts.operation) ? 'summarize' : opts.operation;
         String correlationId = String.isBlank(opts.correlationId)
             ? 'sf-' + String.valueOf(Datetime.now().getTime())
@@ -438,16 +688,32 @@ public with sharing class EnigmaGatewayService {
         @AuraEnabled public String rawBody;
     }
 
-    public static final String AGENT_TARGET_ID = 'agent_enigma_clinical';
+    /**
+     * Live client: Agent Id comes only from Enigma Config (Custom Setting).
+     * Must match an Enigma-registered Agent ID bound to this Application.
+     */
+    public static String requireConfiguredAgentId() {
+        return requireAgentId(requireConfig());
+    }
+
+    private static String requireAgentId(Enigma_Config__c cfg) {
+        if (String.isNotBlank(cfg.Agent_Id__c)) {
+            return cfg.Agent_Id__c.trim();
+        }
+        throw new EnigmaException(
+            'Enigma Config is missing Agent Id. Set Custom Settings → Enigma Config → Agent Id to the Enigma-registered Agent ID (Agents page), then retry.'
+        );
+    }
 
     public static ChangeEvalResult getAgentBaseline() {
         Enigma_Config__c cfg = requireConfig();
+        String agentId = requireAgentId(cfg);
         String adminKey = requireAdminKey(cfg);
         String base = cfg.Endpoint_URL__c.removeEnd('/');
         String endpoint =
             base +
             '/v1/admin/governance/baselines?target_id=' +
-            EncodingUtil.urlEncode(AGENT_TARGET_ID, 'UTF-8') +
+            EncodingUtil.urlEncode(agentId, 'UTF-8') +
             '&target_type=application';
 
         HttpResponse res = adminGet(endpoint, adminKey);
@@ -538,7 +804,7 @@ public with sharing class EnigmaGatewayService {
 
         Map<String, Object> body = new Map<String, Object>{
             'target_type' => 'application',
-            'target_id' => AGENT_TARGET_ID,
+            'target_id' => requireAgentId(cfg),
             'previous_baseline_id' => current.baselineId,
             'request_id' => 'sf-agent-write-' + String.valueOf(Datetime.now().getTime()),
             'actor' => 'salesforce_healthcare_demo',
@@ -638,6 +904,15 @@ public with sharing class EnigmaGatewayService {
         String noteText,
         String userAsk
     ) {
+        return appendClinicalNoteGoverned(patientId, noteText, userAsk, null);
+    }
+
+    public static GovernedWriteResult appendClinicalNoteGoverned(
+        Id patientId,
+        String noteText,
+        String userAsk,
+        String resumeEvaluationId
+    ) {
         GovernedWriteResult out = new GovernedWriteResult();
         if (patientId == null || String.isBlank(noteText)) {
             out.success = false;
@@ -668,16 +943,17 @@ public with sharing class EnigmaGatewayService {
                 ? String.valueOf(patient.Date_of_Birth__c)
                 : '') +
             '\nPrompt: ' +
-            prompt +
-            '\nNote:\n' +
-            noteText.trim();
+            prompt;
+        // Note body stays in action.attributes only — keeps Prompt-stable content for
+        // resume / duplicate-hold matching when the model rephrases noteText.
 
         GovernedWriteResult gate = evaluateWriteAction(
             content,
             'update_clinical_notes',
             'clinical_note',
             String.valueOf(patientId),
-            new Map<String, Object>{ 'note' => noteText.trim() }
+            new Map<String, Object>{ 'note' => noteText.trim() },
+            resumeEvaluationId
         );
         if (gate.status != 'AUTHORIZED') {
             return gate;
@@ -765,6 +1041,22 @@ public with sharing class EnigmaGatewayService {
         String fieldValue,
         String userAsk
     ) {
+        return updatePatientFieldGoverned(
+            patientId,
+            fieldApiName,
+            fieldValue,
+            userAsk,
+            null
+        );
+    }
+
+    public static GovernedWriteResult updatePatientFieldGoverned(
+        Id patientId,
+        String fieldApiName,
+        String fieldValue,
+        String userAsk,
+        String resumeEvaluationId
+    ) {
         GovernedWriteResult out = new GovernedWriteResult();
         if (patientId == null || String.isBlank(fieldApiName)) {
             out.success = false;
@@ -837,7 +1129,8 @@ public with sharing class EnigmaGatewayService {
             new Map<String, Object>{
                 'field' => field,
                 'value' => fieldValue
-            }
+            },
+            resumeEvaluationId
         );
         if (gate.status != 'AUTHORIZED') {
             return gate;
@@ -934,6 +1227,207 @@ public with sharing class EnigmaGatewayService {
         }
     }
 
+    /**
+     * Update a patient Prescription__c (frequency / status) under a per-write Enigma Decision.
+     */
+    public static GovernedWriteResult updatePrescriptionGoverned(
+        Id patientId,
+        String medicationName,
+        String frequency,
+        String prescriptionStatus,
+        String userAsk,
+        String resumeEvaluationId
+    ) {
+        GovernedWriteResult out = new GovernedWriteResult();
+        if (patientId == null || String.isBlank(medicationName)) {
+            out.success = false;
+            out.status = 'ERROR';
+            out.message = 'patientId and medicationName are required.';
+            return out;
+        }
+        if (String.isBlank(frequency) && String.isBlank(prescriptionStatus)) {
+            out.success = false;
+            out.status = 'ERROR';
+            out.message = 'Provide a frequency and/or prescription status to update.';
+            return out;
+        }
+
+        Set<String> allowedStatus = new Set<String>{
+            'Active',
+            'Completed',
+            'Discontinued'
+        };
+        String statusVal = null;
+        if (String.isNotBlank(prescriptionStatus)) {
+            statusVal = prescriptionStatus.trim();
+            // Normalize common casing
+            for (String s : allowedStatus) {
+                if (s.equalsIgnoreCase(statusVal)) {
+                    statusVal = s;
+                    break;
+                }
+            }
+            if (!allowedStatus.contains(statusVal)) {
+                out.success = false;
+                out.status = 'ERROR';
+                out.message =
+                    'Prescription status must be Active, Completed, or Discontinued.';
+                return out;
+            }
+        }
+
+        String med = medicationName.trim();
+        List<Prescription__c> matches = [
+            SELECT Id, Name, Frequency__c, Status__c, Dosage__c
+            FROM Prescription__c
+            WHERE Patient__c = :patientId
+            ORDER BY Name
+        ];
+        Prescription__c rx = null;
+        String medLower = med.toLowerCase();
+        for (Prescription__c row : matches) {
+            if (row.Name != null && row.Name.trim().toLowerCase() == medLower) {
+                rx = row;
+                break;
+            }
+        }
+        if (rx == null) {
+            for (Prescription__c row : matches) {
+                if (
+                    row.Name != null &&
+                    row.Name.trim().toLowerCase().contains(medLower)
+                ) {
+                    rx = row;
+                    break;
+                }
+            }
+        }
+        if (rx == null) {
+            out.success = false;
+            out.status = 'ERROR';
+            out.message = 'No prescription named "' + med + '" found on this chart.';
+            return out;
+        }
+
+        String freqVal = String.isNotBlank(frequency) ? frequency.trim() : null;
+        String prompt = String.isNotBlank(userAsk)
+            ? userAsk.trim()
+            : 'Update prescription ' +
+              rx.Name +
+              (freqVal != null ? ' frequency to ' + freqVal : '') +
+              (statusVal != null ? ' status to ' + statusVal : '');
+
+        Patient__c patient = [
+            SELECT Id, Name, MRN__c, Date_of_Birth__c
+            FROM Patient__c
+            WHERE Id = :patientId
+            LIMIT 1
+        ];
+
+        String content =
+            'Agent write: update prescription.\n' +
+            'Patient: ' +
+            patient.Name +
+            '\nMRN: ' +
+            (patient.MRN__c != null ? patient.MRN__c : '') +
+            '\nDOB: ' +
+            (patient.Date_of_Birth__c != null
+                ? String.valueOf(patient.Date_of_Birth__c)
+                : '') +
+            '\nMedication: ' +
+            rx.Name +
+            '\nPrescriptionId: ' +
+            String.valueOf(rx.Id) +
+            (freqVal != null ? '\nFrequency: ' + freqVal : '') +
+            (statusVal != null ? '\nStatus: ' + statusVal : '') +
+            '\nPrompt: ' +
+            prompt;
+
+        Map<String, Object> attrs = new Map<String, Object>{
+            'medication' => rx.Name,
+            'prescription_id' => String.valueOf(rx.Id)
+        };
+        if (freqVal != null) {
+            attrs.put('frequency', freqVal);
+        }
+        if (statusVal != null) {
+            attrs.put('status', statusVal);
+        }
+
+        GovernedWriteResult gate = evaluateWriteAction(
+            content,
+            'update_prescription',
+            'prescription_update',
+            String.valueOf(rx.Id),
+            attrs,
+            resumeEvaluationId
+        );
+        if (gate.status != 'AUTHORIZED') {
+            return gate;
+        }
+
+        String executionId = newExecutionId();
+        try {
+            Prescription__c toUpdate = new Prescription__c(Id = rx.Id);
+            if (freqVal != null) {
+                toUpdate.Frequency__c = freqVal;
+            }
+            if (statusVal != null) {
+                toUpdate.Status__c = statusVal;
+                if (statusVal == 'Active') {
+                    toUpdate.End_Date__c = null;
+                }
+            }
+            update toUpdate;
+
+            out.success = true;
+            out.status = 'COMPLETED';
+            out.evaluationId = gate.evaluationId;
+            out.requestId = gate.requestId;
+            out.executionId = executionId;
+            out.writeCapability = true;
+            out.updatedField = rx.Name;
+            out.updatedValue =
+                (freqVal != null ? 'frequency=' + freqVal : '') +
+                (freqVal != null && statusVal != null ? ', ' : '') +
+                (statusVal != null ? 'status=' + statusVal : '');
+            out.message =
+                'Updated ' +
+                rx.Name +
+                (freqVal != null ? ' to ' + freqVal : '') +
+                (statusVal != null
+                    ? (freqVal != null ? ' and set status to ' : ' status to ') +
+                      statusVal
+                    : '') +
+                '.';
+            out.outcomeStatus = reportWriteOutcome(
+                gate,
+                executionId,
+                'EXECUTED',
+                'update_prescription',
+                'prescription_update',
+                String.valueOf(rx.Id)
+            );
+            return out;
+        } catch (Exception e) {
+            out.success = false;
+            out.status = 'ERROR';
+            out.evaluationId = gate.evaluationId;
+            out.requestId = gate.requestId;
+            out.executionId = executionId;
+            out.message = e.getMessage();
+            out.outcomeStatus = reportWriteOutcome(
+                gate,
+                executionId,
+                'EXECUTION_FAILED',
+                'update_prescription',
+                'prescription_update',
+                String.valueOf(rx.Id)
+            );
+            return out;
+        }
+    }
+
     private static Date parseFlexibleDate(String raw) {
         if (String.isBlank(raw)) {
             return null;
@@ -973,6 +1467,24 @@ public with sharing class EnigmaGatewayService {
         String targetId,
         Map<String, Object> actionAttributes
     ) {
+        return evaluateWriteAction(
+            content,
+            toolId,
+            actionKind,
+            targetId,
+            actionAttributes,
+            null
+        );
+    }
+
+    public static GovernedWriteResult evaluateWriteAction(
+        String content,
+        String toolId,
+        String actionKind,
+        String targetId,
+        Map<String, Object> actionAttributes,
+        String resumeEvaluationId
+    ) {
         GovernedWriteResult out = new GovernedWriteResult();
         Enigma_Config__c cfg = requireConfig();
         String apiKey = cfg.Api_Key__c;
@@ -992,11 +1504,12 @@ public with sharing class EnigmaGatewayService {
 
         String base = cfg.Endpoint_URL__c.removeEnd('/');
         String endpoint = base + '/v1/ai/actions';
-        String modelName = String.isBlank(cfg.Default_Model__c)
-            ? 'local-general-v1'
-            : cfg.Default_Model__c;
-        if (!modelName.startsWith('local-')) {
-            modelName = 'local-general-v1';
+        String modelName = cfg.Default_Model__c;
+        if (String.isBlank(modelName)) {
+            out.success = false;
+            out.status = 'ERROR';
+            out.message = 'Enigma Config is missing Default Model.';
+            return out;
         }
 
         Map<String, Object> action = new Map<String, Object>{
@@ -1009,6 +1522,19 @@ public with sharing class EnigmaGatewayService {
             action.put('attributes', actionAttributes);
         }
 
+        Map<String, Object> governanceContext = new Map<String, Object>{
+            'tool_authorized' => true,
+            'agent_authorized' => true
+        };
+        if (!modelName.startsWith('local-')) {
+            governanceContext.put(
+                'sensitive_data_processing',
+                new Map<String, Object>{
+                    'external_processing_authorized' => true
+                }
+            );
+        }
+
         Map<String, Object> body = new Map<String, Object>{
             'application_id' => applicationId,
             'user' => new Map<String, Object>{ 'id' => 'user_clinician' },
@@ -1019,12 +1545,9 @@ public with sharing class EnigmaGatewayService {
             },
             'purpose' => 'treatment',
             'authorization_context' => 'authorized',
-            'agent_id' => AGENT_TARGET_ID,
+            'agent_id' => requireAgentId(cfg),
             'tool_id' => toolId,
-            'governance_context' => new Map<String, Object>{
-                'tool_authorized' => true,
-                'agent_authorized' => true
-            },
+            'governance_context' => governanceContext,
             'action' => action,
             'regulatory_applicability' => new List<Object>{ 'HIPAA' },
             'metadata' => new Map<String, Object>{
@@ -1033,6 +1556,9 @@ public with sharing class EnigmaGatewayService {
                 'salesforce_user_id' => UserInfo.getUserId()
             }
         };
+        if (String.isNotBlank(resumeEvaluationId)) {
+            body.put('resume_evaluation_id', resumeEvaluationId.trim());
+        }
 
         HttpRequest req = new HttpRequest();
         req.setEndpoint(endpoint);
@@ -1045,6 +1571,9 @@ public with sharing class EnigmaGatewayService {
         HttpResponse res = new Http().send(req);
         Map<String, Object> parsed = parseJsonMap(res.getBody());
         out.evaluationId = (String) parsed.get('evaluation_id');
+        if (String.isBlank(out.evaluationId) && String.isNotBlank(resumeEvaluationId)) {
+            out.evaluationId = resumeEvaluationId.trim();
+        }
         out.requestId = (String) parsed.get('request_id');
         out.lifecycleDecision = (String) parsed.get('machine_decision');
 
@@ -1060,6 +1589,19 @@ public with sharing class EnigmaGatewayService {
             return out;
         }
 
+        // Explicit resume before Authorize — do not open a second Decision.
+        if (String.isNotBlank(resumeEvaluationId)) {
+            out.success = false;
+            out.status = 'HELD';
+            String reason = (String) parsed.get('reason_code');
+            out.message =
+                'Still waiting on human authorization for decision ' +
+                resumeEvaluationId.trim() +
+                (String.isNotBlank(reason) ? ' (' + reason + ')' : '') +
+                '. Authorize it in Enigma Decisions, then send the same request again.';
+            return out;
+        }
+
         Boolean safetyHold = parsed.get('safety_hold') == true;
         String machine = String.isBlank(out.lifecycleDecision)
             ? ''
@@ -1067,8 +1609,7 @@ public with sharing class EnigmaGatewayService {
         if (
             safetyHold ||
             machine == 'REVIEW' ||
-            machine == 'REQUIRE_APPROVAL' ||
-            res.getStatusCode() == 403
+            machine == 'REQUIRE_APPROVAL'
         ) {
             out.success = false;
             out.status = 'HELD';
@@ -1077,13 +1618,34 @@ public with sharing class EnigmaGatewayService {
                 (String.isNotBlank(out.evaluationId)
                     ? ' (decision ' + out.evaluationId + ')'
                     : '') +
-                '. Authorize it in Enigma Decisions, then ask me again with the same update to finish.';
+                '. Authorize it in Enigma Decisions, then send the same request again to finish.';
             return out;
         }
 
         out.success = false;
         out.status = 'ERROR';
-        out.message = 'Enigma blocked this write (HTTP ' + res.getStatusCode() + ').';
+        String reason = (String) parsed.get('reason_code');
+        if (String.isBlank(reason) && parsed.get('reason_codes') instanceof List<Object>) {
+            List<Object> codes = (List<Object>) parsed.get('reason_codes');
+            if (!codes.isEmpty()) {
+                reason = String.valueOf(codes[0]);
+            }
+        }
+        if (machine == 'DENY' || machine == 'BLOCK' || machine == 'BLOCK_OUTPUT') {
+            out.message =
+                'Enigma blocked this write' +
+                (String.isNotBlank(out.evaluationId)
+                    ? ' (decision ' + out.evaluationId + ')'
+                    : '') +
+                (String.isNotBlank(reason) ? ': ' + reason : '.') +
+                ' This is a deny, not a human-review hold.';
+            return out;
+        }
+        out.message =
+            'Enigma blocked this write (HTTP ' +
+            res.getStatusCode() +
+            ')' +
+            (String.isNotBlank(reason) ? ': ' + reason : '.');
         return out;
     }
 
@@ -1214,7 +1776,7 @@ public with sharing class EnigmaGatewayService {
             'outcome' => outcome,
             'user' => new Map<String, Object>{ 'id' => 'user_clinician' },
             'request_id' => requestId,
-            'agent_id' => AGENT_TARGET_ID,
+            'agent_id' => requireAgentId(cfg),
             'tool_id' => toolId,
             'operation' => 'write',
             'action' => action,

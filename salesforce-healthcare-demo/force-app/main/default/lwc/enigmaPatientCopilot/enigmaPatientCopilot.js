@@ -4,6 +4,42 @@ import handleUtterance from '@salesforce/apex/EnigmaPatientCopilotController.han
 
 let msgSeq = 0;
 
+function normalizeUtterance(s) {
+  return (s || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[.!?]+$/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+function holdStorageKey(recordId) {
+  return `enigma.copilot.pendingHold.${recordId || ''}`;
+}
+
+function readStoredHold(recordId) {
+  try {
+    const raw = sessionStorage.getItem(holdStorageKey(recordId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.evaluationId || !parsed?.utterance) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredHold(recordId, hold) {
+  try {
+    if (!hold) {
+      sessionStorage.removeItem(holdStorageKey(recordId));
+      return;
+    }
+    sessionStorage.setItem(holdStorageKey(recordId), JSON.stringify(hold));
+  } catch {
+    /* private mode / quota — in-memory pendingHold still works */
+  }
+}
+
 export default class EnigmaPatientCopilot extends LightningElement {
   @api recordId;
 
@@ -19,6 +55,12 @@ export default class EnigmaPatientCopilot extends LightningElement {
   draft = '';
   busy = false;
   error;
+  /** Pending HELD write — retry same utterance resumes this Decision. */
+  pendingHold;
+
+  connectedCallback() {
+    this.pendingHold = readStoredHold(this.recordId) || undefined;
+  }
 
   get canSend() {
     return !!this.recordId && !this.busy && !!this.draft?.trim();
@@ -52,9 +94,18 @@ export default class EnigmaPatientCopilot extends LightningElement {
     this.send();
   }
 
+  setPendingHold(hold) {
+    this.pendingHold = hold || undefined;
+    writeStoredHold(this.recordId, hold || null);
+  }
+
   async send() {
     const text = (this.draft || '').trim();
     if (!text || !this.recordId || this.busy) return;
+
+    if (!this.pendingHold) {
+      this.pendingHold = readStoredHold(this.recordId) || undefined;
+    }
 
     this.error = undefined;
     this.busy = true;
@@ -65,9 +116,26 @@ export default class EnigmaPatientCopilot extends LightningElement {
     this.draft = '';
 
     try {
+      const sameAsHold =
+        this.pendingHold &&
+        normalizeUtterance(this.pendingHold.utterance) ===
+          normalizeUtterance(text);
+
       const result = await handleUtterance({
         patientId: this.recordId,
-        utterance: text
+        utterance: text,
+        resumeEvaluationId: sameAsHold ? this.pendingHold.evaluationId : null,
+        resumeWriteKind: sameAsHold ? this.pendingHold.writeKind : null,
+        resumeNoteBody: sameAsHold ? this.pendingHold.noteBody : null,
+        resumeFieldApi: sameAsHold ? this.pendingHold.fieldApi : null,
+        resumeFieldValue: sameAsHold ? this.pendingHold.fieldValue : null,
+        resumeMedicationName: sameAsHold
+          ? this.pendingHold.medicationName
+          : null,
+        resumeFrequency: sameAsHold ? this.pendingHold.frequency : null,
+        resumePrescriptionStatus: sameAsHold
+          ? this.pendingHold.prescriptionStatus
+          : null
       });
       this.messages = [
         ...this.messages,
@@ -80,9 +148,55 @@ export default class EnigmaPatientCopilot extends LightningElement {
           evaluationId: result?.evaluationId
         }
       ];
+      if (result?.status === 'HELD' && result?.evaluationId) {
+        const nextHold = {
+          evaluationId:
+            this.pendingHold &&
+            normalizeUtterance(this.pendingHold.utterance) ===
+              normalizeUtterance(text)
+              ? this.pendingHold.evaluationId
+              : result.evaluationId,
+          utterance: text,
+          writeKind:
+            result.writeKind ||
+            this.pendingHold?.writeKind ||
+            'note',
+          noteBody: result.noteBody || this.pendingHold?.noteBody || text,
+          fieldApi: result.fieldApi || this.pendingHold?.fieldApi || null,
+          fieldValue:
+            result.fieldValue || this.pendingHold?.fieldValue || null,
+          medicationName:
+            result.medicationName ||
+            this.pendingHold?.medicationName ||
+            null,
+          frequency:
+            result.frequency || this.pendingHold?.frequency || null,
+          prescriptionStatus:
+            result.prescriptionStatus ||
+            this.pendingHold?.prescriptionStatus ||
+            null
+        };
+        this.setPendingHold(nextHold);
+      } else if (result?.status === 'COMPLETED') {
+        this.setPendingHold(null);
+      } else if (result?.status === 'ERROR') {
+        // Keep pending hold when resume failed but Decision is still open.
+        if (!result?.evaluationId || !this.pendingHold) {
+          this.setPendingHold(null);
+        }
+      }
       if (result?.refreshChart) {
         try {
           await notifyRecordUpdateAvailable([{ recordId: this.recordId }]);
+        } catch {
+          /* ignore */
+        }
+        try {
+          window.dispatchEvent(
+            new CustomEvent('enigmachartrefresh', {
+              detail: { recordId: this.recordId }
+            })
+          );
         } catch {
           /* ignore */
         }

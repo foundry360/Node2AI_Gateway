@@ -49,7 +49,7 @@ sf org assign permset -n Enigma_Healthcare_Demo -o cred-poc
 | Application Id | `app_clinical` |
 | API Key | completions key |
 | Admin API Key | `GATEWAY_ADMIN_API_KEY` |
-| Default Model | `local-general-v1` or `cloud-public-gpt` |
+| Default Model | optional; chart summarize/Q&A always uses `cloud-public-gpt` (TOKENIZE path) |
 
 ## Other surfaces
 

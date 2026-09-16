@@ -15,7 +15,26 @@ export default class PatientEmrChart extends LightningElement {
   notesOverride;
 
   connectedCallback() {
+    this._onEnigmaChartRefresh = (event) => {
+      const id = event?.detail?.recordId;
+      if (id && id !== this.recordId) {
+        return;
+      }
+      if (this.chartWireResult) {
+        refreshApex(this.chartWireResult);
+      }
+    };
+    window.addEventListener('enigmachartrefresh', this._onEnigmaChartRefresh);
     this.migrateAndRefresh();
+  }
+
+  disconnectedCallback() {
+    if (this._onEnigmaChartRefresh) {
+      window.removeEventListener(
+        'enigmachartrefresh',
+        this._onEnigmaChartRefresh
+      );
+    }
   }
 
   async migrateAndRefresh() {
