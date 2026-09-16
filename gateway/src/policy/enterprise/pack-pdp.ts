@@ -121,15 +121,27 @@ function factsFromResponse(
   context: PolicyResponseContext,
   allowDetokenization: boolean,
 ): BaselineFacts {
+  const clinicianTrusted =
+    context.application.trust_level === 'trusted' &&
+    context.application.type === 'clinical' &&
+    context.user.roles.includes('clinician');
+  const tokenRelease =
+    allowDetokenization &&
+    !!context.inspection.contains_tokens &&
+    !!context.input_was_tokenized &&
+    clinicianTrusted;
+  const clinicalAnswerRelease =
+    !!context.input_was_tokenized &&
+    clinicianTrusted &&
+    !(context.inspection.entities ?? []).some((e) =>
+      ['MRN', 'NPI', 'SSN', 'EMAIL', 'PHONE', 'NAME', 'DOB', 'ADDRESS', 'CREDIT_CARD'].includes(
+        String(e.type).toUpperCase(),
+      ),
+    );
   const releaseConditions =
     context.release_conditions_satisfied !== undefined
       ? context.release_conditions_satisfied
-      : allowDetokenization &&
-        !!context.inspection.contains_tokens &&
-        !!context.input_was_tokenized &&
-        context.application.trust_level === 'trusted' &&
-        context.application.type === 'clinical' &&
-        context.user.roles.includes('clinician');
+      : tokenRelease || clinicalAnswerRelease;
   return {
     trust_level: context.application.trust_level,
     application_status: context.application.status,
@@ -151,6 +163,7 @@ function factsFromResponse(
     release_conditions_satisfied: releaseConditions,
     entity_types: context.inspection.entities?.map((e) => e.type) ?? [],
     has_entity_spans: (context.inspection.entities?.length ?? 0) > 0,
+    input_had_entity_spans: (context.request_classification.entities?.length ?? 0) > 0,
     purpose: context.purpose,
     recipient: context.recipient,
     authorization_context: context.authorization_context,
@@ -355,6 +368,7 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
       ),
       contains_tokens: request.evidence.contains_tokens,
       input_was_tokenized: request.evidence.input_was_tokenized,
+      input_had_entity_spans: request.evidence.input_had_entity_spans === true,
       entity_types: request.evidence.entities?.map((e) => e.type) ?? [],
       has_entity_spans: (request.evidence.entities?.length ?? 0) > 0,
       health_context: reasonCodes.some(
@@ -364,18 +378,43 @@ export class PackBackedEnterprisePdp implements EnterprisePolicyDecisionPoint {
           c.startsWith('PROFILE:hipaa'),
       ),
       health_sensitive: reasonCodes.some((c) => c.includes('ENIGMA_HEALTH_SENSITIVE')),
-      release_authorized:
-        !!request.evidence.contains_tokens &&
-        !!request.evidence.input_was_tokenized &&
-        request.subject.trust_level === 'trusted' &&
-        String(request.resource.attributes.application_type ?? '') === 'clinical' &&
-        request.subject.roles.includes('clinician'),
-      release_conditions_satisfied:
-        !!request.evidence.contains_tokens &&
-        !!request.evidence.input_was_tokenized &&
-        request.subject.trust_level === 'trusted' &&
-        String(request.resource.attributes.application_type ?? '') === 'clinical' &&
-        request.subject.roles.includes('clinician'),
+      release_authorized: (() => {
+        const clinicianTrusted =
+          request.subject.trust_level === 'trusted' &&
+          String(request.resource.attributes.application_type ?? '') === 'clinical' &&
+          request.subject.roles.includes('clinician');
+        const tokenized = !!request.evidence.input_was_tokenized;
+        const tokenRelease =
+          !!request.evidence.contains_tokens && tokenized && clinicianTrusted;
+        const clinicalAnswerRelease =
+          tokenized &&
+          clinicianTrusted &&
+          !(request.evidence.entities ?? []).some((e) =>
+            ['MRN', 'NPI', 'SSN', 'EMAIL', 'PHONE', 'NAME', 'DOB', 'ADDRESS', 'CREDIT_CARD'].includes(
+              String(e.type).toUpperCase(),
+            ),
+          );
+        return tokenRelease || clinicalAnswerRelease;
+      })(),
+      release_conditions_satisfied: (() => {
+        const clinicianTrusted =
+          request.subject.trust_level === 'trusted' &&
+          String(request.resource.attributes.application_type ?? '') === 'clinical' &&
+          request.subject.roles.includes('clinician');
+        const tokenized = !!request.evidence.input_was_tokenized;
+        const tokenRelease =
+          !!request.evidence.contains_tokens && tokenized && clinicianTrusted;
+        const clinicalAnswerRelease =
+          tokenized &&
+          clinicianTrusted &&
+          !(request.evidence.entities ?? []).some((e) =>
+            ['MRN', 'NPI', 'SSN', 'EMAIL', 'PHONE', 'NAME', 'DOB', 'ADDRESS', 'CREDIT_CARD'].includes(
+              String(e.type).toUpperCase(),
+            ),
+          );
+        return tokenRelease || clinicalAnswerRelease;
+      })(),
+      allow_detokenization: this.options.allowDetokenization !== false,
       classification_profile_id: reasonCodes
         .find((c) => c.startsWith('PROFILE:'))
         ?.replace('PROFILE:', ''),

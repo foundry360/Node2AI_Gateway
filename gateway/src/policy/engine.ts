@@ -169,17 +169,10 @@ export class DeterministicPolicyEngine implements PolicyEngine {
         const externalAuthorized =
           context.governance_context?.sensitive_data_processing
             ?.external_processing_authorized === true;
-        const tokenizeAvailable =
-          (context.classification.entities?.length ?? 0) > 0;
+        // Tokenizer is always available; do not require entity spans to enter
+        // the controlled external PHI path (semantic PHI may have no spans).
         if (!externalAuthorized || !clinicalOk) {
           return blocked(['PHI_PUBLIC_CLOUD_BLOCKED'], policyIds, version);
-        }
-        if (!tokenizeAvailable) {
-          return blocked(
-            ['PHI_PUBLIC_CLOUD_BLOCKED', 'TOKENIZE_UNAVAILABLE'],
-            policyIds,
-            version,
-          );
         }
         // Fail closed: do not fall back to local when an external model was requested.
         if (

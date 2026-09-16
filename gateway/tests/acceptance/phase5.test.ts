@@ -94,7 +94,15 @@ describe('Phase 5 acceptance — Response Governance', () => {
       application_id: 'app_clinical',
       user: { id: 'user_clinician' },
       operation: 'summarize',
-      messages: [{ role: 'user', content: 'Summarize discharge instructions.' }],
+      // The address must appear in the source corpus, otherwise response
+      // grounding blocks the reply before redaction can release it.
+      messages: [
+        {
+          role: 'user',
+          content:
+            'Summarize discharge instructions. Scheduling contact is member@example.com.',
+        },
+      ],
     });
 
     expect(result.httpStatus).toBe(200);

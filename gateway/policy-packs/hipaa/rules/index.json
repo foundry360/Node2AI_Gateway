@@ -285,15 +285,14 @@
     },
     {
       "rule_id": "HIPAA-R-INPUT-TOKENIZE-OPTION",
-      "name": "Select Enigma tokenization when entity spans exist on non-fully-trusted path",
+      "name": "Select Enigma tokenization when PHI entity spans are present",
       "phase": "input",
-      "priority": 40,
+      "priority": 45,
       "requirement_type": "IMPLEMENTATION_OPTION",
       "conditions": {
         "regulatory_applicability": "HIPAA",
         "classification": "PHI",
-        "has_entity_spans": true,
-        "trust_level_not": "trusted"
+        "has_entity_spans": true
       },
       "decision": "TRANSFORM",
       "reason_codes": ["ENIGMA_TOKENIZE_SELECTED"],
@@ -303,7 +302,7 @@
       "transforms": [{ "type": "tokenize", "targets": ["PHI"] }],
       "sources": ["src_45cfr164"],
       "source_type": "IMPLEMENTATION_OPTION",
-      "note": "TOKENIZE is an Enigma implementation_option, not a regulatory mandate. NO_EXTERNAL_TRANSMISSION means no raw PHI egress."
+      "note": "TOKENIZE is an Enigma implementation_option for detectable PHI spans (trusted and non-trusted). Runs after minimum-necessary REDACT and external TOKENIZE; upgrades ALLOW when spans remain."
     },
     {
       "rule_id": "HIPAA-R-INPUT-EXTERNAL-TOKENIZE",
@@ -315,8 +314,7 @@
         "regulatory_applicability": "HIPAA",
         "classification": "PHI",
         "processing_environment": "unauthorized_external",
-        "required_controls_satisfied": true,
-        "has_entity_spans": true
+        "required_controls_satisfied": true
       },
       "decision": "TRANSFORM",
       "reason_codes": ["ENIGMA_TOKENIZE_SELECTED", "HIPAA_PHI_EXTERNAL_CONTROLS_SATISFIED"],
@@ -326,7 +324,7 @@
       "transforms": [{ "type": "tokenize", "targets": ["PHI"] }],
       "sources": ["src_45cfr164"],
       "source_type": "IMPLEMENTATION_OPTION",
-      "note": "Controlled external path: TOKENIZE is Enigma control; does NOT assert HIPAA compliance. Does not add LOCAL_MODEL_ONLY."
+      "note": "Controlled external path: TOKENIZE is Enigma control; does NOT assert HIPAA compliance. Does not add LOCAL_MODEL_ONLY. Entity spans optional — semantic PHI may have none."
     },
     {
       "rule_id": "HIPAA-R-OUT-RESIDUAL-PHI-BLOCK",

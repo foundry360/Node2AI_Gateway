@@ -225,6 +225,11 @@ export function toOutputEvaluationRequest(
       reason_codes: context.request_classification.reason_codes,
       contains_tokens: context.inspection.contains_tokens,
       input_was_tokenized: context.input_was_tokenized,
+      input_had_entity_spans:
+        (context.request_classification.entities?.length ?? 0) > 0,
+      entities: context.inspection.entities?.map((e) => ({
+        type: e.type,
+      })),
       inspector_findings: [
         ...(context.inspection.sensitivity
           ? [{ code: `SENSITIVITY_${context.inspection.sensitivity}` }]

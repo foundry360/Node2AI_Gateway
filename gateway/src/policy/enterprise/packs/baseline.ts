@@ -22,6 +22,11 @@ export interface BaselineFacts {
   contains_tokens?: boolean;
   input_was_tokenized?: boolean;
   allow_detokenization?: boolean;
+  /**
+   * Output phase: input interrogation found tokenizable PHI/PII spans.
+   * Used to fail closed when a PHI request skipped TOKENIZE.
+   */
+  input_had_entity_spans?: boolean;
   /** Pack enrichment (HIPAA / classification profiles) */
   entity_types?: string[];
   has_entity_spans?: boolean;
@@ -188,6 +193,60 @@ function tokenizationAvailable(facts: BaselineFacts): boolean {
   return !!facts.has_entity_spans || (facts.entity_types?.length ?? 0) > 0;
 }
 
+/**
+ * After TOKENIZE on input, an authorized clinician may receive the clinical answer
+ * even when the reply itself is PHI (e.g. diagnoses). Residual plaintext identifiers
+ * (MRN, name, contact, etc.) still fail closed. Detokenize separately when vault
+ * tokens are present in the response.
+ */
+const RESIDUAL_IDENTIFIER_TYPES = new Set([
+  'MRN',
+  'NPI',
+  'SSN',
+  'EMAIL',
+  'PHONE',
+  'NAME',
+  'DOB',
+  'ADDRESS',
+  'CREDIT_CARD',
+  'IBAN',
+  'ROUTING_NUMBER',
+]);
+
+export function hasResidualPlaintextIdentifiers(facts: BaselineFacts): boolean {
+  return (facts.entity_types ?? []).some((t) =>
+    RESIDUAL_IDENTIFIER_TYPES.has(String(t).toUpperCase()),
+  );
+}
+
+export function authorizedTokenizedClinicalRelease(facts: BaselineFacts): boolean {
+  if (!facts.input_was_tokenized) return false;
+  if (hasResidualPlaintextIdentifiers(facts)) return false;
+  if (facts.trust_level !== 'trusted') return false;
+  if (facts.application_type !== 'clinical') return false;
+  if (!facts.roles.includes('clinician')) return false;
+  const purpose = String(facts.purpose ?? '')
+    .trim()
+    .toLowerCase();
+  if (!purpose || purpose === 'unknown') return false;
+  if (
+    purpose.includes('marketing') ||
+    purpose.includes('sale') ||
+    purpose === 'unauthorized'
+  ) {
+    return false;
+  }
+  const auth = String(facts.authorization_context ?? '')
+    .trim()
+    .toLowerCase();
+  if (!auth || auth === 'absent' || auth === 'unauthorized' || auth === 'unknown') {
+    return false;
+  }
+  if (facts.governance_context?.agent_authorized === false) return false;
+  if (facts.governance_context?.tool_authorized === false) return false;
+  return true;
+}
+
 function deny(
   meta: PackPolicyMeta,
   reason_codes: string[],
@@ -279,6 +338,58 @@ export function interpretBaselineInput(
       !!facts.requested_model && isCloudModel(facts.requested_model);
     const clinicalOk =
       facts.application_type === 'clinical' && facts.roles.includes('clinician');
+    const cloudEligible = eligible.filter((m) => isCloudModel(m));
+    // Controlled external path: clinical + attestation + cloud allowlist.
+    // Tokenizer is always available on the appliance; entity spans are not required
+    // to *enter* the path (requests may be PHI via semantic classification only).
+    const canExternalTokenize =
+      clinicalOk &&
+      externalProcessingAuthorized(facts) &&
+      cloudEligible.length > 0 &&
+      facts.deployment_mode !== 'airgap';
+
+    // Stable clinical path: detectable PHI + external attestation + cloud allowlist
+    // → TOKENIZE to cloud (even if the client requested a local model).
+    if (canExternalTokenize) {
+      matched.push('phi_external_tokenize');
+      if (cloudRequested && !cloudEligible.includes(facts.requested_model!)) {
+        matched.push('requested_cloud_not_allowlisted');
+        return deny(meta, ['MODEL_NOT_ELIGIBLE'], matched);
+      }
+      const preferredCloud =
+        cloudRequested && cloudEligible.includes(facts.requested_model!)
+          ? facts.requested_model!
+          : cloudEligible.includes('cloud-public-gpt')
+            ? 'cloud-public-gpt'
+            : cloudEligible[0]!;
+      if (!cloudRequested) {
+        matched.push('phi_upgrade_to_cloud');
+      }
+      matched.push('restrict_to_requested');
+      return {
+        decision: 'TOKENIZE',
+        reason_codes: [
+          'PHI_REQUIRES_TOKENIZE',
+          'EXTERNAL_MODEL_PRESENT',
+          'PHI_EXTERNAL_CONTROLS_SATISFIED',
+        ],
+        eligible_models: [preferredCloud],
+        transforms: [{ type: 'tokenize', targets: ['PHI'] }],
+        obligations: [
+          { code: 'LOG_GOVERNANCE_EVENT' },
+          {
+            code: 'TOKENIZE_PII' as ObligationCode,
+            parameters: { targets: ['PHI'] },
+          },
+          // No raw PHI egress — tokenized representation may go external.
+          { code: 'NO_EXTERNAL_TRANSMISSION' },
+        ],
+        policy_id: meta.policy_id,
+        policy_version: meta.version,
+        pack_id: meta.pack_id,
+        matched,
+      };
+    }
 
     if (cloudRequested) {
       matched.push('requested_cloud');
@@ -298,44 +409,9 @@ export function interpretBaselineInput(
           matched,
         );
       }
-
-      // Controlled path: TOKENIZE then allow the requested external model.
-      // Fail closed if the requested external model is not on the app allowlist —
-      // never silently fall back to a local model when cloud was requested.
-      matched.push('phi_external_tokenize');
-      let controlledEligible = eligible.filter((m) => facts.allowed_models.includes(m));
-      if (
-        !facts.requested_model ||
-        !controlledEligible.includes(facts.requested_model)
-      ) {
-        matched.push('requested_cloud_not_allowlisted');
-        return deny(meta, ['MODEL_NOT_ELIGIBLE'], matched);
-      }
-      controlledEligible = [facts.requested_model];
-      matched.push('restrict_to_requested');
-      return {
-        decision: 'TOKENIZE',
-        reason_codes: [
-          'PHI_REQUIRES_TOKENIZE',
-          'EXTERNAL_MODEL_PRESENT',
-          'PHI_EXTERNAL_CONTROLS_SATISFIED',
-        ],
-        eligible_models: controlledEligible,
-        transforms: [{ type: 'tokenize', targets: ['PHI'] }],
-        obligations: [
-          { code: 'LOG_GOVERNANCE_EVENT' },
-          {
-            code: 'TOKENIZE_PII' as ObligationCode,
-            parameters: { targets: ['PHI'] },
-          },
-          // No raw PHI egress — tokenized representation may go external.
-          { code: 'NO_EXTERNAL_TRANSMISSION' },
-        ],
-        policy_id: meta.policy_id,
-        policy_version: meta.version,
-        pack_id: meta.pack_id,
-        matched,
-      };
+      // Cloud requested but not on the app allowlist — never fall back to local.
+      matched.push('requested_cloud_not_allowlisted');
+      return deny(meta, ['MODEL_NOT_ELIGIBLE'], matched);
     }
 
     eligible = eligible.filter((m) => m.startsWith('local-'));
@@ -347,6 +423,34 @@ export function interpretBaselineInput(
     if (!clinicalOk) {
       matched.push('phi_app_not_authorized');
       return deny(meta, ['PHI_APPLICATION_NOT_AUTHORIZED'], matched);
+    }
+
+    // Never send raw detectable PHI to a local model — TOKENIZE first.
+    if (tokenizationAvailable(facts)) {
+      matched.push('phi_local_tokenize');
+      if (facts.requested_model && eligible.includes(facts.requested_model)) {
+        eligible = [facts.requested_model];
+        matched.push('restrict_to_requested');
+      }
+      return {
+        decision: 'TOKENIZE',
+        reason_codes: ['PHI_REQUIRES_TOKENIZE'],
+        eligible_models: eligible,
+        transforms: [{ type: 'tokenize', targets: ['PHI'] }],
+        obligations: [
+          { code: 'LOG_GOVERNANCE_EVENT' },
+          {
+            code: 'TOKENIZE_PII' as ObligationCode,
+            parameters: { targets: ['PHI'] },
+          },
+          { code: 'LOCAL_MODEL_ONLY' },
+          { code: 'NO_EXTERNAL_TRANSMISSION' },
+        ],
+        policy_id: meta.policy_id,
+        policy_version: meta.version,
+        pack_id: meta.pack_id,
+        matched,
+      };
     }
   }
 
@@ -465,10 +569,38 @@ export function interpretBaselineOutput(
   }
 
   if (facts.inspection_sensitivity === 'PHI') {
-    matched.push('response_phi');
+    if (authorizedTokenizedClinicalRelease(facts)) {
+      matched.push('response_phi_authorized_after_tokenize');
+      // Fall through: release clinical answer to authorized clinician.
+    } else {
+      matched.push('response_phi');
+      return {
+        decision: 'BLOCK_OUTPUT',
+        reason_codes: ['RESPONSE_PHI_BLOCKED'],
+        eligible_models: [],
+        transforms: [],
+        obligations: [{ code: 'LOG_GOVERNANCE_EVENT' }],
+        authorize_detokenization: false,
+        policy_id: meta.policy_id,
+        policy_version: meta.version,
+        pack_id: meta.pack_id,
+        matched,
+      };
+    }
+  }
+
+  // Fail closed: PHI requests with detectable entities must TOKENIZE on input.
+  // Prevents inconsistent RELEASE when the model reply looks "Internal" but the
+  // chart path skipped tokenization (plaintext PHI to the model).
+  const requestPhi =
+    facts.classification === 'PHI' ||
+    facts.classification === 'EPHI' ||
+    String(facts.classification).toUpperCase() === 'PHI';
+  if (requestPhi && facts.input_had_entity_spans && !facts.input_was_tokenized) {
+    matched.push('phi_plaintext_input_output_blocked');
     return {
       decision: 'BLOCK_OUTPUT',
-      reason_codes: ['RESPONSE_PHI_BLOCKED'],
+      reason_codes: ['PHI_OUTPUT_REQUIRES_TOKENIZED_INPUT'],
       eligible_models: [],
       transforms: [],
       obligations: [{ code: 'LOG_GOVERNANCE_EVENT' }],
@@ -510,15 +642,18 @@ export function interpretBaselineOutput(
     !!facts.input_was_tokenized &&
     facts.trust_level === 'trusted';
 
+  const clinicalRelease = authorizedTokenizedClinicalRelease(facts);
   const reason_codes = authorize
     ? ['RESPONSE_RELEASE', 'DETOKENIZE_AUTHORIZED']
-    : ['RESPONSE_RELEASE'];
+    : clinicalRelease && facts.inspection_sensitivity === 'PHI'
+      ? ['RESPONSE_RELEASE', 'PHI_CLINICAL_RELEASE_AFTER_TOKENIZE']
+      : ['RESPONSE_RELEASE'];
   const obligations: Obligation[] = [{ code: 'LOG_GOVERNANCE_EVENT' }];
   if (authorize) {
     obligations.push({ code: 'AUTHORIZE_DETOKENIZATION' });
     matched.push('detokenize_authorized');
   } else {
-    matched.push('response_release');
+    matched.push(clinicalRelease ? 'response_phi_clinical_release' : 'response_release');
   }
 
   return {

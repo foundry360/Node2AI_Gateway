@@ -19,6 +19,8 @@ export type DetectedEntityType =
   | 'MRN'
   | 'NPI'
   | 'DOB'
+  | 'NAME'
+  | 'ADDRESS'
   | 'DIAGNOSIS_MARKER'
   | 'API_KEY'
   | 'PASSWORD'

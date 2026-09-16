@@ -294,6 +294,95 @@ function seedAgentClinicalBaseline(
   );
 }
 
+const CLINICAL_DEMO_TOOLS: Array<{
+  tool_id: string;
+  name: string;
+  operations: string[];
+}> = [
+  {
+    tool_id: 'update_patient_field',
+    name: 'Update Patient Field',
+    operations: ['write', 'field_update', 'clinical_note', 'summarize'],
+  },
+  {
+    tool_id: 'update_clinical_notes',
+    name: 'Update Clinical Notes',
+    operations: ['write', 'clinical_note'],
+  },
+  {
+    tool_id: 'update_prescription',
+    name: 'Update Prescription',
+    operations: ['write', 'prescription_update', 'field_update'],
+  },
+];
+
+/**
+ * Idempotent demo substrate: Clinical Copilot agent + write tools bound to app_clinical.
+ * Avoids the scavenger hunt of manually matching Salesforce Agent Id to Enigma registry.
+ *
+ * Salesforce Enigma_Config__c.Agent_Id__c defaults to clinical_summary_agent — grant
+ * write tools to that agent as well as agent_enigma_clinical.
+ */
+export async function ensureClinicalDemoActors(
+  registry: ActorRegistry,
+  deploymentId: string,
+  opts?: { organizationId?: string; applicationId?: string },
+): Promise<void> {
+  const organizationId = opts?.organizationId ?? 'org_demo';
+  const applicationId = opts?.applicationId ?? 'app_clinical';
+  const agentIds = [
+    AGENT_ENIGMA_CLINICAL_TARGET_ID,
+    'clinical_summary_agent',
+  ];
+
+  for (const agentId of agentIds) {
+    let agent = await registry.getAgent(deploymentId, agentId);
+    if (!agent) {
+      agent = await registry.createAgent({
+        deployment_id: deploymentId,
+        agent_id: agentId,
+        organization_id: organizationId,
+        name:
+          agentId === AGENT_ENIGMA_CLINICAL_TARGET_ID
+            ? 'Clinical Copilot'
+            : 'Clinical Summary Agent',
+        status: 'ACTIVE',
+        autonomy_level: 'HUMAN_APPROVED',
+        metadata: { surface: 'salesforce_healthcare_demo' },
+      });
+    }
+
+    await registry.upsertBinding({
+      deployment_id: deploymentId,
+      agent_id: agentId,
+      application_id: applicationId,
+      status: 'ACTIVE',
+    });
+
+    for (const t of CLINICAL_DEMO_TOOLS) {
+      let tool = await registry.getTool(deploymentId, t.tool_id);
+      if (!tool) {
+        tool = await registry.createTool({
+          deployment_id: deploymentId,
+          tool_id: t.tool_id,
+          organization_id: organizationId,
+          name: t.name,
+          status: 'ACTIVE',
+          operations: t.operations,
+          metadata: {},
+        });
+      }
+      await registry.upsertGrant({
+        deployment_id: deploymentId,
+        agent_id: agentId,
+        tool_id: t.tool_id,
+        status: 'ACTIVE',
+        allowed_operations: t.operations,
+      });
+    }
+  }
+}
+
 export function createPhase1Seed(): {
   organizations: Organization[];
   applications: Application[];
@@ -597,6 +686,17 @@ export function createPhase1Gateway(options: CreateGatewayOptions = {}) {
           ? new PostgresActorRegistry(options.db)
           : new InMemoryActorRegistry()));
 
+  if (actorRegistry && config.actorRegistryMode !== 'off') {
+    void deploymentIdentity
+      .getOrCreateDeploymentId()
+      .then((deploymentId) =>
+        ensureClinicalDemoActors(actorRegistry, deploymentId),
+      )
+      .catch(() => {
+        /* best-effort demo substrate; fail closed still applies at evaluate */
+      });
+  }
+
   const orchestrator = new GatewayOrchestrator({
     config,
     identity,
@@ -769,6 +869,11 @@ export async function createApplianceGateway(
     deploymentIdentity,
     config: { ...config, requireVaultKey: true },
   });
+
+  if (gateway.actorRegistry && gateway.config.actorRegistryMode !== 'off') {
+    const deploymentId = await deploymentIdentity.getOrCreateDeploymentId();
+    await ensureClinicalDemoActors(gateway.actorRegistry, deploymentId);
+  }
 
   const lifecycleWorker = new EvidenceLifecycleWorker(
     audit,

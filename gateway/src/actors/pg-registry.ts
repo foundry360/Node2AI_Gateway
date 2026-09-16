@@ -233,6 +233,28 @@ export class PostgresActorRegistry implements ActorRegistry {
       : null;
   }
 
+  async deleteAgent(deploymentId: string, agentId: string): Promise<boolean> {
+    const cur = await this.getAgent(deploymentId, agentId);
+    if (!cur) return false;
+    await this.db.query(
+      `DELETE FROM agent_tool_grants
+       WHERE deployment_id = $1 AND agent_id = $2`,
+      [deploymentId, agentId],
+    );
+    await this.db.query(
+      `DELETE FROM agent_application_bindings
+       WHERE deployment_id = $1 AND agent_id = $2`,
+      [deploymentId, agentId],
+    );
+    const result = await this.db.query(
+      `DELETE FROM agents
+       WHERE deployment_id = $1 AND agent_id = $2
+       RETURNING agent_id`,
+      [deploymentId, agentId],
+    );
+    return result.rows.length > 0;
+  }
+
   async getAgent(
     deploymentId: string,
     agentId: string,
@@ -312,6 +334,23 @@ export class PostgresActorRegistry implements ActorRegistry {
     return result.rows[0]
       ? mapTool(result.rows[0] as Record<string, unknown>)
       : null;
+  }
+
+  async deleteTool(deploymentId: string, toolId: string): Promise<boolean> {
+    const cur = await this.getTool(deploymentId, toolId);
+    if (!cur) return false;
+    await this.db.query(
+      `DELETE FROM agent_tool_grants
+       WHERE deployment_id = $1 AND tool_id = $2`,
+      [deploymentId, toolId],
+    );
+    const result = await this.db.query(
+      `DELETE FROM tools
+       WHERE deployment_id = $1 AND tool_id = $2
+       RETURNING tool_id`,
+      [deploymentId, toolId],
+    );
+    return result.rows.length > 0;
   }
 
   async getTool(

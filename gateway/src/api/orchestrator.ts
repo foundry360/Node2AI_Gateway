@@ -8,8 +8,9 @@ import type { ModelGateway, ModelMessage } from '../models/types.js';
 import type { PolicyRepository } from '../policy/enterprise/pg-repository.js';
 import type { PolicyEvaluationRecord } from '../policy/enterprise/evaluation-record.js';
 import type { HeldRequestSnapshot } from '../policy/enterprise/decision-resume.js';
-import type { PolicyEngine } from '../policy/types.js';
+import type { GovernanceContext, PolicyEngine } from '../policy/types.js';
 import type { ResponseInspector } from '../response/inspector.js';
+import { assertResponseGrounded } from '../response/grounding.js';
 import type { GatewayConfig } from '../shared/config.js';
 import { isGatewayError, gatewayErrorFromUnknown } from '../shared/errors.js';
 import { newAuditId, newCorrelationId, newRequestId } from '../shared/ids.js';
@@ -38,7 +39,30 @@ import {
   normalizeRequestedOperation,
 } from '../actors/facts.js';
 import type { RuntimeActorFacts } from '../actors/types.js';
-import type { GovernanceContext } from '../policy/types.js';
+
+/** After TOKENIZE, vault tokens are present chart values — not missing fields. */
+function appendTokenGrounding(text: string): string {
+  if (!/\{\{TOK_[A-Za-z0-9_]+\}\}/.test(text)) return text;
+  return (
+    `${text}\n\n` +
+    '=== Enigma tokenization notice ===\n' +
+    'Values shown as {{TOK_...}} are present chart values under protection. ' +
+    'When asked for such a value, reply with that exact token. ' +
+    'Do not say the field is missing and do not invent a substitute value.'
+  );
+}
+
+/** Stable Prompt: line from Salesforce governed-write content (resume / dedupe). */
+function extractClientCommitPrompt(content: string): string | null {
+  const m = content.match(/(?:^|\n)Prompt:\s*(.+?)(?:\n|$)/);
+  if (!m?.[1]) return null;
+  const prompt = m[1]
+    .trim()
+    .toLowerCase()
+    .replace(/[.!?]+$/g, '')
+    .replace(/\s+/g, ' ');
+  return prompt.length > 0 ? prompt : null;
+}
 
 export interface CompletionSuccess {
   request_id: string;
@@ -645,7 +669,12 @@ export class GatewayOrchestrator {
           inputTransformation = transformed.action;
           // Phase 3: apply transform to the concatenated corpus as a single user message
           // so entity spans remain consistent with interrogation offsets.
-          messagesForModel = [{ role: 'user', content: transformed.transformed_text }];
+          messagesForModel = [
+            {
+              role: 'user',
+              content: appendTokenGrounding(transformed.transformed_text),
+            },
+          ];
         } catch {
           return block(
             403,
@@ -797,6 +826,47 @@ export class GatewayOrchestrator {
             status: 'blocked',
             reason_code: responsePolicy.reason_codes[0] ?? 'POLICY_BLOCKED',
             message: 'Request blocked by policy.',
+            governance: {
+              policy_decision: policyResult.decision,
+              input_transformation: inputTransformation,
+              response_decision: 'BLOCK',
+              ...(tokenizedInput ? { tokenized_input: tokenizedInput } : {}),
+            },
+          },
+        };
+      }
+
+      // General grounding: identifiers/dates in the reply must appear in source corpus.
+      const grounding = assertResponseGrounded(corpus, execution.message.content);
+      if (!grounding.ok) {
+        await this.writeAudit({
+          ...auditBase(),
+          data_classification: classification.sensitivity,
+          policy_ids: [...policyResult.policy_ids, ...responsePolicy.policy_ids],
+          policy_decision: policyResult.decision,
+          model_selected: execution.model_id,
+          provider: execution.provider,
+          input_transformation: inputTransformation,
+          response_transformation: 'none',
+          response_decision: 'BLOCK',
+          usage: execution.usage,
+          reason_codes: [grounding.reason_code, ...responsePolicy.reason_codes],
+          metadata: {
+            intent: classification.intent,
+            response_sensitivity: inspection.sensitivity,
+            evaluation_id: policyResult.evaluation_id,
+            response_evaluation_id: responsePolicy.evaluation_id,
+            ungrounded_claims: grounding.ungrounded,
+          },
+        });
+        return {
+          httpStatus: 403,
+          body: {
+            request_id: requestId,
+            correlation_id: correlationId,
+            status: 'blocked',
+            reason_code: grounding.reason_code,
+            message: 'Response blocked: ungrounded identifier or date claim.',
             governance: {
               policy_decision: policyResult.decision,
               input_transformation: inputTransformation,
@@ -1094,6 +1164,7 @@ export class GatewayOrchestrator {
       /**
        * Transitional fallback: exact message-content match when no evaluation ID
        * is supplied. Prefer resume_evaluation_id for durable continuation.
+       * Also matches Prompt-stable content (clinical notes omit variable note body).
        */
       const claimed = await this.findClaimableClientCommit({
         applicationId: principal.application.application_id,
@@ -1122,6 +1193,53 @@ export class GatewayOrchestrator {
           organizationId,
           mode: 'content_fallback',
         });
+      }
+
+      /**
+       * Reuse an open (not yet authorized) REVIEW hold for the same write.
+       * Prevents duplicate Decisions when the client retries before Authorize
+       * without resume_evaluation_id (e.g. page refresh lost local state).
+       */
+      const openHold = await this.findOpenPendingClientCommit({
+        applicationId: principal.application.application_id,
+        userId: body.user.id,
+        operation: body.operation,
+        content: corpus,
+        toolId: body.tool_id,
+        agentId: body.agent_id,
+        purpose: body.purpose,
+        authorizationContext: body.authorization_context,
+        action: body.action,
+      });
+      if (openHold) {
+        const policyIds = Array.isArray(openHold.applicable_policies)
+          ? openHold.applicable_policies
+              .map((p) =>
+                p && typeof p === 'object' && 'policy_id' in p
+                  ? String((p as { policy_id: unknown }).policy_id)
+                  : typeof p === 'string'
+                    ? p
+                    : null,
+              )
+              .filter((id): id is string => !!id)
+          : [];
+        return block(
+          403,
+          openHold.reason_codes?.[0] ?? 'POLICY_BLOCKED',
+          'Request blocked by policy.',
+          {
+            policy_ids: policyIds,
+            policy_decision: 'BLOCK',
+            reason_codes: openHold.reason_codes ?? ['HUMAN_REVIEW_REQUIRED'],
+            metadata: {
+              evaluation_id: openHold.evaluation_id,
+              machine_decision: 'REVIEW',
+              safety_hold: true,
+              client_commit: true,
+              reused_pending_hold: true,
+            },
+          },
+        );
       }
 
       const user = await this.deps.identity.resolveUser(
@@ -1575,10 +1693,15 @@ export class GatewayOrchestrator {
               source: 'deterministic' as const,
             })),
             decision: 'TOKENIZE',
-            transforms: [{ type: 'tokenize', targets: ['PII'] }],
+            transforms: [{ type: 'tokenize', targets: ['PHI'] }],
           });
           inputTransformation = transformed.action;
-          messagesForModel = [{ role: 'user', content: transformed.transformed_text }];
+          messagesForModel = [
+            {
+              role: 'user',
+              content: appendTokenGrounding(transformed.transformed_text),
+            },
+          ];
         } catch {
           return fail('TRANSFORM_FAILURE', {
             input_transformation: 'failed',
@@ -1662,6 +1785,21 @@ export class GatewayOrchestrator {
           input_transformation: inputTransformation,
           metadata: {
             response_evaluation_id: responsePolicy.evaluation_id,
+          },
+        });
+      }
+
+      const grounding = assertResponseGrounded(corpus, execution.message.content);
+      if (!grounding.ok) {
+        return fail(grounding.reason_code, {
+          policy_ids: responsePolicy.policy_ids,
+          model_selected: execution.model_id,
+          provider: execution.provider,
+          data_classification: classification.sensitivity,
+          input_transformation: inputTransformation,
+          metadata: {
+            response_evaluation_id: responsePolicy.evaluation_id,
+            ungrounded_claims: grounding.ungrounded,
           },
         });
       }
@@ -1806,6 +1944,7 @@ export class GatewayOrchestrator {
     if (!this.deps.policyRepository?.listEvaluations) return null;
     const needle = opts.content.trim();
     if (!needle) return null;
+    const needlePrompt = extractClientCommitPrompt(needle);
     const rows = await Promise.resolve(
       this.deps.policyRepository.listEvaluations({ limit: 80 }),
     );
@@ -1830,8 +1969,72 @@ export class GatewayOrchestrator {
       if (held.user_id !== opts.userId) continue;
       if (held.operation !== opts.operation) continue;
       const heldContent = held.messages.map((m) => m.content).join('\n').trim();
-      if (heldContent !== needle) continue;
+      const contentMatch =
+        heldContent === needle ||
+        (needlePrompt != null &&
+          extractClientCommitPrompt(heldContent) === needlePrompt);
+      if (!contentMatch) continue;
       // Content matched — also require full action-context compatibility.
+      if (
+        this.clientCommitContextMismatch(held, {
+          operation: opts.operation,
+          toolId: opts.toolId,
+          agentId: opts.agentId,
+          purpose: opts.purpose,
+          authorizationContext: opts.authorizationContext,
+          action: opts.action,
+        })
+      ) {
+        continue;
+      }
+      return row;
+    }
+    return null;
+  }
+
+  /**
+   * Find an unresolved REVIEW client_commit hold for the same write context.
+   * Used to avoid opening a second Decision when the client retries before Authorize.
+   */
+  private async findOpenPendingClientCommit(opts: {
+    applicationId: string;
+    userId: string;
+    operation: string;
+    content: string;
+    toolId?: string;
+    agentId?: string;
+    purpose?: string;
+    authorizationContext?: string;
+    action?: {
+      kind: string;
+      target_id?: string;
+      attributes?: Record<string, unknown>;
+    };
+  }): Promise<PolicyEvaluationRecord | null> {
+    if (!this.deps.policyRepository?.listEvaluations) return null;
+    const needle = opts.content.trim();
+    if (!needle) return null;
+    const needlePrompt = extractClientCommitPrompt(needle);
+    const rows = await Promise.resolve(
+      this.deps.policyRepository.listEvaluations({ limit: 80 }),
+    );
+    for (const row of rows) {
+      if (String(row.decision ?? '').toUpperCase() !== 'REVIEW') continue;
+      const hr = row.human_resolution;
+      if (hr && hr.resolution_status === 'RESOLVED') continue;
+      const held = row.held_request;
+      if (!held || held.version !== 1) continue;
+      const gov = held.governance_context as Record<string, unknown> | undefined;
+      if (gov?.client_commit !== true) continue;
+      if (held.application_id !== opts.applicationId) continue;
+      if (held.user_id !== opts.userId) continue;
+      if (held.operation !== opts.operation) continue;
+      const heldContent = held.messages.map((m) => m.content).join('\n').trim();
+      const contentMatch =
+        heldContent === needle ||
+        (needlePrompt != null &&
+          extractClientCommitPrompt(heldContent) === needlePrompt);
+      if (!contentMatch) continue;
       if (
         this.clientCommitContextMismatch(held, {
           operation: opts.operation,

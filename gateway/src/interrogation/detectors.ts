@@ -55,12 +55,39 @@ const PATTERNS: PatternDef[] = [
   },
   {
     type: 'DOB',
-    // Labeled DOB only (avoids bare-date false positives). Supports M/D/Y and ISO.
+    // Labeled / narrative DOB. Supports M/D/Y and ISO.
     regex:
       /\b(?:DOB|Date\s*of\s*Birth)[:\s-]*(\d{4}-\d{2}-\d{2}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/gi,
     valueGroup: 1,
     category: 'PHI',
     reason: 'HEALTH_INFORMATION',
+  },
+  {
+    type: 'DOB',
+    // Narrative answers: "date of birth is ... 10/12/1967" / "born on 1967-10-12"
+    regex:
+      /\b(?:date\s+of\s+birth|born(?:\s+on)?)(?:\s+\w+){0,12}?\s+(?:is|as|was|:)?\s*(\d{4}-\d{2}-\d{2}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/gi,
+    valueGroup: 1,
+    category: 'PHI',
+    reason: 'HEALTH_INFORMATION',
+  },
+  {
+    type: 'NAME',
+    // Labeled person names from chart/EMR context (e.g. "Name: Charles Greene").
+    // Same-line only — do not cross newlines into the next field label.
+    regex:
+      /\b(?:Patient\s*Name|Full\s*Name|Patient|Name)[:\t ]+([A-Z][A-Za-z'’-]+(?:[ \t]+[A-Z][A-Za-z'’-]+)+)\b/g,
+    valueGroup: 1,
+    category: 'PII',
+    reason: 'NAME_PATTERN',
+  },
+  {
+    type: 'ADDRESS',
+    regex:
+      /\b(?:Address|Street)[:\t ]+([^\n]{8,120})/gi,
+    valueGroup: 1,
+    category: 'PII',
+    reason: 'ADDRESS_PATTERN',
   },
   {
     type: 'DIAGNOSIS_MARKER',

@@ -335,7 +335,7 @@ describe('HIPAA v3.1 provenance & evidence hardening', () => {
     const pdp = new PackBackedEnterprisePdp(repo);
     const decision = await pdp.evaluateLegacyRequest({
       user: clinician,
-      application: { ...clinicalApp, trust_level: 'standard' },
+      application: { ...clinicalApp, trust_level: 'trusted' },
       operation: 'summarize',
       requestedModel: 'local-general-v1',
       availableModels: ['local-general-v1'],
@@ -352,10 +352,9 @@ describe('HIPAA v3.1 provenance & evidence hardening', () => {
       authorization_context: 'authorized',
     });
     expect(decision.decision).toBe('TOKENIZE');
-    const rule = decision.explanation.provenance?.matched_rules.find(
-      (r) => r.rule_id === 'HIPAA-R-INPUT-TOKENIZE-OPTION',
+    expect(decision.reason_codes).toEqual(
+      expect.arrayContaining(['PHI_REQUIRES_TOKENIZE']),
     );
-    expect(rule?.requirement_type).toBe('IMPLEMENTATION_OPTION');
     expect(decision.explanation.provenance?.controls?.every((c) =>
       c.control_type === 'ENIGMA_IMPLEMENTATION_OPTION',
     )).toBe(true);

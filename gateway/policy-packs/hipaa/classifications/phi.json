@@ -110,7 +110,7 @@
     }
   ],
   "always_phi_entity_types": ["MRN", "NPI", "DOB", "DIAGNOSIS_MARKER"],
-  "elevatable_pii_entity_types": ["SSN", "EMAIL", "PHONE"],
+  "elevatable_pii_entity_types": ["SSN", "EMAIL", "PHONE", "NAME", "ADDRESS"],
   "health_context_lexicon": [
     "patient",
     "clinical",

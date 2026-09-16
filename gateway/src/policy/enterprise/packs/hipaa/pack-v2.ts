@@ -1,5 +1,10 @@
 import type { Obligation } from '../../types.js';
-import type { BaselineFacts, InterpretedResult, PackPolicyMeta } from '../baseline.js';
+import {
+  type BaselineFacts,
+  type InterpretedResult,
+  type PackPolicyMeta,
+  hasResidualPlaintextIdentifiers,
+} from '../baseline.js';
 import {
   HIPAA_CLASS_PROFILE,
   HIPAA_PROVENANCE_GRAPH,
@@ -442,27 +447,36 @@ function requiredControlsSatisfied(
 
   if (env === 'local_or_private') return true;
 
-  // Controlled external path: attestation + tokenize capability required.
+  // Controlled external path: attestation required. Tokenizer is always available
+  // on the appliance — entity spans are not a prerequisite for control satisfaction
+  // (semantic PHI may have no discrete spans to tokenize).
   const externalAuthorized =
     facts.governance_context?.sensitive_data_processing
       ?.external_processing_authorized === true;
-  const tokenizeAvailable =
-    !!facts.has_entity_spans || (facts.entity_types?.length ?? 0) > 0;
-  return externalAuthorized && tokenizeAvailable;
+  return externalAuthorized;
 }
 
 function releaseConditionsSatisfied(facts: HipaaPackFacts): boolean {
   if (facts.release_conditions_satisfied === true) return true;
   if (facts.release_conditions_satisfied === false) return false;
-  // Independent release evaluation — clinician role alone is NOT enough.
-  const base =
+  // Token path: detokenize when vault tokens appear in the response.
+  const tokenRelease =
     !!facts.allow_detokenization &&
     !!facts.contains_tokens &&
     !!facts.input_was_tokenized &&
     facts.trust_level === 'trusted' &&
     facts.application_type === 'clinical' &&
     facts.roles.includes('clinician');
-  if (!base) return false;
+  // Clinical answer path: after TOKENIZE, authorized clinicians may receive
+  // residual clinical PHI in the answer (diagnoses, meds) without requiring
+  // the model to echo vault tokens. Residual plaintext identifiers still block.
+  const clinicalAnswerRelease =
+    !!facts.input_was_tokenized &&
+    facts.trust_level === 'trusted' &&
+    facts.application_type === 'clinical' &&
+    facts.roles.includes('clinician') &&
+    !hasResidualPlaintextIdentifiers(facts);
+  if (!tokenRelease && !clinicalAnswerRelease) return false;
   if (facts.purpose !== undefined && facts.purpose !== null && facts.purpose !== '') {
     const purpose = normalizePurpose(facts.purpose);
     if (purpose === 'unknown' || !isAuthorizedPurpose(purpose)) return false;

@@ -23,6 +23,11 @@ import {
   MAX_LICENSE_UPLOAD_BYTES,
 } from '../admin/license-install.js';
 import type { LicensePublicKeyEntry } from '../admin/license-keys.js';
+import {
+  actionCatalogPayload,
+  normalizeCatalogOperation,
+  unknownCatalogOperations,
+} from '../actors/action-catalog.js';
 import type { PolicyStore } from '../policy/store.js';
 import type { PolicyRepository } from '../policy/enterprise/pg-repository.js';
 import type { PackBackedEnterprisePdp } from '../policy/enterprise/pack-pdp.js';
@@ -2082,6 +2087,154 @@ export function registerAdminRoutes(
     }
   });
 
+  app.patch('/v1/admin/agents/:agentId', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const { agentId } = request.params as { agentId: string };
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const deploymentId = await requireDeploymentId();
+    const before = await ctx.actorRegistry.getAgent(deploymentId, agentId);
+    if (!before) {
+      return reply.status(404).send({ status: 'error', message: 'agent not found' });
+    }
+    if (before.status === 'RETIRED') {
+      return reply.status(409).send({
+        status: 'error',
+        message: 'retired agent cannot be edited',
+      });
+    }
+
+    const patch: {
+      name?: string;
+      autonomy_level?: 'ASSISTIVE' | 'HUMAN_APPROVED' | 'AUTONOMOUS';
+      metadata?: Record<string, unknown>;
+    } = {};
+    if (typeof body.name === 'string' && body.name.trim()) {
+      patch.name = body.name.trim();
+    }
+    if (typeof body.autonomy_level === 'string' && body.autonomy_level.trim()) {
+      const level = body.autonomy_level.trim().toUpperCase();
+      if (!['ASSISTIVE', 'HUMAN_APPROVED', 'AUTONOMOUS'].includes(level)) {
+        return reply.status(400).send({
+          status: 'error',
+          message: 'invalid autonomy_level',
+        });
+      }
+      patch.autonomy_level = level as
+        | 'ASSISTIVE'
+        | 'HUMAN_APPROVED'
+        | 'AUTONOMOUS';
+    }
+    if (body.metadata && typeof body.metadata === 'object') {
+      patch.metadata = body.metadata as Record<string, unknown>;
+    }
+
+    const agent = await ctx.actorRegistry.updateAgent(
+      deploymentId,
+      agentId,
+      patch,
+    );
+    if (!agent) {
+      return reply.status(404).send({ status: 'error', message: 'agent not found' });
+    }
+
+    const applicationId = String(body.application_id ?? '').trim();
+    let binding = null;
+    if (applicationId) {
+      const app = await ctx.identityStore.getApplication(applicationId);
+      if (!app) {
+        return reply.status(400).send({
+          status: 'error',
+          message: 'application not found',
+        });
+      }
+      const existing = await ctx.actorRegistry.listBindingsForAgent(
+        deploymentId,
+        agentId,
+      );
+      for (const b of existing) {
+        if (b.application_id === applicationId) continue;
+        if (b.status === 'ACTIVE') {
+          await ctx.actorRegistry.upsertBinding({
+            deployment_id: deploymentId,
+            agent_id: agentId,
+            application_id: b.application_id,
+            status: 'SUSPENDED',
+          });
+        }
+      }
+      binding = await ctx.actorRegistry.upsertBinding({
+        deployment_id: deploymentId,
+        agent_id: agentId,
+        application_id: applicationId,
+        status: 'ACTIVE',
+      });
+      await recordAdminAudit(ctx.audit, {
+        principal: __gate.principal,
+        action: 'agent_application_bound',
+        target_type: 'agent_application_binding',
+        target_id: `${agentId}:${applicationId}`,
+        after: {
+          agent_id: agentId,
+          application_id: applicationId,
+          status: 'ACTIVE',
+        },
+      });
+    }
+
+    await recordAdminAudit(ctx.audit, {
+      principal: __gate.principal,
+      action: 'agent_updated',
+      target_type: 'agent',
+      target_id: agentId,
+      before: {
+        name: before.name,
+        autonomy_level: before.autonomy_level,
+        status: before.status,
+      },
+      after: {
+        name: agent.name,
+        autonomy_level: agent.autonomy_level,
+        status: agent.status,
+        application_id: applicationId || null,
+      },
+    });
+    return { agent, binding };
+  });
+
+  app.delete('/v1/admin/agents/:agentId', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const { agentId } = request.params as { agentId: string };
+    const deploymentId = await requireDeploymentId();
+    const before = await ctx.actorRegistry.getAgent(deploymentId, agentId);
+    if (!before) {
+      return reply.status(404).send({ status: 'error', message: 'agent not found' });
+    }
+    const ok = await ctx.actorRegistry.deleteAgent(deploymentId, agentId);
+    if (!ok) {
+      return reply.status(404).send({ status: 'error', message: 'agent not found' });
+    }
+    await recordAdminAudit(ctx.audit, {
+      principal: __gate.principal,
+      action: 'agent_deleted',
+      target_type: 'agent',
+      target_id: agentId,
+      before: {
+        agent_id: before.agent_id,
+        name: before.name,
+        status: before.status,
+      },
+    });
+    return reply.status(200).send({ status: 'deleted', agent_id: agentId });
+  });
+
   app.post('/v1/admin/agents/:agentId/suspend', async (request, reply) => {
     const __gate = await gate(request.headers.authorization, 'admin_mutate');
     if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
@@ -2202,6 +2355,12 @@ export function registerAdminRoutes(
     }
   });
 
+  app.get('/v1/admin/action-catalog', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'read');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    return actionCatalogPayload();
+  });
+
   app.get('/v1/admin/tools', async (request, reply) => {
     const __gate = await gate(request.headers.authorization, 'read');
     if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
@@ -2266,8 +2425,18 @@ export function registerAdminRoutes(
     const body = (request.body ?? {}) as Record<string, unknown>;
     const deploymentId = await requireDeploymentId();
     const operations = Array.isArray(body.operations)
-      ? body.operations.map(String)
+      ? body.operations
+          .map((o) => normalizeCatalogOperation(String(o)))
+          .filter(Boolean)
       : [];
+    const unknownOps = unknownCatalogOperations(operations);
+    if (unknownOps.length > 0) {
+      return reply.status(400).send({
+        status: 'error',
+        message: `Unknown operations (use the Action catalog): ${unknownOps.join(', ')}`,
+        unknown_operations: unknownOps,
+      });
+    }
     try {
       const tool = await ctx.actorRegistry.createTool({
         deployment_id: deploymentId,
@@ -2395,13 +2564,38 @@ export function registerAdminRoutes(
     if (!before) {
       return reply.status(404).send({ status: 'error', message: 'tool not found' });
     }
+    if (before.status === 'RETIRED') {
+      return reply.status(409).send({
+        status: 'error',
+        message: 'retired tool cannot be edited',
+      });
+    }
     const patch: {
       name?: string;
       operations?: string[];
       metadata?: Record<string, unknown>;
     } = {};
     if (typeof body.name === 'string') patch.name = body.name.trim();
-    if (Array.isArray(body.operations)) patch.operations = body.operations.map(String);
+    if (Array.isArray(body.operations)) {
+      const operations = body.operations
+        .map((o) => normalizeCatalogOperation(String(o)))
+        .filter(Boolean);
+      const unknownOps = unknownCatalogOperations(operations);
+      if (unknownOps.length > 0) {
+        return reply.status(400).send({
+          status: 'error',
+          message: `Unknown operations (use the Action catalog): ${unknownOps.join(', ')}`,
+          unknown_operations: unknownOps,
+        });
+      }
+      if (operations.length === 0) {
+        return reply.status(400).send({
+          status: 'error',
+          message: 'Select at least one catalog operation',
+        });
+      }
+      patch.operations = operations;
+    }
     if (body.metadata && typeof body.metadata === 'object') {
       patch.metadata = body.metadata as Record<string, unknown>;
     }
@@ -2420,6 +2614,37 @@ export function registerAdminRoutes(
         : undefined,
     });
     return { tool };
+  });
+
+  app.delete('/v1/admin/tools/:toolId', async (request, reply) => {
+    const __gate = await gate(request.headers.authorization, 'admin_mutate');
+    if (!__gate.ok) return deny(reply, __gate.status, __gate.reason);
+    if (!ctx.actorRegistry) {
+      return reply.status(503).send({ status: 'error', message: 'actor registry unavailable' });
+    }
+    const { toolId } = request.params as { toolId: string };
+    const deploymentId = await requireDeploymentId();
+    const before = await ctx.actorRegistry.getTool(deploymentId, toolId);
+    if (!before) {
+      return reply.status(404).send({ status: 'error', message: 'tool not found' });
+    }
+    const ok = await ctx.actorRegistry.deleteTool(deploymentId, toolId);
+    if (!ok) {
+      return reply.status(404).send({ status: 'error', message: 'tool not found' });
+    }
+    await recordAdminAudit(ctx.audit, {
+      principal: __gate.principal,
+      action: 'tool_deleted',
+      target_type: 'tool',
+      target_id: toolId,
+      before: {
+        tool_id: before.tool_id,
+        name: before.name,
+        status: before.status,
+        operations: before.operations,
+      },
+    });
+    return reply.status(200).send({ status: 'deleted', tool_id: toolId });
   });
 
   app.put('/v1/admin/agents/:agentId/tools/:toolId', async (request, reply) => {

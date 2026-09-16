@@ -22,3 +22,15 @@ export {
   type ActorRegistry,
 } from './registry.js';
 export { PostgresActorRegistry } from './pg-registry.js';
+export {
+  ACTION_CATEGORIES,
+  ACTION_OPERATIONS,
+  WRITE_ACTION_KINDS,
+  actionCatalogPayload,
+  isCatalogOperation,
+  normalizeCatalogOperation,
+  unknownCatalogOperations,
+  type ActionCategoryId,
+  type ActionOperationId,
+  type WriteActionKindId,
+} from './action-catalog.js';

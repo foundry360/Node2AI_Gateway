@@ -109,8 +109,9 @@ export class InputTransformService implements TransformService {
       (a, b) => b.start - a.start,
     );
     if (entities.length === 0) {
-      // Policy required transform but no spans matched targets — fail closed
-      throw new Error('Transform required but no entities detected');
+      // Policy selected TOKENIZE/REDACT but no matching spans — pass through.
+      // Semantic PHI (or already-clean text) may have no discrete entity offsets.
+      return { action, transformed_text: request.text, replacements: [] };
     }
 
     let output = request.text;

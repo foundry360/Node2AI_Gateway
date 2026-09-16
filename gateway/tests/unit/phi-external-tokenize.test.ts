@@ -102,7 +102,7 @@ describe('Controlled PHI external TOKENIZE', () => {
     expect(decision.reason_codes).toContain('PHI_PUBLIC_CLOUD_BLOCKED');
   });
 
-  it('PHI + cloud + auth but no entity spans → DENY (tokenize unavailable)', async () => {
+  it('PHI + cloud + auth but no entity spans → TOKENIZE (semantic PHI has no spans)', async () => {
     const repo = new InMemoryPolicyRepository();
     const pdp = new PackBackedEnterprisePdp(repo);
     const decision = await pdp.evaluateLegacyRequest({
@@ -123,9 +123,9 @@ describe('Controlled PHI external TOKENIZE', () => {
       authorization_context: 'authorized',
       governance_context: controlledGov,
     });
-    expect(decision.decision).toBe('DENY');
-    expect(decision.reason_codes).toContain('PHI_PUBLIC_CLOUD_BLOCKED');
-    expect(decision.reason_codes).toContain('TOKENIZE_UNAVAILABLE');
+    expect(decision.decision).toBe('TOKENIZE');
+    expect(decision.reason_codes).toContain('ENIGMA_TOKENIZE_SELECTED');
+    expect(decision.reason_codes).not.toContain('TOKENIZE_UNAVAILABLE');
   });
 
   it('PHI + cloud + controls but model not allowlisted → DENY', async () => {
@@ -157,7 +157,7 @@ describe('Controlled PHI external TOKENIZE', () => {
     expect(decision.reason_codes).toContain('MODEL_NOT_ELIGIBLE');
   });
 
-  it('PHI + cloud + controls + spans → TOKENIZE with cloud eligible', async () => {
+  it('PHI + entities + external auth upgrades local request to cloud TOKENIZE', async () => {
     const gw = createPhase1Gateway();
     const decision = await gw.packPdp.evaluateLegacyRequest({
       user: clinician,
@@ -167,7 +167,7 @@ describe('Controlled PHI external TOKENIZE', () => {
         organization_id: 'org_demo',
       },
       operation: 'summarize',
-      requestedModel: 'cloud-public-gpt',
+      requestedModel: 'local-general-v1',
       availableModels: ['local-general-v1', 'cloud-public-gpt'],
       environment: 'prod',
       classification: {
@@ -183,11 +183,109 @@ describe('Controlled PHI external TOKENIZE', () => {
       governance_context: controlledGov,
     });
     expect(decision.decision).toBe('TOKENIZE');
-    expect(decision.restrictions.eligible_models).toContain('cloud-public-gpt');
-    expect(decision.transformations.some((t) => t.type === 'tokenize')).toBe(true);
+    expect(decision.restrictions.eligible_models).toEqual(['cloud-public-gpt']);
     expect(decision.obligations.some((o) => o.code === 'LOCAL_MODEL_ONLY')).toBe(
       false,
     );
+    expect(
+      decision.explanation.matched_conditions.some((m) =>
+        m.condition_key.includes('phi_upgrade_to_cloud'),
+      ),
+    ).toBe(true);
+  });
+
+  it('PHI + entities without external auth → local TOKENIZE (never plaintext ALLOW)', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo);
+    const decision = await pdp.evaluateLegacyRequest({
+      user: clinician,
+      application: clinicalApp,
+      operation: 'summarize',
+      requestedModel: 'local-general-v1',
+      availableModels: ['local-general-v1', 'cloud-public-gpt'],
+      environment: 'prod',
+      classification: {
+        sensitivity: 'PHI',
+        confidence: 0.99,
+        risk: 'high',
+        reason_codes: ['REGULATORY_APPLICABILITY:HIPAA'],
+        entities: phiEntities,
+      },
+      deploymentMode: 'connected',
+      purpose: 'treatment',
+      authorization_context: 'authorized',
+    });
+    expect(decision.decision).toBe('TOKENIZE');
+    expect(decision.restrictions.eligible_models).toEqual(['local-general-v1']);
+    expect(decision.obligations.some((o) => o.code === 'TOKENIZE_PII')).toBe(true);
+  });
+
+  it('output blocks PHI chart answers when input had entities but was not tokenized', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo, { allowDetokenization: true });
+    const decision = await pdp.evaluateLegacyResponse({
+      user: clinician,
+      application: clinicalApp,
+      operation: 'summarize',
+      model_id: 'local-general-v1',
+      request_classification: {
+        sensitivity: 'PHI',
+        confidence: 0.99,
+        risk: 'high',
+        reason_codes: ['REGULATORY_APPLICABILITY:HIPAA'],
+        entities: phiEntities,
+      },
+      inspection: {
+        sensitivity: 'Internal',
+        confidence: 0.7,
+        risk: 'low',
+        reason_codes: ['RESPONSE_DETERMINISTIC_INSPECTION'],
+        entities: [],
+        tool_or_action_detected: false,
+        contains_tokens: false,
+        prohibited_markers: [],
+      },
+      input_was_tokenized: false,
+      purpose: 'treatment',
+      authorization_context: 'authorized',
+    });
+    expect(decision.decision).toBe('BLOCK_OUTPUT');
+    expect(decision.reason_codes).toContain('PHI_OUTPUT_REQUIRES_TOKENIZED_INPUT');
+  });
+
+  it('tokenized input + PHI clinical answer (no residual IDs) → RELEASE', async () => {
+    const repo = new InMemoryPolicyRepository();
+    const pdp = new PackBackedEnterprisePdp(repo, { allowDetokenization: true });
+    const decision = await pdp.evaluateLegacyResponse({
+      user: clinician,
+      application: clinicalApp,
+      operation: 'summarize',
+      model_id: 'local-general-v1',
+      request_classification: {
+        sensitivity: 'PHI',
+        confidence: 0.99,
+        risk: 'high',
+        reason_codes: ['REGULATORY_APPLICABILITY:HIPAA'],
+        entities: phiEntities,
+      },
+      inspection: {
+        sensitivity: 'PHI',
+        confidence: 0.97,
+        risk: 'high',
+        reason_codes: ['HEALTH_INFORMATION'],
+        entities: [{ type: 'DIAGNOSIS_MARKER', preview: 'di…ed', start: 0, end: 8, source: 'deterministic' }],
+        tool_or_action_detected: false,
+        contains_tokens: false,
+        prohibited_markers: [],
+      },
+      input_was_tokenized: true,
+      purpose: 'treatment',
+      authorization_context: 'authorized',
+    });
+    expect(decision.decision).toBe('ALLOW');
+    expect(decision.reason_codes).toContain('RESPONSE_RELEASE');
+    expect(decision.reason_codes).not.toContain('RESPONSE_PHI_BLOCKED');
+    expect(decision.reason_codes).not.toContain('HIPAA_PHI_OUTPUT_NOT_AUTHORIZED');
   });
 
   it('Gateway E2E: external model receives tokenized content, not raw MRN', async () => {

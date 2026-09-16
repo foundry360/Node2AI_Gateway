@@ -81,7 +81,7 @@ describe('Phase 2 acceptance — Data Interrogation', () => {
     expect(last.data_classification).toBe('PHI');
   });
 
-  it('Test 3c — PHI to approved local clinical path → request ALLOW (clean model output RELEASE)', async () => {
+  it('Test 3c — PHI to approved local clinical path → request TOKENIZE (clean model output RELEASE)', async () => {
     const { DefaultModelGateway, InMemoryModelRegistry, ScriptedModelProvider } =
       await import('../../src/models/index.js');
     const provider = new ScriptedModelProvider(
@@ -120,7 +120,7 @@ describe('Phase 2 acceptance — Data Interrogation', () => {
     expect(result.body.status).toBe('approved');
     const last = (await gw.audit.list()).at(-1)!;
     expect(last.data_classification).toBe('PHI');
-    expect(last.policy_decision).toBe('ALLOW');
+    expect(last.policy_decision).toBe('TOKENIZE');
     expect(last.response_decision).toBe('RELEASE');
     expect(last.model_selected).toBe('local-general-v1');
   });

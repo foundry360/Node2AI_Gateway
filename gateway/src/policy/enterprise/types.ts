@@ -140,6 +140,8 @@ export interface PolicyEvidence {
   inspector_findings?: Array<{ code: string; detail?: string }>;
   contains_tokens?: boolean;
   input_was_tokenized?: boolean;
+  /** Output phase: input interrogation found tokenizable entity spans. */
+  input_had_entity_spans?: boolean;
   /** Distinguishes Enigma heuristics from regulatory definition references. */
   classification_provenance?: ClassificationProvenanceEvidence;
 }

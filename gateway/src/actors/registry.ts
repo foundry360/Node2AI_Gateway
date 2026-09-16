@@ -35,6 +35,8 @@ export interface ActorRegistry {
       Pick<AgentRecord, 'name' | 'status' | 'autonomy_level' | 'metadata'>
     >,
   ): Promise<AgentRecord | null>;
+  /** Hard-delete agent and cascade bindings/grants for this deployment. */
+  deleteAgent(deploymentId: string, agentId: string): Promise<boolean>;
   getAgent(
     deploymentId: string,
     agentId: string,
@@ -54,6 +56,8 @@ export interface ActorRegistry {
       Pick<ToolRecord, 'name' | 'status' | 'operations' | 'metadata'>
     >,
   ): Promise<ToolRecord | null>;
+  /** Hard-delete tool and cascade grants for this deployment. */
+  deleteTool(deploymentId: string, toolId: string): Promise<boolean>;
   getTool(deploymentId: string, toolId: string): Promise<ToolRecord | null>;
   listTools(deploymentId: string): Promise<ToolRecord[]>;
 
@@ -209,6 +213,26 @@ export class InMemoryActorRegistry implements ActorRegistry {
     return structuredClone(next);
   }
 
+  async deleteAgent(deploymentId: string, agentId: string): Promise<boolean> {
+    const key = agentKey(deploymentId, agentId);
+    if (!this.agents.has(key)) return false;
+    for (const [bKey, binding] of this.bindings) {
+      if (
+        binding.deployment_id === deploymentId &&
+        binding.agent_id === agentId
+      ) {
+        this.bindings.delete(bKey);
+      }
+    }
+    for (const [gKey, grant] of this.grants) {
+      if (grant.deployment_id === deploymentId && grant.agent_id === agentId) {
+        this.grants.delete(gKey);
+      }
+    }
+    this.agents.delete(key);
+    return true;
+  }
+
   async getAgent(
     deploymentId: string,
     agentId: string,
@@ -266,6 +290,18 @@ export class InMemoryActorRegistry implements ActorRegistry {
     };
     this.tools.set(key, next);
     return structuredClone(next);
+  }
+
+  async deleteTool(deploymentId: string, toolId: string): Promise<boolean> {
+    const key = toolKey(deploymentId, toolId);
+    if (!this.tools.has(key)) return false;
+    for (const [gKey, grant] of this.grants) {
+      if (grant.deployment_id === deploymentId && grant.tool_id === toolId) {
+        this.grants.delete(gKey);
+      }
+    }
+    this.tools.delete(key);
+    return true;
   }
 
   async getTool(

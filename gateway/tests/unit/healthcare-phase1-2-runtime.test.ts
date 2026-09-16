@@ -66,7 +66,7 @@ const phiClassification = {
 };
 
 describe('Healthcare Phase 1–2 runtime completion', () => {
-  it('1. Authorized user + PHI + authorized purpose → ALLOW with controls', async () => {
+  it('1. Authorized user + PHI + authorized purpose → TOKENIZE with controls', async () => {
     const pdp = new PackBackedEnterprisePdp(new InMemoryPolicyRepository());
     const decision = await pdp.evaluateLegacyRequest({
       user: clinician,
@@ -81,7 +81,7 @@ describe('Healthcare Phase 1–2 runtime completion', () => {
       authorization_context: 'authorized',
       request_id: 'req_hc_1',
     });
-    expect(decision.decision).toBe('ALLOW');
+    expect(decision.decision).toBe('TOKENIZE');
     expect(decision.reason_codes).toContain('HIPAA_PHI_PROCESSING_CONTROLS_SATISFIED');
     expect(
       (decision.restrictions?.eligible_models ?? []).every((m) =>
@@ -136,7 +136,7 @@ describe('Healthcare Phase 1–2 runtime completion', () => {
     );
   });
 
-  it('4. PHI + valid purpose → ALLOW/control', async () => {
+  it('4. PHI + valid purpose → TOKENIZE/control', async () => {
     const pdp = new PackBackedEnterprisePdp(new InMemoryPolicyRepository());
     const decision = await pdp.evaluateLegacyRequest({
       user: clinician,
@@ -151,7 +151,7 @@ describe('Healthcare Phase 1–2 runtime completion', () => {
       authorization_context: 'treatment_relationship',
       request_id: 'req_hc_4',
     });
-    expect(decision.decision).toBe('ALLOW');
+    expect(decision.decision).toBe('TOKENIZE');
   });
 
   it('5. PHI + missing purpose → REVIEW', async () => {
@@ -210,7 +210,7 @@ describe('Healthcare Phase 1–2 runtime completion', () => {
       governance_context: { agent_authorized: true },
       request_id: 'req_hc_7',
     });
-    expect(decision.decision).toBe('ALLOW');
+    expect(decision.decision).toBe('TOKENIZE');
     const { toInputEvaluationRequest } = await import(
       '../../src/policy/enterprise/map.js'
     );
@@ -273,7 +273,7 @@ describe('Healthcare Phase 1–2 runtime completion', () => {
       governance_context: { agent_authorized: true, tool_authorized: true },
       request_id: 'req_hc_9',
     });
-    expect(decision.decision).toBe('ALLOW');
+    expect(decision.decision).toBe('TOKENIZE');
   });
 
   it('10. Approved agent + unauthorized tool → DENY', async () => {
@@ -318,7 +318,7 @@ describe('Healthcare Phase 1–2 runtime completion', () => {
       permitted_entity_types: ['MRN'],
       request_id: 'req_hc_11',
     });
-    expect(decision.decision).toBe('ALLOW');
+    expect(decision.decision).toBe('TOKENIZE');
   });
 
   it('12. Excess data request → REDACT controlled outcome + gateway enforces', async () => {
@@ -373,7 +373,7 @@ describe('Healthcare Phase 1–2 runtime completion', () => {
     expect(result.transformed_text).not.toContain('123-45-6789');
   });
 
-  it('13. PHI + approved local model → ALLOW', async () => {
+  it('13. PHI + approved local model → TOKENIZE', async () => {
     const pdp = new PackBackedEnterprisePdp(new InMemoryPolicyRepository());
     const decision = await pdp.evaluateLegacyRequest({
       user: clinician,
@@ -388,7 +388,7 @@ describe('Healthcare Phase 1–2 runtime completion', () => {
       authorization_context: 'authorized',
       request_id: 'req_hc_13',
     });
-    expect(decision.decision).toBe('ALLOW');
+    expect(decision.decision).toBe('TOKENIZE');
     expect(decision.restrictions?.eligible_models).toEqual(['local-general-v1']);
   });
 
