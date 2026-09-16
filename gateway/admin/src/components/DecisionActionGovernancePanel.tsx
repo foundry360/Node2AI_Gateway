@@ -67,11 +67,6 @@ export function DecisionActionGovernancePanel({
       <div className="section-card-header">
         <h3 id="action-governance-heading">Action</h3>
       </div>
-      <p className="muted decision-panel-lede">
-        Action facts from the historical evaluation snapshot
-        (ai_context.action_governance). Category and enforcement boundary are
-        server-derived — not client authorization.
-      </p>
       <div className="contribution-attrs">
         {actionGovernance.category ? (
           <AttrRow label="Category" mono>

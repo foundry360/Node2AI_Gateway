@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useAnchoredMenuStyle } from '@/components/useAnchoredMenuStyle';
 
 export type MultiSelectOption = {
   value: string;
@@ -37,45 +39,42 @@ export function MultiSelectDropdown({
 }) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
   const display = selectedDisplay(options, selected);
+  const menuStyle = useAnchoredMenuStyle(open, triggerRef, menuRef);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
     const onPointer = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) onOpenChange(false);
+      const target = e.target as Node;
+      if (
+        rootRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      ) {
+        return;
+      }
+      onOpenChange(false);
     };
     document.addEventListener('mousedown', onPointer);
     return () => document.removeEventListener('mousedown', onPointer);
   }, [open, onOpenChange]);
 
-  return (
-    <div className="ui-dropdown-field" ref={rootRef}>
-      <span className="ui-dropdown-label">{label}</span>
-      <div className="ui-dropdown">
-        <button
-          type="button"
-          className="ui-dropdown-trigger"
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          aria-controls={listId}
-          aria-label={label}
-          onClick={() => onOpenChange(!open)}
-        >
-          <span
-            className={display ? 'ui-dropdown-value' : 'ui-dropdown-value is-placeholder'}
-          >
-            {display ?? placeholder}
-          </span>
-          <span className="ui-dropdown-chevron" aria-hidden>
-            ▾
-          </span>
-        </button>
-        {open ? (
+  const menu =
+    open && mounted
+      ? createPortal(
           <div
-            className="ui-dropdown-menu"
+            ref={menuRef}
+            className="ui-dropdown-menu ui-dropdown-menu-portal"
             role="listbox"
             id={listId}
             aria-multiselectable
+            style={menuStyle}
           >
             {options.map((opt) => {
               const isSelected = selected.includes(opt.value);
@@ -102,8 +101,35 @@ export function MultiSelectDropdown({
                 </button>
               );
             })}
-          </div>
-        ) : null}
+          </div>,
+          document.body,
+        )
+      : null;
+
+  return (
+    <div className="ui-dropdown-field" ref={rootRef}>
+      <span className="ui-dropdown-label">{label}</span>
+      <div className="ui-dropdown">
+        <button
+          ref={triggerRef}
+          type="button"
+          className="ui-dropdown-trigger"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-label={label}
+          onClick={() => onOpenChange(!open)}
+        >
+          <span
+            className={display ? 'ui-dropdown-value' : 'ui-dropdown-value is-placeholder'}
+          >
+            {display ?? placeholder}
+          </span>
+          <span className="ui-dropdown-chevron" aria-hidden>
+            ▾
+          </span>
+        </button>
+        {menu}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { MoreHorizontal, X } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { PageHeader } from '@/components/PageHeader';
+import { PortaledCardMenu } from '@/components/PortaledCardMenu';
 import { SelectDropdown } from '@/components/SelectDropdown';
 import { StatusBadge } from '@/components/StatusBadge';
 import {
@@ -505,12 +506,18 @@ function UserRowMenu({
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
   useEffect(() => {
     if (!open) return;
     function onDoc(e: MouseEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) {
+        return;
+      }
+      setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false);
@@ -526,6 +533,7 @@ function UserRowMenu({
   return (
     <div className="card-menu" ref={rootRef}>
       <button
+        ref={triggerRef}
         type="button"
         className="icon-btn card-menu-trigger"
         aria-label={`Actions for ${user.username}`}
@@ -535,8 +543,12 @@ function UserRowMenu({
       >
         <MoreHorizontal size={18} strokeWidth={1.75} />
       </button>
-      {open ? (
-        <div className="card-menu-dropdown" id={menuId} role="menu">
+      <PortaledCardMenu
+        open={open}
+        anchorRef={triggerRef}
+        menuRef={menuRef}
+        id={menuId}
+      >
           <button
             type="button"
             role="menuitem"
@@ -568,8 +580,7 @@ function UserRowMenu({
           >
             Reset Password
           </button>
-        </div>
-      ) : null}
+      </PortaledCardMenu>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { proxyJson } from '@/lib/client-api';
 import { DecisionExplanationView } from '@/components/DecisionExplanationView';
+import { PortaledCardMenu } from '@/components/PortaledCardMenu';
 import { SelectDropdown } from '@/components/SelectDropdown';
 import type { DecisionExplanationPayload } from '@/lib/decision-explanation';
 
@@ -18,6 +19,8 @@ export function PolicyLifecycleActions({
 }) {
   const router = useRouter();
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -36,7 +39,11 @@ export function PolicyLifecycleActions({
   useEffect(() => {
     if (!open) return;
     function onDoc(e: MouseEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) {
+        return;
+      }
+      setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false);
@@ -71,6 +78,7 @@ export function PolicyLifecycleActions({
     <div className="stack-tight policy-lifecycle-actions">
       <div className="card-menu" ref={rootRef}>
         <button
+          ref={triggerRef}
           type="button"
           className="icon-btn overflow-menu-trigger"
           aria-label="Policy actions"
@@ -80,8 +88,7 @@ export function PolicyLifecycleActions({
         >
           <MoreHorizontal size={18} strokeWidth={1.75} />
         </button>
-        {open ? (
-          <div className="card-menu-dropdown" role="menu">
+        <PortaledCardMenu open={open} anchorRef={triggerRef} menuRef={menuRef}>
             <button
               type="button"
               role="menuitem"
@@ -144,8 +151,7 @@ export function PolicyLifecycleActions({
             >
               Retire
             </button>
-          </div>
-        ) : null}
+        </PortaledCardMenu>
       </div>
       {validateResult ? (
         <div className="info-banner">

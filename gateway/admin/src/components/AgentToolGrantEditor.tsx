@@ -1,8 +1,16 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { proxyJson } from '@/lib/client-api';
+import { ACTION_OPERATIONS } from '@/lib/action-catalog';
+import { StatusBadge } from '@/components/StatusBadge';
+
+function operationLabel(op: string): string {
+  return ACTION_OPERATIONS.find((o) => o.id === op)?.label ?? op;
+}
 
 export function AgentToolGrantEditor({
   agentId,
@@ -11,6 +19,7 @@ export function AgentToolGrantEditor({
   toolOperations,
   grantedOperations,
   grantStatus,
+  defaultOpen = false,
 }: {
   agentId: string;
   toolId: string;
@@ -18,6 +27,7 @@ export function AgentToolGrantEditor({
   toolOperations: string[];
   grantedOperations: string[];
   grantStatus?: string;
+  defaultOpen?: boolean;
 }) {
   const router = useRouter();
   const initial = useMemo(
@@ -25,6 +35,7 @@ export function AgentToolGrantEditor({
     [grantedOperations],
   );
   const [selected, setSelected] = useState<Set<string>>(initial);
+  const [open, setOpen] = useState(defaultOpen);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -56,63 +67,99 @@ export function AgentToolGrantEditor({
     }
   }
 
+  const opCount = grantedOperations.length;
+  const opSummary =
+    opCount === 0
+      ? 'No operations'
+      : `${opCount} operation${opCount === 1 ? '' : 's'}`;
+
   return (
-    <div className="section-card">
-      <div className="section-card-header">
-        <h3>
-          {toolName}{' '}
-          <span className="mono muted">({toolId})</span>
-        </h3>
-      </div>
-      <p className="muted decision-panel-lede">
-        Select operations this agent may request on this tool. The registry is
-        an authorization substrate — policy still decides ALLOW / DENY / REVIEW.
-      </p>
-      {grantStatus ? (
-        <p className="muted">
-          Current grant status: <strong>{grantStatus}</strong>
+    <details
+      className="section-card contribution-accordion grant-tool-accordion"
+      open={open}
+      onToggle={(e) => {
+        setOpen((e.currentTarget as HTMLDetailsElement).open);
+      }}
+    >
+      <summary className="contribution-accordion-summary">
+        <span className="contribution-accordion-lead">
+          <ChevronDown
+            className="contribution-accordion-chevron"
+            size={16}
+            strokeWidth={2}
+            aria-hidden
+          />
+          <span className="contribution-accordion-title">
+            {toolName}
+            <span className="muted grant-tool-op-count"> · {opSummary}</span>
+          </span>
+        </span>
+        {grantStatus ? (
+          <StatusBadge showLabel status={grantStatus} />
+        ) : null}
+      </summary>
+      <div className="contribution-accordion-body grant-tool-accordion-body">
+        <p className="muted decision-panel-lede page-lede-nowrap">
+          Select operations this agent may request on this tool. The registry is
+          an authorization substrate; policy still decides ALLOW / DENY / REVIEW.
         </p>
-      ) : null}
-      <div className="drawer-form">
-        {toolOperations.length === 0 ? (
-          <p className="muted">This tool has no declared operations.</p>
-        ) : (
-          toolOperations.map((op) => (
-            <label key={op} className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={selected.has(op)}
-                onChange={() => toggle(op)}
-              />
-              <span className="mono">{op}</span>
-            </label>
-          ))
-        )}
+        <div className="grant-op-list">
+          {toolOperations.length === 0 ? (
+            <p className="muted">This tool has no declared operations.</p>
+          ) : (
+            toolOperations.map((op) => {
+              const on = selected.has(op);
+              return (
+                <button
+                  key={op}
+                  type="button"
+                  role="switch"
+                  aria-checked={on}
+                  className={`grant-op-toggle${on ? ' is-on' : ''}`}
+                  onClick={() => toggle(op)}
+                >
+                  <span className="grant-op-label">{operationLabel(op)}</span>
+                  <span className="grant-op-switch" aria-hidden>
+                    <span className="grant-op-knob" />
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+        {error ? <div className="error">{error}</div> : null}
+        {message ? <p className="muted">{message}</p> : null}
+        <div className="grant-op-footer">
+          <Link
+            href={`/tools/${encodeURIComponent(toolId)}`}
+            className="grant-view-tool-link"
+          >
+            View tool
+          </Link>
+          <div className="row-actions grant-op-actions">
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => void save('ACTIVE')}
+            >
+              {busy ? 'Saving…' : 'Save grant'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={busy}
+              onClick={() => {
+                if (window.confirm(`Revoke grant for ${toolName}?`)) {
+                  void save('REVOKED');
+                }
+              }}
+            >
+              Revoke
+            </button>
+          </div>
+        </div>
       </div>
-      {error ? <div className="error">{error}</div> : null}
-      {message ? <p className="muted">{message}</p> : null}
-      <div className="row-actions" style={{ marginTop: '0.75rem' }}>
-        <button
-          type="button"
-          className="btn"
-          disabled={busy}
-          onClick={() => void save('ACTIVE')}
-        >
-          {busy ? 'Saving…' : 'Save grant'}
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          disabled={busy}
-          onClick={() => {
-            if (window.confirm(`Revoke grant for ${toolId}?`)) {
-              void save('REVOKED');
-            }
-          }}
-        >
-          Revoke
-        </button>
-      </div>
-    </div>
+    </details>
   );
 }

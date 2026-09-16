@@ -73,6 +73,40 @@ function HashValue({ value }: { value?: string | null }) {
   );
 }
 
+/** Model path fields only exist when an AI completion actually ran (or was prepared). */
+function isModelPathOperation(operation?: string): boolean {
+  const op = (operation ?? '').toLowerCase();
+  if (!op) return false;
+  // Completions / chat-style AI operations. Action evaluations and control-plane
+  // events never select a model or apply input/response transforms.
+  return [
+    'summarize',
+    'generate',
+    'classify',
+    'chat',
+    'completions',
+    'completion',
+  ].some((prefix) => op === prefix || op.startsWith(`${prefix}.`));
+}
+
+function ModelPathValue({
+  value,
+  event,
+}: {
+  value?: string | null;
+  event: AuditEventDetail;
+}) {
+  if (value) return <>{value}</>;
+  const decision = (event.policy_decision ?? '').toUpperCase();
+  if (!isModelPathOperation(event.operation)) {
+    return <span className="muted">Not applicable</span>;
+  }
+  if (decision === 'BLOCK' || decision === 'DENY') {
+    return <span className="muted">Not executed</span>;
+  }
+  return <span className="muted">-</span>;
+}
+
 export function AuditDetailDrawer({
   event,
   onClose,
@@ -182,16 +216,22 @@ export function AuditDetailDrawer({
                 />
               </Attr>
               <Attr label="Model" mono>
-                {event.model_selected || '-'}
+                <ModelPathValue value={event.model_selected} event={event} />
               </Attr>
               <Attr label="Provider" mono>
-                {event.provider || '-'}
+                <ModelPathValue value={event.provider} event={event} />
               </Attr>
               <Attr label="Input transform" mono>
-                {event.input_transformation || '-'}
+                <ModelPathValue
+                  value={event.input_transformation}
+                  event={event}
+                />
               </Attr>
               <Attr label="Response transform" mono>
-                {event.response_transformation || '-'}
+                <ModelPathValue
+                  value={event.response_transformation}
+                  event={event}
+                />
               </Attr>
               <Attr label="Reasons">{reasons || '-'}</Attr>
             </dl>

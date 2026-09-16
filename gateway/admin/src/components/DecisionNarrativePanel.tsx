@@ -52,7 +52,6 @@ export function DecisionNarrativePanel({
       <div className="section-card-header">
         <h3 id="decision-narrative-heading">Summary</h3>
       </div>
-      <p className="muted decision-panel-lede">{narrative.headline}</p>
       <div className="contribution-attrs">
         <AttrRow label="Reason">{narrative.reason}</AttrRow>
         <AttrRow label="Machine">

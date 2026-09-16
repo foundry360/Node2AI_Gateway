@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MoreHorizontal } from 'lucide-react';
 import { proxyJson } from '@/lib/client-api';
+import { PortaledCardMenu } from '@/components/PortaledCardMenu';
 
 export function ApplicationCardMenu({
   applicationId,
@@ -19,11 +20,17 @@ export function ApplicationCardMenu({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     function onDoc(e: MouseEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) {
+        return;
+      }
+      setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false);
@@ -78,6 +85,7 @@ export function ApplicationCardMenu({
   return (
     <div className="card-menu" ref={rootRef}>
       <button
+        ref={triggerRef}
         type="button"
         className="icon-btn card-menu-trigger"
         aria-label="Application actions"
@@ -91,8 +99,11 @@ export function ApplicationCardMenu({
       >
         <MoreHorizontal size={18} strokeWidth={1.75} />
       </button>
-      {open ? (
-        <div className="card-menu-dropdown" role="menu">
+      <PortaledCardMenu
+        open={open}
+        anchorRef={triggerRef}
+        menuRef={menuRef}
+      >
           <button
             type="button"
             role="menuitem"
@@ -130,8 +141,7 @@ export function ApplicationCardMenu({
           >
             Delete
           </button>
-        </div>
-      ) : null}
+      </PortaledCardMenu>
 
       {renameOpen ? (
         <div

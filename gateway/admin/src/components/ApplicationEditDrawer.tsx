@@ -7,6 +7,7 @@ import { proxyJson } from '@/lib/client-api';
 import { MultiSelectDropdown } from '@/components/MultiSelectDropdown';
 import { SelectDropdown } from '@/components/SelectDropdown';
 import { APPLICATION_TYPE_OPTIONS } from '@/lib/application-types';
+import { ACTION_OPERATION_OPTIONS } from '@/lib/action-catalog';
 import type { ProviderCredentialPublic } from '@/components/ProviderCredentialForm';
 import { SecretInput } from '@/components/SecretInput';
 
@@ -45,12 +46,7 @@ const FALLBACK_MODELS: RegistryModel[] = [
   },
 ];
 
-const OPERATION_OPTIONS = [
-  { value: 'summarize', label: 'Summarize' },
-  { value: 'generate', label: 'Generate' },
-  { value: 'classify', label: 'Classify' },
-  { value: 'write', label: 'Write' },
-];
+const OPERATION_OPTIONS = ACTION_OPERATION_OPTIONS;
 
 export function ApplicationEditDrawer({
   app,

@@ -1,7 +1,15 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useAnchoredMenuStyle } from '@/components/useAnchoredMenuStyle';
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as const;
 
@@ -77,11 +85,23 @@ export function CalendarPicker({
   anchorRef?: RefObject<HTMLElement | null>;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
   const selected = useMemo(() => (value ? parseDateKey(value) : null), [value]);
   const todayKey = useMemo(() => toDateKey(new Date()), []);
   const [viewMonth, setViewMonth] = useState(() =>
     startOfMonth(selected ?? new Date()),
   );
+  const emptyAnchor = useRef<HTMLElement | null>(null);
+  const positionAnchor = anchorRef ?? emptyAnchor;
+  const menuStyle = useAnchoredMenuStyle(open, positionAnchor, rootRef, {
+    matchTriggerWidth: false,
+    maxWidthPx: 280,
+    align: 'end',
+  });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -110,17 +130,18 @@ export function CalendarPicker({
     };
   }, [open, onClose, anchorRef]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const cells = buildMonthCells(viewMonth);
   const label = `${MONTH_NAMES[viewMonth.getMonth()]} ${viewMonth.getFullYear()}`;
 
-  return (
+  return createPortal(
     <div
       ref={rootRef}
-      className="calendar-picker"
+      className="calendar-picker calendar-picker-portal"
       role="dialog"
       aria-label="Choose date"
+      style={menuStyle}
     >
       <div className="calendar-picker-header">
         <button
@@ -211,6 +232,7 @@ export function CalendarPicker({
           Clear
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

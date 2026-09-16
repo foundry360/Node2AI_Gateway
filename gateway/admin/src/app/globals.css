@@ -984,6 +984,20 @@ input:focus-visible,
   margin-left: auto;
 }
 
+.page-header-actions .card-menu-trigger {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  background: transparent;
+}
+
+.page-header-actions .card-menu-trigger:hover {
+  background: var(--hover-fill-strong);
+  color: var(--ink);
+}
+
 .page-header-actions .ui-dropdown-field-compact {
   width: 12rem;
 }
@@ -1556,6 +1570,13 @@ table th,
   min-height: 0;
 }
 
+.drawer-form-divider {
+  height: 1px;
+  margin: 0.35rem 0;
+  background: var(--line);
+  border: none;
+}
+
 .drawer-form label {
   display: flex;
   flex-direction: column;
@@ -1597,6 +1618,144 @@ table th,
   width: auto;
   height: auto;
   margin: 0;
+}
+
+.grant-op-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.grant-ops-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.grant-ops-field-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.grant-op-toggle {
+  appearance: none;
+  display: grid;
+  grid-template-columns: 9.5rem 2.35rem;
+  align-items: center;
+  column-gap: 0.75rem;
+  margin: 0;
+  padding: 0.15rem 0;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  cursor: pointer;
+  text-align: left;
+}
+
+.grant-op-label {
+  color: var(--ink);
+}
+
+.grant-op-toggle:not(.is-on) .grant-op-label {
+  color: var(--muted);
+}
+
+.grant-op-switch {
+  position: relative;
+  width: 2.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--ink) 8%, var(--bg-elevated));
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
+}
+
+
+.grant-op-knob {
+  position: absolute;
+  top: 50%;
+  left: 0.15rem;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  transform: translateY(-50%);
+  transition: left 140ms ease;
+}
+
+.grant-op-toggle.is-on .grant-op-switch {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.grant-op-toggle.is-on .grant-op-knob {
+  left: calc(100% - 1.15rem);
+  background: #fff;
+}
+
+.grant-op-actions {
+  margin-top: 0;
+  justify-content: flex-end;
+  width: auto;
+}
+
+.grant-op-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  width: 100%;
+}
+
+.grant-view-tool-link {
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.3;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.grant-view-tool-link:hover {
+  color: var(--accent-hover, var(--accent));
+  text-decoration: underline;
+}
+
+.grant-tool-op-count {
+  font-weight: 500;
+}
+
+.grant-tool-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.grant-tool-accordion.section-card {
+  min-height: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.grant-tool-accordion-body {
+  padding-top: 0.15rem;
+}
+
+.grant-tool-accordion-body .decision-panel-lede {
+  margin-bottom: 0.85rem;
+}
+
+.grant-authorized-ops {
+  margin-bottom: 0.25rem;
 }
 
 .ops-list {
@@ -1724,6 +1883,24 @@ table th,
   background: var(--bg-elevated);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   padding: 0.25rem;
+}
+
+/* Portaled menus use inline fixed coords; keep them above drawers (z-index 60). */
+.ui-dropdown-menu-portal {
+  position: fixed;
+  top: auto;
+  left: auto;
+  right: auto;
+  z-index: 80;
+}
+
+.card-menu-dropdown-portal,
+.calendar-picker-portal {
+  position: fixed;
+  top: auto;
+  left: auto;
+  right: auto;
+  z-index: 80;
 }
 
 .ui-dropdown-field-compact .ui-dropdown-menu {
@@ -5387,6 +5564,11 @@ table .mono {
   --meridian-row-height: auto;
   --meridian-row-font: 0.85rem;
   --meridian-row-line: 1.35;
+}
+
+/* Divider under a card title only — not above the first attribute row. */
+.section-card-header + .contribution-attrs,
+.decision-panel-lede + .contribution-attrs {
   border-top: 1px solid var(--line);
 }
 

@@ -1,8 +1,7 @@
-import Link from 'next/link';
 import { adminFetch } from '@/lib/api';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { StatusBadge } from '@/components/StatusBadge';
-import { AgentLifecycleActions } from '@/components/AgentLifecycleActions';
+import { AgentRowMenu } from '@/components/AgentRowMenu';
 import { AgentToolGrantEditor } from '@/components/AgentToolGrantEditor';
 import { GrantToolDrawer } from '@/components/GrantToolDrawer';
 import { formatDisplayDateTime } from '@/lib/display-datetime';
@@ -34,7 +33,11 @@ type AgentDetail = {
 };
 
 type AppsResponse = {
-  applications: Array<{ application_id: string; name: string }>;
+  applications: Array<{
+    application_id: string;
+    name: string;
+    organization_id?: string;
+  }>;
 };
 
 type ToolsResponse = {
@@ -93,10 +96,6 @@ export default async function AgentDetailPage({
     typeof agent.metadata?.description === 'string'
       ? agent.metadata.description
       : null;
-  const activeGrants = grants.filter((g) => g.status === 'ACTIVE');
-  const grantedOps = [
-    ...new Set(activeGrants.flatMap((g) => g.allowed_operations)),
-  ].sort();
   const appLabel = (id: string) =>
     apps.find((a) => a.application_id === id)?.name ?? id;
 
@@ -123,10 +122,23 @@ export default async function AgentDetailPage({
                 name: t.name,
                 operations: t.operations,
               }))}
+              existingGrants={grants.map((g) => ({
+                tool_id: g.tool_id,
+                allowed_operations: g.allowed_operations,
+                status: g.status,
+              }))}
             />
-            <AgentLifecycleActions
-              agentId={agent.agent_id}
-              status={agent.status}
+            <AgentRowMenu
+              agent={{
+                agent_id: agent.agent_id,
+                name: agent.name,
+                status: agent.status,
+                autonomy_level: agent.autonomy_level,
+                application_id:
+                  bindings.find((b) => b.status === 'ACTIVE')?.application_id ??
+                  bindings[0]?.application_id,
+              }}
+              applications={apps}
             />
           </div>
         </div>
@@ -201,32 +213,7 @@ export default async function AgentDetailPage({
 
         <section className="settings-section">
           <div className="settings-section-aside">
-            <h2 className="settings-section-title">Granted operations</h2>
-            <p className="settings-section-explainer">
-              Union of operations on active tool grants. An agent may only
-              request operations that appear here and on the specific tool grant.
-            </p>
-          </div>
-          <div className="settings-section-data">
-            <div className="section-card">
-              {grantedOps.length === 0 ? (
-                <p className="muted">No granted operations.</p>
-              ) : (
-                <ul className="ops-list">
-                  {grantedOps.map((op) => (
-                    <li key={op} className="mono">
-                      {op}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section className="settings-section">
-          <div className="settings-section-aside">
-            <h2 className="settings-section-title">Tool access</h2>
+            <h2 className="settings-section-title">Granted Access</h2>
             <p className="settings-section-explainer">
               Explicit Agent → Tool grants with operation allowlists. Empty
               grants never mean allow-all.
@@ -241,9 +228,10 @@ export default async function AgentDetailPage({
                 </p>
               </div>
             ) : (
-              grants.map((g) => (
-                <div key={g.tool_id} style={{ marginBottom: '1rem' }}>
+              <div className="grant-tool-card-list">
+                {grants.map((g, index) => (
                   <AgentToolGrantEditor
+                    key={g.tool_id}
                     agentId={agent.agent_id}
                     toolId={g.tool_id}
                     toolName={g.tool_name}
@@ -254,18 +242,10 @@ export default async function AgentDetailPage({
                     }
                     grantedOperations={g.allowed_operations}
                     grantStatus={g.status}
+                    defaultOpen={index === 0}
                   />
-                  <p className="muted" style={{ marginTop: '0.35rem' }}>
-                    <Link
-                      href={`/tools/${encodeURIComponent(g.tool_id)}`}
-                      className="table-link"
-                    >
-                      View tool
-                    </Link>
-                    {g.tool_status ? ` · Tool ${g.tool_status}` : null}
-                  </p>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </section>

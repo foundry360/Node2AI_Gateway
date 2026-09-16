@@ -1,9 +1,14 @@
-import Link from 'next/link';
 import { adminFetch } from '@/lib/api';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { StatusBadge } from '@/components/StatusBadge';
-import { ToolLifecycleActions } from '@/components/ToolLifecycleActions';
+import { ToolRowMenu } from '@/components/ToolRowMenu';
+import { AuthorizedAgentAccordion } from '@/components/AuthorizedAgentAccordion';
 import { formatDisplayDateTime } from '@/lib/display-datetime';
+import { ACTION_OPERATIONS } from '@/lib/action-catalog';
+
+function operationLabel(op: string): string {
+  return ACTION_OPERATIONS.find((o) => o.id === op)?.label ?? op;
+}
 
 type ToolDetail = {
   tool: {
@@ -80,7 +85,14 @@ export default async function ToolDetailPage({
             grants; EPA remains the sole decision authority.
           </p>
           <div className="page-header-actions">
-            <ToolLifecycleActions toolId={tool.tool_id} status={tool.status} />
+            <ToolRowMenu
+              tool={{
+                tool_id: tool.tool_id,
+                name: tool.name,
+                status: tool.status,
+                operations: tool.operations ?? [],
+              }}
+            />
           </div>
         </div>
       </div>
@@ -145,13 +157,13 @@ export default async function ToolDetailPage({
               {tool.operations.length === 0 ? (
                 <p className="muted">No operations declared.</p>
               ) : (
-                <ul className="ops-list">
+                <div className="policy-chip-row">
                   {tool.operations.map((op) => (
-                    <li key={op} className="mono">
-                      {op}
-                    </li>
+                    <span key={op} className="policy-chip">
+                      {operationLabel(op)}
+                    </span>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
           </div>
@@ -171,35 +183,18 @@ export default async function ToolDetailPage({
                 <p className="muted">No agents currently granted access.</p>
               </div>
             ) : (
-              activeGrants.map((g) => (
-                <div key={g.agent_id} className="section-card" style={{ marginBottom: '0.75rem' }}>
-                  <div className="section-card-header">
-                    <h3>
-                      <Link
-                        href={`/agents/${encodeURIComponent(g.agent_id)}`}
-                        className="table-link"
-                      >
-                        {g.agent_name}
-                      </Link>{' '}
-                      <span className="mono muted">({g.agent_id})</span>
-                    </h3>
-                    {g.agent_status ? (
-                      <StatusBadge showLabel status={g.agent_status} />
-                    ) : null}
-                  </div>
-                  <ul className="ops-list">
-                    {g.allowed_operations.length === 0 ? (
-                      <li className="muted">No operations granted</li>
-                    ) : (
-                      g.allowed_operations.map((op) => (
-                        <li key={op} className="mono">
-                          {op}
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
-              ))
+              <div className="grant-tool-card-list">
+                {activeGrants.map((g, index) => (
+                  <AuthorizedAgentAccordion
+                    key={g.agent_id}
+                    agentId={g.agent_id}
+                    agentName={g.agent_name}
+                    agentStatus={g.agent_status}
+                    allowedOperations={g.allowed_operations}
+                    defaultOpen={index === 0}
+                  />
+                ))}
+              </div>
             )}
             {grants.some((g) => g.status === 'REVOKED') ? (
               <p className="muted" style={{ marginTop: '0.75rem' }}>

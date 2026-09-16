@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { adminFetch } from '@/lib/api';
 import { EmptyState } from '@/components/EmptyState';
 import { AgentRegisterDrawer } from '@/components/AgentRegisterDrawer';
-import { AgentLifecycleActions } from '@/components/AgentLifecycleActions';
+import { AgentRowMenu } from '@/components/AgentRowMenu';
 import { PageHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
 
@@ -80,7 +80,7 @@ export default async function AgentsPage() {
                     <th>Application</th>
                     <th>Tools</th>
                     <th>Status</th>
-                    <th></th>
+                    <th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -103,10 +103,16 @@ export default async function AgentsPage() {
                         <td>
                           <StatusBadge showLabel status={a.status} />
                         </td>
-                        <td>
-                          <AgentLifecycleActions
-                            agentId={a.agent_id}
-                            status={a.status}
+                        <td className="admin-user-actions">
+                          <AgentRowMenu
+                            agent={{
+                              agent_id: a.agent_id,
+                              name: a.name,
+                              status: a.status,
+                              autonomy_level: a.autonomy_level,
+                              application_id: a.application_ids?.[0],
+                            }}
+                            applications={apps}
                           />
                         </td>
                       </tr>

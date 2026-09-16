@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { adminFetch } from '@/lib/api';
 import { EmptyState } from '@/components/EmptyState';
 import { ToolRegisterDrawer } from '@/components/ToolRegisterDrawer';
-import { ToolLifecycleActions } from '@/components/ToolLifecycleActions';
+import { ToolRowMenu } from '@/components/ToolRowMenu';
 import { PageHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
 
@@ -40,9 +40,9 @@ export default async function ToolsPage() {
           <div className="settings-section-aside">
             <h2 className="settings-section-title">Registered tools</h2>
             <p className="settings-section-explainer">
-              Available tool substrate. Declared operations and active status do
-              not authorize a request; that is decided by policy and recorded
-              on the Decision.
+              Tools declare a subset of the platform Action catalog. Active
+              status and declared operations do not authorize a request — that
+              is decided by policy and recorded on the Decision.
             </p>
           </div>
           <div className="settings-section-data">
@@ -60,7 +60,7 @@ export default async function ToolsPage() {
                     <th>Operations</th>
                     <th>Agents</th>
                     <th>Status</th>
-                    <th></th>
+                    <th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -85,10 +85,14 @@ export default async function ToolsPage() {
                       <td>
                         <StatusBadge showLabel status={t.status} />
                       </td>
-                      <td>
-                        <ToolLifecycleActions
-                          toolId={t.tool_id}
-                          status={t.status}
+                      <td className="admin-user-actions">
+                        <ToolRowMenu
+                          tool={{
+                            tool_id: t.tool_id,
+                            name: t.name,
+                            status: t.status,
+                            operations: t.operations ?? [],
+                          }}
                         />
                       </td>
                     </tr>

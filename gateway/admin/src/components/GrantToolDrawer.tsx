@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import { proxyJson } from '@/lib/client-api';
+import { ACTION_OPERATIONS } from '@/lib/action-catalog';
 import { SelectDropdown } from '@/components/SelectDropdown';
 
 type ToolOption = {
@@ -12,28 +13,66 @@ type ToolOption = {
   operations: string[];
 };
 
+type ExistingGrant = {
+  tool_id: string;
+  allowed_operations: string[];
+  status: string;
+};
+
+function operationLabel(op: string): string {
+  return ACTION_OPERATIONS.find((o) => o.id === op)?.label ?? op;
+}
+
 export function GrantToolDrawer({
   agentId,
   tools,
+  existingGrants = [],
 }: {
   agentId: string;
   tools: ToolOption[];
+  existingGrants?: ExistingGrant[];
 }) {
   const router = useRouter();
+  const grantsByTool = useMemo(() => {
+    const map = new Map<string, ExistingGrant>();
+    for (const g of existingGrants) {
+      if (g.status === 'ACTIVE') map.set(g.tool_id, g);
+    }
+    return map;
+  }, [existingGrants]);
+
+  const defaultToolId =
+    tools.find((t) => !grantsByTool.has(t.tool_id))?.tool_id ??
+    tools[0]?.tool_id ??
+    '';
+
   const [open, setOpen] = useState(false);
-  const [toolId, setToolId] = useState(tools[0]?.tool_id ?? '');
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [toolId, setToolId] = useState(defaultToolId);
+  const [selected, setSelected] = useState<Set<string>>(() => {
+    const grant = grantsByTool.get(defaultToolId);
+    return new Set(grant?.allowed_operations ?? []);
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const tool = tools.find((t) => t.tool_id === toolId);
+  const operations = tool?.operations ?? [];
+  const existing = grantsByTool.get(toolId);
+  const isUpdate = Boolean(existing);
 
   useEffect(() => {
-    setSelected(new Set());
-  }, [toolId]);
+    const grant = grantsByTool.get(toolId);
+    setSelected(new Set(grant?.allowed_operations ?? []));
+  }, [toolId, grantsByTool]);
 
   useEffect(() => {
     if (!open) return;
+    const preferred =
+      tools.find((t) => !grantsByTool.has(t.tool_id))?.tool_id ??
+      tools[0]?.tool_id ??
+      '';
+    setToolId(preferred);
+    setError(null);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
@@ -43,7 +82,16 @@ export function GrantToolDrawer({
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
     };
-  }, [open]);
+  }, [open, tools, grantsByTool]);
+
+  function toggle(op: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(op)) next.delete(op);
+      else next.add(op);
+      return next;
+    });
+  }
 
   return (
     <>
@@ -61,9 +109,13 @@ export function GrantToolDrawer({
           <aside className="drawer-panel" role="dialog" aria-modal="true">
             <div className="drawer-header">
               <div>
-                <h2 className="drawer-title">Grant tool access</h2>
+                <h2 className="drawer-title">
+                  {isUpdate ? 'Update tool access' : 'Grant tool access'}
+                </h2>
                 <p className="drawer-sub">
-                  Bind this agent to a tool with an explicit operation allowlist.
+                  {isUpdate
+                    ? 'This tool is already granted. Adjust the operation allowlist and save.'
+                    : 'Bind this agent to a tool with an explicit operation allowlist.'}
                 </p>
               </div>
               <button
@@ -85,26 +137,45 @@ export function GrantToolDrawer({
                   onChange={setToolId}
                   options={tools.map((t) => ({
                     value: t.tool_id,
-                    label: `${t.name} (${t.tool_id})`,
+                    label: grantsByTool.has(t.tool_id)
+                      ? `${t.name} (granted)`
+                      : t.name,
                   }))}
                 />
-                {(tool?.operations ?? []).map((op) => (
-                  <label key={op} className="checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(op)}
-                      onChange={() => {
-                        setSelected((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(op)) next.delete(op);
-                          else next.add(op);
-                          return next;
-                        });
-                      }}
-                    />
-                    <span className="mono">{op}</span>
-                  </label>
-                ))}
+                <div className="drawer-form-divider" role="separator" />
+                <div className="grant-ops-field">
+                  <span className="grant-ops-field-label">Operations</span>
+                  {operations.length === 0 ? (
+                    <p className="muted" style={{ margin: 0 }}>
+                      {toolId
+                        ? 'This tool has no declared operations.'
+                        : 'Select a tool to choose operations.'}
+                    </p>
+                  ) : (
+                    <div className="grant-op-list">
+                      {operations.map((op) => {
+                        const on = selected.has(op);
+                        return (
+                          <button
+                            key={op}
+                            type="button"
+                            role="switch"
+                            aria-checked={on}
+                            className={`grant-op-toggle${on ? ' is-on' : ''}`}
+                            onClick={() => toggle(op)}
+                          >
+                            <span className="grant-op-label">
+                              {operationLabel(op)}
+                            </span>
+                            <span className="grant-op-switch" aria-hidden>
+                              <span className="grant-op-knob" />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="drawer-actions">
                 <button
@@ -123,10 +194,14 @@ export function GrantToolDrawer({
                     setBusy(true);
                     setError(null);
                     try {
-                      await proxyJson(`agents/${agentId}/tools/${toolId}`, 'PUT', {
-                        allowed_operations: [...selected],
-                        status: 'ACTIVE',
-                      });
+                      await proxyJson(
+                        `agents/${agentId}/tools/${toolId}`,
+                        'PUT',
+                        {
+                          allowed_operations: [...selected],
+                          status: 'ACTIVE',
+                        },
+                      );
                       setOpen(false);
                       router.refresh();
                     } catch (err) {
@@ -138,7 +213,11 @@ export function GrantToolDrawer({
                     }
                   }}
                 >
-                  {busy ? 'Saving…' : 'Create grant'}
+                  {busy
+                    ? 'Saving…'
+                    : isUpdate
+                      ? 'Update Access'
+                      : 'Grant Access'}
                 </button>
               </div>
             </div>

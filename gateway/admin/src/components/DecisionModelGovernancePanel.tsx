@@ -80,11 +80,6 @@ export function DecisionModelGovernancePanel({
       <div className="section-card-header">
         <h3 id="model-governance-heading">Model Governance</h3>
       </div>
-      <p className="muted decision-panel-lede">
-        Authorized models come from the historical policy decision. Executed
-        model and provider come from Gateway audit evidence, not from the
-        current Models registry.
-      </p>
       <div className="contribution-attrs">
         <AttrRow label="Requested" mono>
           {governance.requested_model ?? <span className="muted">-</span>}

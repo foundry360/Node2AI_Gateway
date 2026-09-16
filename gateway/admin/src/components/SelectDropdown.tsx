@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useAnchoredMenuStyle } from '@/components/useAnchoredMenuStyle';
 
 export type SelectOption = {
   value: string;
@@ -38,12 +40,24 @@ export function SelectDropdown({
 }) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [internal, setInternal] = useState(
     () => value ?? defaultValue ?? options[0]?.value ?? '',
   );
 
   const selected = value !== undefined ? value : internal;
+  const menuStyle = useAnchoredMenuStyle(open, triggerRef, menuRef, {
+    matchTriggerWidth: !compact,
+    maxWidthPx: compact ? 288 : undefined,
+    align: compact ? 'auto' : 'start',
+  });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (value !== undefined) setInternal(value);
@@ -58,7 +72,14 @@ export function SelectDropdown({
       setOpen(false);
     };
     const onPointer = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (
+        rootRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setOpen(false);
     };
     document.addEventListener('keydown', onKey, true);
     document.addEventListener('mousedown', onPointer);
@@ -81,6 +102,40 @@ export function SelectDropdown({
     setOpen(false);
   }
 
+  const menu =
+    open && mounted
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="ui-dropdown-menu ui-dropdown-menu-portal"
+            role="listbox"
+            id={listId}
+            style={menuStyle}
+          >
+            {options.map((opt) => {
+              const isSelected = opt.value === selected;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={
+                    isSelected
+                      ? 'ui-dropdown-option is-selected'
+                      : 'ui-dropdown-option'
+                  }
+                  onClick={() => choose(opt.value)}
+                >
+                  {optionText(opt)}
+                </button>
+              );
+            })}
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
     <div
       ref={rootRef}
@@ -96,6 +151,7 @@ export function SelectDropdown({
       {name ? <input type="hidden" name={name} value={selected} /> : null}
       <div className="ui-dropdown">
         <button
+          ref={triggerRef}
           type="button"
           className="ui-dropdown-trigger"
           aria-haspopup="listbox"
@@ -117,29 +173,7 @@ export function SelectDropdown({
             ▾
           </span>
         </button>
-        {open ? (
-          <div className="ui-dropdown-menu" role="listbox" id={listId}>
-            {options.map((opt) => {
-              const isSelected = opt.value === selected;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="option"
-                  aria-selected={isSelected}
-                  className={
-                    isSelected
-                      ? 'ui-dropdown-option is-selected'
-                      : 'ui-dropdown-option'
-                  }
-                  onClick={() => choose(opt.value)}
-                >
-                  {optionText(opt)}
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
+        {menu}
       </div>
     </div>
   );
