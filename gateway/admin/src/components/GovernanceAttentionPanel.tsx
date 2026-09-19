@@ -28,6 +28,8 @@ type EvaluationRow = {
 
 type EvaluationsResponse = {
   source?: string;
+  window_days?: number;
+  truncated?: boolean;
   evaluations: EvaluationRow[];
   attention?: {
     review: number;
@@ -68,7 +70,7 @@ export function GovernanceAttentionPanel({
       try {
         setError(null);
         const res = (await proxyJson(
-          `evaluations?limit=25&filter=all`,
+          `evaluations?limit=25&filter=all&days=${days}`,
           'GET',
         )) as EvaluationsResponse;
         if (!cancelled) setData(res);
@@ -159,7 +161,7 @@ export function GovernanceAttentionPanel({
   const attentionCard = (
     <div className="section-card console-attention-card">
       <div className="section-card-header">
-        <h3>What requires governance attention?</h3>
+        <h3>What requires governance attention? (last {days} days)</h3>
         <Link href="/decisions" className="table-link section-card-header-link">
           All decisions
         </Link>
@@ -184,6 +186,12 @@ export function GovernanceAttentionPanel({
           </div>
         </div>
       </div>
+      {data?.truncated ? (
+        <p className="muted">
+          Counts cover the most recent decisions in this window, not all of them.
+          Narrow the timeframe for exact totals.
+        </p>
+      ) : null}
     </div>
   );
 
@@ -288,15 +296,15 @@ export function GovernanceAttentionPanel({
 
       <div className="section-card">
         <div className="section-card-header">
-          <h3>Recent decisions</h3>
+          <h3>Recent decisions (last {days} days)</h3>
           <Link href="/decisions" className="table-link section-card-header-link">
             View all
           </Link>
         </div>
         {recent.length === 0 ? (
           <EmptyState
-            title="No policy decisions yet"
-            description="Enigma creates a decision for each request sent through the Gateway."
+            title={`No policy decisions in the last ${days} days`}
+            description="Enigma creates a decision for each request sent through the Gateway. Widen the timeframe to see older activity."
           />
         ) : (
           <table>

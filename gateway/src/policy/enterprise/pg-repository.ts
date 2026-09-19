@@ -33,6 +33,8 @@ export interface PolicyRepository {
   listEvaluations?(options?: {
     policyId?: string;
     limit?: number;
+    /** ISO timestamp; only evaluations created at or after it are returned. */
+    since?: string;
   }):
     | import('./evaluation-record.js').PolicyEvaluationRecord[]
     | Promise<import('./evaluation-record.js').PolicyEvaluationRecord[]>;
@@ -254,36 +256,40 @@ export class PostgresPolicyRepository implements PolicyRepository {
     }
   }
 
-  async listEvaluations(options: { policyId?: string; limit?: number } = {}) {
+  async listEvaluations(
+    options: { policyId?: string; limit?: number; since?: string } = {},
+  ) {
     const limit = options.limit ?? 50;
-    try {
-      // Prefer Postgres as authoritative historical store.
-      const res = options.policyId
-        ? await this.db.query(
-            `SELECT evaluation_id, request_id, phase, organization_id,
+    const COLUMNS = `evaluation_id, request_id, phase, organization_id,
                     subject, resource, action, context, ai_context, evidence_in,
                     decision, reason, applicable_policies, obligations, explanation,
-                    human_resolution, held_request, execution, restrictions, created_at
-             FROM policy_evaluations
-             WHERE EXISTS (
+                    human_resolution, held_request, execution, restrictions, created_at`;
+    try {
+      // Prefer Postgres as authoritative historical store. The time window is
+      // pushed into SQL so a long timeframe is not capped by the row limit.
+      const conditions: string[] = [];
+      const params: unknown[] = [];
+      if (options.policyId) {
+        params.push(options.policyId);
+        conditions.push(`EXISTS (
                SELECT 1
                FROM jsonb_array_elements(applicable_policies) AS elem
-               WHERE elem->>'policy_id' = $1
-             )
-             ORDER BY created_at DESC
-             LIMIT $2`,
-            [options.policyId, limit],
-          )
-        : await this.db.query(
-            `SELECT evaluation_id, request_id, phase, organization_id,
-                    subject, resource, action, context, ai_context, evidence_in,
-                    decision, reason, applicable_policies, obligations, explanation,
-                    human_resolution, held_request, execution, restrictions, created_at
+               WHERE elem->>'policy_id' = $${params.length}
+             )`);
+      }
+      if (options.since) {
+        params.push(options.since);
+        conditions.push(`created_at >= $${params.length}`);
+      }
+      params.push(limit);
+      const res = await this.db.query(
+        `SELECT ${COLUMNS}
              FROM policy_evaluations
+             ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
              ORDER BY created_at DESC
-             LIMIT $1`,
-            [limit],
-          );
+             LIMIT $${params.length}`,
+        params,
+      );
       const { rowToEvaluationRecord } = await import('./evaluation-query.js');
       const rows = res.rows.map((r) =>
         rowToEvaluationRecord(r as Record<string, unknown>),
@@ -294,6 +300,7 @@ export class PostgresPolicyRepository implements PolicyRepository {
         const fromMem = this.memory.listEvaluations({
           policyId: options.policyId,
           limit,
+          since: options.since,
         });
         const seen = new Set(rows.map((r) => r.evaluation_id));
         for (const m of fromMem) {

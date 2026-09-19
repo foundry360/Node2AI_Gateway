@@ -231,6 +231,19 @@ docker compose exec -T postgres \
 
 Runtime evaluation uses the in-memory Baseline pack interpreters in M2; Postgres tables support administration and future repository loading.
 
+The console timeframe filter (Last 7/30/60/90 days) windows `policy_evaluations`
+by `created_at`. Volumes predating that index should apply it:
+
+```bash
+docker compose exec -T postgres \
+  psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < db/migrate-evaluation-created-at-index.sql
+```
+
+Re-running `schema-epa.sql` above creates the same index, so this file is only
+needed when applying the index on its own. Both are idempotent. Unlike the table
+migrations, skipping this one does not fail readiness — Recent decisions simply
+falls back to a sequential scan as the table grows.
+
 Postgres triggers reject UPDATE/DELETE on `audit_events` (append-only).
 
 Back up `GATEWAY_AUDIT_KEY` with the database; rotation invalidates re-verification of old signatures unless dual-key migration is performed.

@@ -168,63 +168,187 @@ function parseCsv(value: unknown): string[] {
 
 type ActivityAuditEvent = {
   timestamp: string;
+  audit_id?: string;
+  request_id?: string;
   policy_decision?: string;
   response_decision?: string;
   input_transformation?: string;
   reason_codes?: string[];
 };
 
-/** Hourly buckets for Requests / Allowed / Blocked / Tokenize over a rolling window. */
-function buildRollingActivitySeries(
+/**
+ * Audit rows that record governance or administration, not a governed AI
+ * request. A human approving a held decision, a client reporting a commit
+ * outcome, and agent/tool/policy changes are all audited alongside requests.
+ */
+const NON_REQUEST_REASON_CODES = new Set([
+  'ADMIN_AUDIT',
+  'EVALUATION_RESOLVED',
+  'CLIENT_OUTCOME_RECEIPT',
+  'POLICY_APPROVED',
+  'POLICY_SUSPENDED',
+]);
+
+function isGovernedRequestEvent(e: ActivityAuditEvent): boolean {
+  const reasons = e.reason_codes ?? [];
+  return !reasons.some((c) => NON_REQUEST_REASON_CODES.has(c.toUpperCase()));
+}
+
+export type ActivityGranularity = 'hour' | 'day';
+
+export type ActivityWindow = {
+  granularity: ActivityGranularity;
+  /** Number of buckets, i.e. 24 hours or N days. */
+  buckets: number;
+};
+
+const MAX_ACTIVITY_DAYS = 90;
+
+/** Upper bound on evaluations scanned to summarise a console timeframe. */
+const EVALUATION_WINDOW_SCAN_LIMIT = 2000;
+
+/**
+ * `days` selects a daily-bucketed window matching the console timeframe filter.
+ * Absent or invalid falls back to the rolling 24-hour hourly window.
+ */
+export function resolveActivityWindow(query: unknown): ActivityWindow {
+  const raw = (query as { days?: unknown } | undefined)?.days;
+  const days = Number(raw);
+  if (raw !== undefined && Number.isFinite(days) && days >= 1) {
+    return {
+      granularity: 'day',
+      buckets: Math.min(Math.trunc(days), MAX_ACTIVITY_DAYS),
+    };
+  }
+  return { granularity: 'hour', buckets: 24 };
+}
+
+/** Bucket start boundaries, aligned to local hour or local midnight. */
+function activityBucketStarts(nowMs: number, window: ActivityWindow): number[] {
+  const starts: number[] = [];
+  if (window.granularity === 'hour') {
+    const endHour = new Date(nowMs);
+    endHour.setMinutes(0, 0, 0);
+    for (let i = window.buckets - 1; i >= 0; i -= 1) {
+      starts.push(endHour.getTime() - i * 60 * 60 * 1000);
+    }
+    return starts;
+  }
+  // Calendar-day stepping, so DST transitions do not shift bucket boundaries.
+  const endDay = new Date(nowMs);
+  endDay.setHours(0, 0, 0, 0);
+  for (let i = window.buckets - 1; i >= 0; i -= 1) {
+    starts.push(
+      new Date(
+        endDay.getFullYear(),
+        endDay.getMonth(),
+        endDay.getDate() - i,
+      ).getTime(),
+    );
+  }
+  return starts;
+}
+
+/** First bucket boundary — events before this fall outside the chart. */
+function activityWindowStart(nowMs: number, window: ActivityWindow): number {
+  return activityBucketStarts(nowMs, window)[0]!;
+}
+
+function activityWindowHours(window: ActivityWindow): number {
+  return window.granularity === 'day' ? window.buckets * 24 : window.buckets;
+}
+
+const eventIsBlocked = (e: ActivityAuditEvent) =>
+  e.response_decision === 'BLOCK' || e.policy_decision === 'BLOCK';
+
+const eventIsTokenize = (e: ActivityAuditEvent) => {
+  const decision = (e.policy_decision ?? '').toUpperCase();
+  const transform = (e.input_transformation ?? '').toLowerCase();
+  const reasons = (e.reason_codes ?? []).map((c) => c.toUpperCase());
+  return (
+    decision === 'TOKENIZE' ||
+    transform.includes('token') ||
+    reasons.some((c) => c.includes('TOKENIZE'))
+  );
+};
+
+/** One governed request, collapsed from every audit row that shares its id. */
+type ActivityRequest = {
+  /** When the request arrived — a held request buckets on its first attempt. */
+  startedMs: number;
+  blocked: boolean;
+  tokenize: boolean;
+};
+
+/**
+ * A single request can write several audit rows: a held write is recorded when
+ * it is blocked and again when it resumes after authorization. Collapse them so
+ * one prompt or one agent write counts once, classified by its final outcome.
+ */
+function collapseEventsToRequests(
   events: ActivityAuditEvent[],
-  nowMs: number,
-  hours: number,
-) {
-  const endHour = new Date(nowMs);
-  endHour.setMinutes(0, 0, 0);
-  const bucketStarts: number[] = [];
-  for (let i = hours - 1; i >= 0; i -= 1) {
-    bucketStarts.push(endHour.getTime() - i * 60 * 60 * 1000);
+): ActivityRequest[] {
+  const byRequest = new Map<string, ActivityAuditEvent[]>();
+  for (const e of events) {
+    if (!isGovernedRequestEvent(e)) continue;
+    const t = Date.parse(e.timestamp);
+    if (!Number.isFinite(t)) continue;
+    // Events without a request id cannot be correlated; treat each as its own.
+    const key = e.request_id || e.audit_id || `${e.timestamp}:${byRequest.size}`;
+    const group = byRequest.get(key);
+    if (group) group.push(e);
+    else byRequest.set(key, [e]);
   }
 
-  const isBlocked = (e: ActivityAuditEvent) =>
-    e.response_decision === 'BLOCK' || e.policy_decision === 'BLOCK';
-  const isTokenize = (e: ActivityAuditEvent) => {
-    const decision = (e.policy_decision ?? '').toUpperCase();
-    const transform = (e.input_transformation ?? '').toLowerCase();
-    const reasons = (e.reason_codes ?? []).map((c) => c.toUpperCase());
-    return (
-      decision === 'TOKENIZE' ||
-      transform.includes('token') ||
-      reasons.some((c) => c.includes('TOKENIZE'))
+  const requests: ActivityRequest[] = [];
+  for (const group of byRequest.values()) {
+    const sorted = [...group].sort(
+      (a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp),
     );
-  };
-  const isAllowed = (e: ActivityAuditEvent) =>
-    !isBlocked(e) &&
-    ((e.policy_decision ?? '').toUpperCase() === 'ALLOW' ||
-      e.response_decision === 'RELEASE' ||
-      e.response_decision === 'ALLOW');
+    const last = sorted[sorted.length - 1]!;
+    requests.push({
+      startedMs: Date.parse(sorted[0]!.timestamp),
+      blocked: eventIsBlocked(last),
+      tokenize: sorted.some(eventIsTokenize),
+    });
+  }
+  return requests;
+}
 
-  const bucketize = (predicate: (e: ActivityAuditEvent) => boolean) =>
+/** Buckets for Requests / Allowed / Blocked / Tokenize over a rolling window. */
+export function buildRollingActivitySeries(
+  events: ActivityAuditEvent[],
+  nowMs: number,
+  window: ActivityWindow,
+) {
+  const bucketStarts = activityBucketStarts(nowMs, window);
+  const requests = collapseEventsToRequests(events);
+
+  const bucketize = (predicate: (r: ActivityRequest) => boolean) =>
     bucketStarts.map((startMs, idx) => {
       const endMs =
         idx === bucketStarts.length - 1 ? nowMs : bucketStarts[idx + 1]!;
-      const count = events.filter((e) => {
-        const t = Date.parse(e.timestamp);
-        return t >= startMs && t < endMs && predicate(e);
-      }).length;
+      const count = requests.filter(
+        (r) => r.startedMs >= startMs && r.startedMs < endMs && predicate(r),
+      ).length;
       return {
         start: new Date(startMs).toISOString(),
         end: new Date(endMs).toISOString(),
-        label: new Date(startMs).toLocaleTimeString([], {
-          hour: 'numeric',
-          minute: '2-digit',
-        }),
+        label:
+          window.granularity === 'day'
+            ? new Date(startMs).toLocaleDateString([], {
+                month: 'short',
+                day: 'numeric',
+              })
+            : new Date(startMs).toLocaleTimeString([], {
+                hour: 'numeric',
+                minute: '2-digit',
+              }),
         value: count,
       };
     });
 
-  const seriesOf = (predicate: (e: ActivityAuditEvent) => boolean) => {
+  const seriesOf = (predicate: (r: ActivityRequest) => boolean) => {
     const buckets = bucketize(predicate);
     return {
       total: buckets.reduce((sum, b) => sum + b.value, 0),
@@ -232,11 +356,12 @@ function buildRollingActivitySeries(
     };
   };
 
+  // Allowed and blocked partition requests, so the two always sum to requests.
   return {
     requests: seriesOf(() => true),
-    allowed: seriesOf(isAllowed),
-    blocked: seriesOf(isBlocked),
-    tokenize: seriesOf(isTokenize),
+    allowed: seriesOf((r) => !r.blocked),
+    blocked: seriesOf((r) => r.blocked),
+    tokenize: seriesOf((r) => r.tokenize),
   };
 }
 
@@ -498,9 +623,9 @@ export function registerAdminRoutes(
       return reply.status(404).send({ status: 'error', message: 'application not found' });
     }
 
-    const hours = 24;
+    const window = resolveActivityWindow(request.query);
     const now = Date.now();
-    const windowStart = now - hours * 60 * 60 * 1000;
+    const windowStart = activityWindowStart(now, window);
     const events = (await ctx.audit.list()).filter((e) => {
       if (e.application_id !== applicationId) return false;
       const t = Date.parse(e.timestamp);
@@ -509,9 +634,10 @@ export function registerAdminRoutes(
 
     return {
       application_id: applicationId,
-      window_hours: hours,
+      window_hours: activityWindowHours(window),
+      window_granularity: window.granularity,
       generated_at: new Date(now).toISOString(),
-      series: buildRollingActivitySeries(events, now, hours),
+      series: buildRollingActivitySeries(events, now, window),
     };
   });
 
@@ -521,18 +647,19 @@ export function registerAdminRoutes(
     if (!__gate.ok) {
       return deny(reply, __gate.status, __gate.reason);
     }
-    const hours = 24;
+    const window = resolveActivityWindow(request.query);
     const now = Date.now();
-    const windowStart = now - hours * 60 * 60 * 1000;
+    const windowStart = activityWindowStart(now, window);
     const events = (await ctx.audit.list()).filter((e) => {
       const t = Date.parse(e.timestamp);
       return Number.isFinite(t) && t >= windowStart;
     });
 
     return {
-      window_hours: hours,
+      window_hours: activityWindowHours(window),
+      window_granularity: window.granularity,
       generated_at: new Date(now).toISOString(),
-      series: buildRollingActivitySeries(events, now, hours),
+      series: buildRollingActivitySeries(events, now, window),
     };
   });
 
@@ -903,14 +1030,21 @@ export function registerAdminRoutes(
     };
     const limit = Math.min(Number(query.limit ?? 50) || 50, 200);
     const filter = String(query.filter ?? 'all').toLowerCase();
+    const days = parseDaysQuery(request.query);
+    const since = new Date(
+      Date.now() - days * 24 * 60 * 60 * 1000,
+    ).toISOString();
     const { toEvaluationListItem } = await import(
       '../policy/enterprise/evaluation-query.js'
     );
     const { findAuditForEvaluation } = await import(
       '../policy/enterprise/enforcement-projection.js'
     );
+    // Attention counts summarise the whole window, so scan past `limit` rows.
+    // The cap bounds a wide timeframe; `truncated` tells the caller when it bit.
+    const scanLimit = Math.max(limit, EVALUATION_WINDOW_SCAN_LIMIT);
     const records = await Promise.resolve(
-      ctx.policyRepository.listEvaluations({ limit: Math.max(limit, 100) }),
+      ctx.policyRepository.listEvaluations({ limit: scanLimit, since }),
     );
     const events = await ctx.audit.list();
     const allItems = records.map((r) =>
@@ -944,6 +1078,8 @@ export function registerAdminRoutes(
     return {
       source: 'policy_evaluations',
       filter,
+      window_days: days,
+      truncated: records.length >= scanLimit,
       evaluations: items,
       attention: {
         review: allItems.filter((e) => e.review_state === 'pending').length,

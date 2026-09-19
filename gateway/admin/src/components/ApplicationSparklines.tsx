@@ -10,7 +10,10 @@ type SparkBucket = {
   value: number;
 };
 
+type ActivityGranularity = 'hour' | 'day';
+
 type ActivityResponse = {
+  window_granularity?: ActivityGranularity;
   series: {
     requests: {
       total: number;
@@ -31,8 +34,19 @@ type ActivityResponse = {
   };
 };
 
-function formatHourRange(startIso: string, endIso: string): string {
+function formatBucketRange(
+  startIso: string,
+  endIso: string,
+  granularity: ActivityGranularity,
+): string {
   const start = new Date(startIso);
+  if (granularity === 'day') {
+    return start.toLocaleDateString([], {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+  }
   const end = new Date(endIso);
   const opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
   return `${start.toLocaleTimeString([], opts)} to ${end.toLocaleTimeString([], opts)}`;
@@ -40,12 +54,14 @@ function formatHourRange(startIso: string, endIso: string): string {
 
 function Sparkline({
   buckets,
+  granularity,
   color = '#2697d9',
-  emptyLabel = 'No data in the last 24 hours',
+  emptyLabel = 'No data in this period',
   hoverIndex = null,
   onHoverIndex,
 }: {
   buckets: SparkBucket[];
+  granularity: ActivityGranularity;
   color?: string;
   emptyLabel?: string;
   /** Shared hover bucket index across sibling sparklines (null = none). */
@@ -65,6 +81,9 @@ function Sparkline({
       return { x, y, bucket: b, index: i };
     });
   }, [buckets, max]);
+
+  // Exact bucket width keeps hover targets from overlapping on dense (90-day) series.
+  const bucketWidth = buckets.length > 0 ? width / buckets.length : width;
 
   const path = points
     .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
@@ -90,7 +109,9 @@ function Sparkline({
             viewBox={`0 0 ${width} ${height}`}
             preserveAspectRatio="none"
             role="img"
-            aria-label="24 hour sparkline"
+            aria-label={
+              granularity === 'day' ? 'Daily activity sparkline' : '24 hour sparkline'
+            }
           >
             <path d={area} fill={color} opacity={0.12} />
             <path
@@ -105,9 +126,9 @@ function Sparkline({
             {points.map((p) => (
               <rect
                 key={p.bucket.start}
-                x={p.x - width / buckets.length / 2}
+                x={p.x - bucketWidth / 2}
                 y={0}
-                width={Math.max(width / buckets.length, 8)}
+                width={bucketWidth}
                 height={height}
                 fill="transparent"
                 onMouseEnter={() => onHoverIndex?.(p.index)}
@@ -144,7 +165,7 @@ function Sparkline({
             >
               <div className="sparkline-tooltip-value">{active.bucket.value}</div>
               <div className="sparkline-tooltip-label">
-                {formatHourRange(active.bucket.start, active.bucket.end)}
+                {formatBucketRange(active.bucket.start, active.bucket.end, granularity)}
               </div>
             </div>
           ) : null}
@@ -157,16 +178,20 @@ function Sparkline({
 function SparkCard({
   title,
   subtitle,
+  emptyLabel,
   total,
   buckets,
+  granularity,
   color,
   hoverIndex,
   onHoverIndex,
 }: {
   title: string;
   subtitle: string;
+  emptyLabel: string;
   total?: number;
   buckets?: SparkBucket[];
+  granularity: ActivityGranularity;
   color: string;
   hoverIndex?: number | null;
   onHoverIndex?: (index: number | null) => void;
@@ -184,6 +209,8 @@ function SparkCard({
       </div>
       <Sparkline
         buckets={buckets ?? []}
+        granularity={granularity}
+        emptyLabel={emptyLabel}
         color={color}
         hoverIndex={hoverIndex}
         onHoverIndex={onHoverIndex}
@@ -195,10 +222,13 @@ function SparkCard({
 export function ActivitySparklines({
   applicationId,
   className,
+  days,
 }: {
   /** When set, scopes series to one application; otherwise org-wide. */
   applicationId?: string;
   className?: string;
+  /** Daily buckets over this many days; omit for the rolling 24-hour window. */
+  days?: number;
 }) {
   const [data, setData] = useState<ActivityResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -210,9 +240,10 @@ export function ActivitySparklines({
     startTransition(async () => {
       try {
         setError(null);
-        const path = applicationId
+        const base = applicationId
           ? `applications/${applicationId}/activity`
           : 'activity';
+        const path = days ? `${base}?days=${days}` : base;
         const res = (await proxyJson(path, 'GET')) as ActivityResponse;
         if (!cancelled) setData(res);
       } catch (err) {
@@ -224,7 +255,18 @@ export function ActivitySparklines({
     return () => {
       cancelled = true;
     };
-  }, [applicationId]);
+  }, [applicationId, days]);
+
+  // Hover indexes point into the previous window's buckets until the refetch lands.
+  useEffect(() => {
+    setHoverIndex(null);
+  }, [days]);
+
+  const granularity: ActivityGranularity = days ? 'day' : 'hour';
+  const subtitle = days ? `Last ${days} days` : 'Rolling 24 hours';
+  const emptyLabel = days
+    ? `No data in the last ${days} days`
+    : 'No data in the last 24 hours';
 
   return (
     <div
@@ -233,36 +275,44 @@ export function ActivitySparklines({
     >
       <SparkCard
         title="Requests"
-        subtitle="Rolling 24 hours"
+        subtitle={subtitle}
+        emptyLabel={emptyLabel}
         total={data?.series.requests.total}
         buckets={data?.series.requests.buckets}
+        granularity={granularity}
         color="#2697d9"
         hoverIndex={hoverIndex}
         onHoverIndex={setHoverIndex}
       />
       <SparkCard
         title="Allowed"
-        subtitle="Rolling 24 hours"
+        subtitle={subtitle}
+        emptyLabel={emptyLabel}
         total={data?.series.allowed.total}
         buckets={data?.series.allowed.buckets}
+        granularity={granularity}
         color="#2697d9"
         hoverIndex={hoverIndex}
         onHoverIndex={setHoverIndex}
       />
       <SparkCard
         title="Blocked"
-        subtitle="Rolling 24 hours"
+        subtitle={subtitle}
+        emptyLabel={emptyLabel}
         total={data?.series.blocked.total}
         buckets={data?.series.blocked.buckets}
+        granularity={granularity}
         color="#2697d9"
         hoverIndex={hoverIndex}
         onHoverIndex={setHoverIndex}
       />
       <SparkCard
         title="Tokenize"
-        subtitle="Rolling 24 hours"
+        subtitle={subtitle}
+        emptyLabel={emptyLabel}
         total={data?.series.tokenize.total}
         buckets={data?.series.tokenize.buckets}
+        granularity={granularity}
         color="#2697d9"
         hoverIndex={hoverIndex}
         onHoverIndex={setHoverIndex}

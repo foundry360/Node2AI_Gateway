@@ -129,9 +129,20 @@ export class InMemoryPolicyRepository {
   listEvaluations(options: {
     policyId?: string;
     limit?: number;
+    /** ISO timestamp; only evaluations created at or after it are returned. */
+    since?: string;
   } = {}): PolicyEvaluationRecord[] {
     const limit = options.limit ?? 50;
     let rows = [...this.evaluations.values()];
+    if (options.since) {
+      const sinceMs = Date.parse(options.since);
+      if (Number.isFinite(sinceMs)) {
+        rows = rows.filter((r) => {
+          const t = Date.parse(r.created_at);
+          return Number.isFinite(t) && t >= sinceMs;
+        });
+      }
+    }
     if (options.policyId) {
       const policyId = options.policyId;
       rows = rows.filter((r) =>

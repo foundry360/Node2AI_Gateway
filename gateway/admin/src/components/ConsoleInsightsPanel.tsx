@@ -112,7 +112,10 @@ export function ConsoleInsightsPanel({
       <GovernanceAttentionPanel
         leadLeft={microcards}
         afterBanner={
-          <ActivitySparklines className="spark-grid spark-grid-4 console-spark-row" />
+          <ActivitySparklines
+            days={days}
+            className="spark-grid spark-grid-4 console-spark-row"
+          />
         }
         showAttentionCard={SHOW_GOVERNANCE_ATTENTION_CARD}
         midRow={

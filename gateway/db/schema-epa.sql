@@ -121,6 +121,10 @@ CREATE TABLE IF NOT EXISTS policy_evaluations (
 CREATE INDEX IF NOT EXISTS policy_evaluations_request_idx
   ON policy_evaluations (request_id);
 
+-- Console timeframe filter (Last 7/30/60/90 days) windows and orders by created_at.
+CREATE INDEX IF NOT EXISTS policy_evaluations_created_at_idx
+  ON policy_evaluations (created_at DESC);
+
 CREATE TABLE IF NOT EXISTS policy_conflicts (
   conflict_id       TEXT PRIMARY KEY,
   evaluation_id     TEXT NOT NULL REFERENCES policy_evaluations(evaluation_id) ON DELETE CASCADE,
