@@ -38,17 +38,6 @@ function postureLabel(ok: boolean, detail?: string): string {
   return 'healthy';
 }
 
-function runtimeDisplayLabel(runtime?: {
-  mode: string;
-  active_runtime: string;
-}): string {
-  if (!runtime) return 'Ready';
-  if (runtime.active_runtime === 'ollama' || runtime.mode === 'ollama') {
-    return 'Local LLM';
-  }
-  return runtime.active_runtime;
-}
-
 export function ConsoleInsightsPanel({
   activePoliciesFallback = 0,
 }: {
@@ -85,11 +74,10 @@ export function ConsoleInsightsPanel({
     return <p className="muted">Loading insights…</p>;
   }
 
-  const runtimeOk = data.models.local_runtime?.available !== false;
   const activeEpa = data.policy.active_policies ?? activePoliciesFallback;
 
   const microcards = (
-    <div className="metrics metrics-2x3">
+    <div className="metrics metrics-2x2">
       <div className="metric">
         <div className="metric-label">Gateway</div>
         <div className="metric-value">
@@ -109,26 +97,8 @@ export function ConsoleInsightsPanel({
         </div>
       </div>
       <div className="metric">
-        <div className="metric-label">Runtime</div>
-        <div className="metric-value">
-          <StatusBadge
-            showLabel
-            status={runtimeOk ? 'ready' : 'unavailable'}
-            label={
-              runtimeOk
-                ? runtimeDisplayLabel(data.models.local_runtime)
-                : 'Unavailable'
-            }
-          />
-        </div>
-      </div>
-      <div className="metric">
         <div className="metric-label">Policies</div>
         <div className="metric-value">{activeEpa}</div>
-      </div>
-      <div className="metric">
-        <div className="metric-label">Models</div>
-        <div className="metric-value">{data.models.active}</div>
       </div>
       <div className="metric">
         <div className="metric-label">Applications</div>

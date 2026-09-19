@@ -3121,6 +3121,11 @@ a.section-card-header-link.table-link:hover {
   border-radius: 10px;
 }
 
+.metrics-2x2 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(2, minmax(0, auto));
+}
+
 .metrics-2x3 {
   grid-template-columns: 1fr 1fr;
   grid-template-rows: repeat(3, minmax(0, auto));
